@@ -179,4 +179,8 @@
     background: hsl(220 15% 20%);
     border-radius: 3px;
   }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }

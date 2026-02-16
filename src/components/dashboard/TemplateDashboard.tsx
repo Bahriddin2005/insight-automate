@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, LayoutGrid, Maximize2, Save, GripVertical, Loader2, Check, Link2, Globe, Lock, Image, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { TEMPLATES, autoBindColumns, type TemplateId, type SlotBinding } from '@
 import { getCorrelationMatrix } from '@/lib/dataProcessor';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import { exportDashboardAsPNG, exportDashboardAsPDF } from '@/lib/exportDashboard';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 const COLORS = [
   'hsl(190, 85%, 48%)', 'hsl(160, 65%, 42%)', 'hsl(35, 90%, 55%)',
@@ -57,6 +58,13 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
   const [saving, setSaving] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onUpload: onBack,
+    onExport: () => exportDashboardAsPNG('template-dashboard-export', fileName),
+    onSave: () => handleSave(),
+  });
 
   const orderedChartSlots = useMemo(() => {
     return chartOrder
