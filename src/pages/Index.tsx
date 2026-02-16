@@ -1,18 +1,27 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import FileUpload from '@/components/dashboard/FileUpload';
 import Dashboard from '@/components/dashboard/Dashboard';
 import { parseFile, analyzeDataset } from '@/lib/dataProcessor';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/authContext';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [analysis, setAnalysis] = useState<DatasetAnalysis | null>(null);
   const [fileName, setFileName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => { document.title = 'AI Smart Dashboard'; }, []);
+
+  useEffect(() => {
+    if (!authLoading && !user) navigate('/auth');
+  }, [authLoading, user, navigate]);
 
   const handleFile = async (file: File, sheetIndex: number) => {
     setIsProcessing(true);
@@ -23,9 +32,7 @@ const Index = () => {
       setAnalysis(result);
       setFileName(file.name);
 
-      // Save session to database
       try {
-        // Keep only last 5 sessions — delete oldest if needed
         const { data: existing } = await supabase
           .from('upload_sessions')
           .select('id')
@@ -44,6 +51,7 @@ const Index = () => {
           missing_percent: result.missingPercent,
           duplicates_removed: result.duplicatesRemoved,
           column_info: JSON.parse(JSON.stringify(result.columnInfo)),
+          user_id: user?.id,
         }]);
       } catch (dbErr) {
         console.error('Failed to save session:', dbErr);
@@ -54,6 +62,14 @@ const Index = () => {
       setIsProcessing(false);
     }
   };
+
+  if (authLoading) return (
+    <div className="min-h-screen bg-mesh flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>
+  );
+
+  if (!user) return null;
 
   return (
     <AnimatePresence mode="wait">
