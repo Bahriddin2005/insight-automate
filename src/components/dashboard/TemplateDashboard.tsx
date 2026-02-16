@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LayoutGrid, Maximize2, Save, GripVertical, Loader2, Check, Link2, Globe, Lock } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Maximize2, Save, GripVertical, Loader2, Check, Link2, Globe, Lock, Image, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { TEMPLATES, autoBindColumns, type TemplateId, type SlotBinding } from '@/lib/dashboardTemplates';
 import { getCorrelationMatrix } from '@/lib/dataProcessor';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
+import { exportDashboardAsPNG, exportDashboardAsPDF } from '@/lib/exportDashboard';
 
 const COLORS = [
   'hsl(190, 85%, 48%)', 'hsl(160, 65%, 42%)', 'hsl(35, 90%, 55%)',
@@ -286,7 +287,7 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
   };
 
   return (
-    <div className="min-h-screen bg-mesh">
+    <div id="template-dashboard-export" className="min-h-screen bg-mesh">
       <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4">
           <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9"><ArrowLeft className="w-4 h-4" /></Button>
@@ -302,6 +303,12 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
           </Button>
           <Button variant="outline" size="sm" onClick={onFullDashboard} className="text-xs gap-1">
             <Maximize2 className="w-3 h-3" /> <span className="hidden sm:inline">{t('templates.fullDashboard')}</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportDashboardAsPNG('template-dashboard-export', fileName)} className="text-xs gap-1">
+            <Image className="w-3 h-3" /> <span className="hidden sm:inline">PNG</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportDashboardAsPDF('template-dashboard-export', fileName)} className="text-xs gap-1">
+            <FileText className="w-3 h-3" /> <span className="hidden sm:inline">PDF</span>
           </Button>
         </div>
 

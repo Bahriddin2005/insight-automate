@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock } from 'lucide-react';
+import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock, Image, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import KPICards from './KPICards';
@@ -18,6 +18,7 @@ import SchemaViewer from './SchemaViewer';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
+import { exportDashboardAsPNG, exportDashboardAsPDF } from '@/lib/exportDashboard';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 
 interface DashboardProps {
@@ -147,7 +148,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
   };
 
   return (
-    <div className="min-h-screen bg-mesh">
+    <div id="full-dashboard-export" className="min-h-screen bg-mesh">
       <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4">
           <Button variant="ghost" size="icon" onClick={onReset} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9"><ArrowLeft className="w-4 h-4" /></Button>
@@ -156,6 +157,12 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
             <p className="text-[10px] sm:text-xs text-muted-foreground">{analysis.rows.toLocaleString()} {t('table.rows')} · {analysis.columns} {t('kpi.totalColumns').toLowerCase()} · {t('header.quality')}: {analysis.qualityScore}/100</p>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportDashboardAsPNG('full-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
+              <Image className="w-3 h-3" /> <span className="hidden sm:inline ml-1">PNG</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportDashboardAsPDF('full-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
+              <FileText className="w-3 h-3" /> <span className="hidden sm:inline ml-1">PDF</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2 sm:px-3">
               <Filter className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">{t('filters.button')}</span>
             </Button>
