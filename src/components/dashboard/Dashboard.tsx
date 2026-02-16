@@ -8,6 +8,7 @@ import AutoCharts from './AutoCharts';
 import DataTable from './DataTable';
 import InsightsPanel from './InsightsPanel';
 import LanguageToggle from './LanguageToggle';
+import ThemeToggle from './ThemeToggle';
 import ChartCustomizer, { type CustomChartConfig } from './ChartCustomizer';
 import CorrelationHeatmap from './CorrelationHeatmap';
 import AiAgentChat from './AiAgentChat';
@@ -158,6 +159,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
             <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2 sm:px-3">
               <Filter className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">{t('filters.button')}</span>
             </Button>
+            <ThemeToggle />
             <LanguageToggle />
           </div>
         </div>
