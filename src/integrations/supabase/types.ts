@@ -17,6 +17,7 @@ export type Database = {
       dashboard_configs: {
         Row: {
           analysis_data: Json | null
+          chart_order: Json | null
           config: Json
           created_at: string
           file_name: string | null
@@ -24,11 +25,13 @@ export type Database = {
           is_public: boolean
           name: string
           share_token: string | null
+          template_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           analysis_data?: Json | null
+          chart_order?: Json | null
           config?: Json
           created_at?: string
           file_name?: string | null
@@ -36,11 +39,13 @@ export type Database = {
           is_public?: boolean
           name: string
           share_token?: string | null
+          template_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           analysis_data?: Json | null
+          chart_order?: Json | null
           config?: Json
           created_at?: string
           file_name?: string | null
@@ -48,6 +53,7 @@ export type Database = {
           is_public?: boolean
           name?: string
           share_token?: string | null
+          template_id?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -1,12 +1,15 @@
-import { useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LayoutGrid, Maximize2 } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Maximize2, Save, GripVertical, Loader2, Check, Link2, Globe, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart,
 } from 'recharts';
 import { useI18n } from '@/lib/i18nContext';
+import { useAuth } from '@/lib/authContext';
+import { supabase } from '@/integrations/supabase/client';
 import { TEMPLATES, autoBindColumns, type TemplateId, type SlotBinding } from '@/lib/dashboardTemplates';
 import { getCorrelationMatrix } from '@/lib/dataProcessor';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
@@ -24,10 +27,12 @@ interface TemplateDashboardProps {
   onBack: () => void;
   onSwitchTemplate: () => void;
   onFullDashboard: () => void;
+  initialChartOrder?: string[];
 }
 
-export default function TemplateDashboard({ analysis, templateId, fileName, onBack, onSwitchTemplate, onFullDashboard }: TemplateDashboardProps) {
+export default function TemplateDashboard({ analysis, templateId, fileName, onBack, onSwitchTemplate, onFullDashboard, initialChartOrder }: TemplateDashboardProps) {
   const { t } = useI18n();
+  const { user } = useAuth();
   const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
   const bindings = useMemo(() => autoBindColumns(template, analysis), [template, analysis]);
 
@@ -36,7 +41,74 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
   const dateCols = analysis.columnInfo.filter(c => c.type === 'datetime');
 
   const kpiSlots = template.slots.filter(s => s.type === 'kpi');
-  const chartSlots = template.slots.filter(s => s.type !== 'kpi');
+  const defaultChartSlots = template.slots.filter(s => s.type !== 'kpi');
+
+  // Drag-and-drop chart order state
+  const [chartOrder, setChartOrder] = useState<string[]>(() => {
+    if (initialChartOrder && initialChartOrder.length > 0) return initialChartOrder;
+    return defaultChartSlots.map(s => s.id);
+  });
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+
+  // Save state
+  const [saveName, setSaveName] = useState(fileName);
+  const [isPublic, setIsPublic] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const orderedChartSlots = useMemo(() => {
+    return chartOrder
+      .map(id => defaultChartSlots.find(s => s.id === id))
+      .filter(Boolean) as typeof defaultChartSlots;
+  }, [chartOrder, defaultChartSlots]);
+
+  const handleDragStart = (id: string) => setDraggedId(id);
+  const handleDragOver = useCallback((e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetId) return;
+    setChartOrder(prev => {
+      const fromIdx = prev.indexOf(draggedId);
+      const toIdx = prev.indexOf(targetId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, draggedId);
+      return next;
+    });
+  }, [draggedId]);
+  const handleDragEnd = () => setDraggedId(null);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.from('dashboard_configs').insert([{
+        user_id: user.id,
+        name: saveName || fileName,
+        is_public: isPublic,
+        config: JSON.parse(JSON.stringify({ chartOrder })),
+        file_name: fileName,
+        analysis_data: JSON.parse(JSON.stringify(analysis)),
+        template_id: templateId,
+        chart_order: JSON.parse(JSON.stringify(chartOrder)),
+      }]).select('share_token').single();
+
+      if (error) throw error;
+      const url = `${window.location.origin}/shared/${data.share_token}`;
+      setShareUrl(url);
+    } catch (e) {
+      console.error('Save error:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const getKPIValue = (slotId: string): { label: string; value: string } => {
     const slot = template.slots.find(s => s.id === slotId)!;
@@ -61,7 +133,7 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
     }
   };
 
-  const renderChart = (slot: typeof chartSlots[0], binding: SlotBinding) => {
+  const renderChart = (slot: typeof defaultChartSlots[0], binding: SlotBinding) => {
     const hasRequired = slot.requires.every(req => {
       if (req === 'numeric') return numCols.length > 0;
       if (req === 'categorical') return catCols.length > 0;
@@ -187,8 +259,8 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
             <div />
             {cols.map(c => <div key={c} className="text-[9px] text-muted-foreground text-center truncate px-1">{c}</div>)}
             {matrix.map((row, i) => (
-              <>
-                <div key={`label-${i}`} className="text-[9px] text-muted-foreground truncate pr-1 flex items-center">{cols[i]}</div>
+              <div key={`row-${i}`} className="contents">
+                <div className="text-[9px] text-muted-foreground truncate pr-1 flex items-center">{cols[i]}</div>
                 {row.map((val, j) => (
                   <div
                     key={`${i}-${j}`}
@@ -203,7 +275,7 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
                     {val.toFixed(1)}
                   </div>
                 ))}
-              </>
+              </div>
             ))}
           </div>
         );
@@ -232,6 +304,27 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
             <Maximize2 className="w-3 h-3" /> <span className="hidden sm:inline">{t('templates.fullDashboard')}</span>
           </Button>
         </div>
+
+        {/* Save & Share bar */}
+        {user && (
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 pb-2 sm:pb-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <Input value={saveName} onChange={e => setSaveName(e.target.value)} placeholder={t('save.name')} className="h-7 sm:h-8 text-[10px] sm:text-xs w-28 sm:w-40 bg-secondary border-border" />
+            <Button variant="ghost" size="sm" onClick={() => setIsPublic(!isPublic)} className="text-xs gap-1">
+              {isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+              {isPublic ? t('save.public') : t('save.private')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="text-xs">
+              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+              {t('save.dashboard')}
+            </Button>
+            {shareUrl && (
+              <Button variant="ghost" size="sm" onClick={copyLink} className="text-xs gap-1">
+                {copied ? <Check className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
+                {copied ? t('save.copied') : t('save.copyLink')}
+              </Button>
+            )}
+          </div>
+        )}
       </motion.header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -254,9 +347,14 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
           })}
         </div>
 
-        {/* Chart Grid */}
+        {/* Drag hint */}
+        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <GripVertical className="w-3 h-3" /> {t('templates.dragHint')}
+        </p>
+
+        {/* Chart Grid — draggable */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {chartSlots.map((slot, i) => {
+          {orderedChartSlots.map((slot, i) => {
             const binding = bindings.find(b => b.slotId === slot.id) || { slotId: slot.id };
             return (
               <motion.div
@@ -264,9 +362,18 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + i * 0.05 }}
-                className="glass-card p-4"
+                draggable
+                onDragStart={() => handleDragStart(slot.id)}
+                onDragOver={(e) => handleDragOver(e, slot.id)}
+                onDragEnd={handleDragEnd}
+                className={`glass-card p-4 cursor-grab active:cursor-grabbing transition-all ${
+                  draggedId === slot.id ? 'opacity-50 ring-2 ring-primary scale-[0.98]' : ''
+                }`}
               >
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">{slot.label}</h3>
+                <div className="flex items-center gap-2 mb-3">
+                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50" />
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{slot.label}</h3>
+                </div>
                 {renderChart(slot, binding)}
               </motion.div>
             );
