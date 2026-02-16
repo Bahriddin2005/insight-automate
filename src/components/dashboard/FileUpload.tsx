@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, LogOut, LayoutDashboard } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, LogOut, LayoutDashboard, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getSheetNames, parseFile } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
@@ -74,6 +74,9 @@ export default function FileUpload({ onFileReady, isProcessing }: FileUploadProp
   return (
     <div className="min-h-screen bg-mesh flex flex-col items-center justify-center p-6">
       <div className="absolute top-4 right-4 flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/install')} className="text-xs text-muted-foreground">
+          <Download className="w-3 h-3 mr-1" /> Install App
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => navigate('/dashboards')} className="text-xs text-muted-foreground">
           <LayoutDashboard className="w-3 h-3 mr-1" /> {t('save.myDashboards')}
         </Button>
