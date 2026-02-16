@@ -7,6 +7,9 @@ import { I18nProvider } from "@/lib/i18nContext";
 import { AuthProvider } from "@/lib/authContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import MyDashboards from "./pages/MyDashboards";
 import SharedDashboard from "./pages/SharedDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +26,9 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/dashboards" element={<MyDashboards />} />
               <Route path="/shared/:token" element={<SharedDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

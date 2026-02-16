@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, LogOut } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getSheetNames, parseFile } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
@@ -20,6 +21,7 @@ const MAX_SIZE = 25 * 1024 * 1024;
 export default function FileUpload({ onFileReady, isProcessing }: FileUploadProps) {
   const { t } = useI18n();
   const { signOut } = useAuth();
+  const navigate = useNavigate();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
@@ -71,6 +73,9 @@ export default function FileUpload({ onFileReady, isProcessing }: FileUploadProp
   return (
     <div className="min-h-screen bg-mesh flex flex-col items-center justify-center p-6">
       <div className="absolute top-4 right-4 flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/dashboards')} className="text-xs text-muted-foreground">
+          <LayoutDashboard className="w-3 h-3 mr-1" /> {t('save.myDashboards')}
+        </Button>
         <LanguageToggle />
         <Button variant="ghost" size="sm" onClick={signOut} className="text-xs text-muted-foreground">
           <LogOut className="w-3 h-3 mr-1" /> {t('auth.logout')}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogIn, UserPlus, Loader2, Mail, Lock, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { useI18n } from '@/lib/i18nContext';
 import LanguageToggle from '@/components/dashboard/LanguageToggle';
 
 export default function Auth() {
+  const navigate = useNavigate();
   const { t } = useI18n();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -106,8 +108,13 @@ export default function Auth() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+          <div className="mt-6 text-center space-y-2">
+            {isLogin && (
+              <button onClick={() => navigate('/forgot-password')} className="text-sm text-muted-foreground hover:text-primary transition-colors block w-full">
+                {t('auth.forgotPassword')}
+              </button>
+            )}
+            <button onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }} className="text-sm text-muted-foreground hover:text-primary transition-colors block w-full">
               {isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
             </button>
           </div>

@@ -10,6 +10,7 @@ import InsightsPanel from './InsightsPanel';
 import LanguageToggle from './LanguageToggle';
 import ChartCustomizer, { type CustomChartConfig } from './ChartCustomizer';
 import CorrelationHeatmap from './CorrelationHeatmap';
+import AiAgentChat from './AiAgentChat';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -275,6 +276,8 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
         <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
         <DataTable data={filteredData} columns={analysis.columnInfo} />
       </main>
+
+      <AiAgentChat analysis={analysis} fileName={fileName} />
     </div>
   );
 }
