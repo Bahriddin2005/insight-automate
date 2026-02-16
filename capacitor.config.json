@@ -1,0 +1,9 @@
+{
+  "appId": "app.lovable.9876f938ed5c46fcb5ca7cef830713e7",
+  "appName": "Smart Data Analytics Studio",
+  "webDir": "dist",
+  "server": {
+    "url": "https://9876f938-ed5c-46fc-b5ca-7cef830713e7.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  }
+}
