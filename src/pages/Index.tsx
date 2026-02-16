@@ -3,11 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import FileUpload from '@/components/dashboard/FileUpload';
 import Dashboard from '@/components/dashboard/Dashboard';
+import TemplateGallery from '@/components/dashboard/TemplateGallery';
+import TemplateDashboard from '@/components/dashboard/TemplateDashboard';
 import { parseFile, analyzeDataset } from '@/lib/dataProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/authContext';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
+import type { TemplateId } from '@/lib/dashboardTemplates';
 import { Loader2 } from 'lucide-react';
+
+type View = 'upload' | 'templates' | 'template-dashboard' | 'full-dashboard';
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
@@ -16,6 +21,8 @@ const Index = () => {
   const [fileName, setFileName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [view, setView] = useState<View>('upload');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('explorer');
 
   useEffect(() => { document.title = 'AI Smart Dashboard'; }, []);
 
@@ -31,6 +38,7 @@ const Index = () => {
       const result = analyzeDataset(rawData);
       setAnalysis(result);
       setFileName(file.name);
+      setView('templates');
 
       try {
         const { data: existing } = await supabase
@@ -63,6 +71,17 @@ const Index = () => {
     }
   };
 
+  const handleSelectTemplate = (templateId: TemplateId) => {
+    setSelectedTemplate(templateId);
+    setView('template-dashboard');
+  };
+
+  const handleReset = () => {
+    setAnalysis(null);
+    setFileName('');
+    setView('upload');
+  };
+
   if (authLoading) return (
     <div className="min-h-screen bg-mesh flex items-center justify-center">
       <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -73,16 +92,40 @@ const Index = () => {
 
   return (
     <AnimatePresence mode="wait">
-      {analysis ? (
-        <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <Dashboard analysis={analysis} fileName={fileName} onReset={() => { setAnalysis(null); setFileName(''); }} />
-        </motion.div>
-      ) : (
+      {view === 'upload' && (
         <motion.div key="upload" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <FileUpload onFileReady={handleFile} isProcessing={isProcessing} />
           {error && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm">{error}</div>
           )}
+        </motion.div>
+      )}
+
+      {view === 'templates' && analysis && (
+        <motion.div key="templates" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <TemplateGallery
+            analysis={analysis}
+            onSelect={handleSelectTemplate}
+          />
+        </motion.div>
+      )}
+
+      {view === 'template-dashboard' && analysis && (
+        <motion.div key="template-dash" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <TemplateDashboard
+            analysis={analysis}
+            templateId={selectedTemplate}
+            fileName={fileName}
+            onBack={handleReset}
+            onSwitchTemplate={() => setView('templates')}
+            onFullDashboard={() => setView('full-dashboard')}
+          />
+        </motion.div>
+      )}
+
+      {view === 'full-dashboard' && analysis && (
+        <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <Dashboard analysis={analysis} fileName={fileName} onReset={handleReset} />
         </motion.div>
       )}
     </AnimatePresence>
