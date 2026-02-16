@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Database, Columns3, AlertTriangle, CopyMinus, ShieldCheck, Calendar } from 'lucide-react';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
@@ -9,6 +10,9 @@ interface KPICardsProps {
 
 export default function KPICards({ analysis }: KPICardsProps) {
   const { t } = useI18n();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+
   const scoreColor = analysis.qualityScore >= 85 ? 'text-success glow-success'
     : analysis.qualityScore >= 60 ? 'text-warning glow-warning'
     : 'text-destructive glow-destructive';
@@ -24,17 +28,62 @@ export default function KPICards({ analysis }: KPICardsProps) {
     }] : []),
   ];
 
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+    const cardWidth = el.scrollWidth / cards.length;
+    const idx = Math.round(el.scrollLeft / cardWidth);
+    setActiveIdx(Math.min(idx, cards.length - 1));
+  };
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
-      {cards.map((card, i) => (
-        <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.08 }} className="glass-card p-3 sm:p-4 group hover:border-primary/30 transition-colors">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-            <card.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${card.color}`} />
-            <span className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wider truncate">{card.label}</span>
-          </div>
-          <p className={`data-font text-base sm:text-xl font-semibold ${card.special ? card.color.split(' ')[0] : 'text-foreground'} truncate`}>{card.value}</p>
-        </motion.div>
-      ))}
+    <div>
+      {/* Mobile: horizontal swipeable */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-thin pb-2 md:hidden"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        {cards.map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, delay: i * 0.05 }}
+            className="glass-card p-4 min-w-[160px] w-[44vw] shrink-0 snap-center"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider truncate">{card.label}</span>
+            </div>
+            <p className={`data-font text-xl font-semibold ${card.special ? card.color.split(' ')[0] : 'text-foreground'} truncate`}>{card.value}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Mobile dots indicator */}
+      <div className="flex justify-center gap-1.5 mt-2 md:hidden">
+        {cards.map((_, i) => (
+          <div
+            key={i}
+            className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIdx ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30'}`}
+          />
+        ))}
+      </div>
+
+      {/* Desktop: grid layout */}
+      <div className="hidden md:grid grid-cols-3 lg:grid-cols-6 gap-4">
+        {cards.map((card, i) => (
+          <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.08 }} className="glass-card p-4 group hover:border-primary/30 transition-colors">
+            <div className="flex items-center gap-2 mb-3">
+              <card.icon className={`w-4 h-4 ${card.color}`} />
+              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider truncate">{card.label}</span>
+            </div>
+            <p className={`data-font text-xl font-semibold ${card.special ? card.color.split(' ')[0] : 'text-foreground'} truncate`}>{card.value}</p>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }
