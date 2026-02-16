@@ -136,6 +136,12 @@ const translations: Record<Lang, Record<string, string>> = {
     'report.outliersDetected': 'Ogʻishlar aniqlandi',
     'report.columns': 'ustun',
     'report.inColumns': 'ustunda',
+    'schema.title': 'Schema ko\'rinishi',
+    'schema.column': 'Ustun',
+    'schema.type': 'Turi',
+    'schema.unique': 'Noyob',
+    'schema.stats': 'Statistika',
+    'schema.sample': 'Namuna',
   },
   en: {
     'app.title.ai': 'AI Smart',
@@ -272,6 +278,12 @@ const translations: Record<Lang, Record<string, string>> = {
     'report.outliersDetected': 'Outliers detected',
     'report.columns': 'columns',
     'report.inColumns': 'in columns',
+    'schema.title': 'Schema Viewer',
+    'schema.column': 'Column',
+    'schema.type': 'Type',
+    'schema.unique': 'Unique',
+    'schema.stats': 'Statistics',
+    'schema.sample': 'Sample',
   },
 };
 
