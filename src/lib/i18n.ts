@@ -151,6 +151,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'templates.noData': 'Kerakli ustun topilmadi',
     'templates.noMissing': 'Yo\'qolgan qiymatlar yo\'q',
     'templates.fullDashboard': 'To\'liq dashboard',
+    'templates.dragHint': 'Grafiklarni sudrab tartibni o\'zgartiring',
   },
   en: {
     'app.title.ai': 'AI Smart',
@@ -302,6 +303,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'templates.noData': 'Required column not found',
     'templates.noMissing': 'No missing values',
     'templates.fullDashboard': 'Full Dashboard',
+    'templates.dragHint': 'Drag charts to reorder them',
   },
 };
 

@@ -3,14 +3,18 @@ import { useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import Dashboard from '@/components/dashboard/Dashboard';
+import TemplateDashboard from '@/components/dashboard/TemplateDashboard';
 import { useAuth } from '@/lib/authContext';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
+import type { TemplateId } from '@/lib/dashboardTemplates';
 
 export default function SharedDashboard() {
   const { token } = useParams<{ token: string }>();
   const { user } = useAuth();
   const [analysis, setAnalysis] = useState<DatasetAnalysis | null>(null);
   const [fileName, setFileName] = useState('');
+  const [templateId, setTemplateId] = useState<TemplateId | null>(null);
+  const [chartOrder, setChartOrder] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -29,7 +33,6 @@ export default function SharedDashboard() {
         return;
       }
 
-      // Check access
       if (!data.is_public && data.user_id !== user?.id) {
         setError('This dashboard is private. Please log in.');
         setLoading(false);
@@ -39,6 +42,12 @@ export default function SharedDashboard() {
       if (data.analysis_data) {
         setAnalysis(data.analysis_data as unknown as DatasetAnalysis);
         setFileName(data.file_name || data.name);
+        if (data.template_id) {
+          setTemplateId(data.template_id as TemplateId);
+        }
+        if (data.chart_order && Array.isArray(data.chart_order)) {
+          setChartOrder(data.chart_order as string[]);
+        }
       } else {
         setError('No analysis data found.');
       }
@@ -59,6 +68,20 @@ export default function SharedDashboard() {
   );
 
   if (!analysis) return null;
+
+  if (templateId) {
+    return (
+      <TemplateDashboard
+        analysis={analysis}
+        templateId={templateId}
+        fileName={fileName}
+        onBack={() => window.history.back()}
+        onSwitchTemplate={() => {}}
+        onFullDashboard={() => {}}
+        initialChartOrder={chartOrder}
+      />
+    );
+  }
 
   return <Dashboard analysis={analysis} fileName={fileName} onReset={() => window.history.back()} />;
 }
