@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getSheetNames, parseFile } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
+import { useAuth } from '@/lib/authContext';
 import LanguageToggle from './LanguageToggle';
 import SessionHistory from './SessionHistory';
 import DataPreview from './DataPreview';
@@ -18,6 +19,7 @@ const MAX_SIZE = 25 * 1024 * 1024;
 
 export default function FileUpload({ onFileReady, isProcessing }: FileUploadProps) {
   const { t } = useI18n();
+  const { signOut } = useAuth();
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [sheets, setSheets] = useState<string[]>([]);
@@ -68,7 +70,12 @@ export default function FileUpload({ onFileReady, isProcessing }: FileUploadProp
 
   return (
     <div className="min-h-screen bg-mesh flex flex-col items-center justify-center p-6">
-      <div className="absolute top-4 right-4"><LanguageToggle /></div>
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <LanguageToggle />
+        <Button variant="ghost" size="sm" onClick={signOut} className="text-xs text-muted-foreground">
+          <LogOut className="w-3 h-3 mr-1" /> {t('auth.logout')}
+        </Button>
+      </div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-10">
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-4">

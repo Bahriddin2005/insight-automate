@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      dashboard_configs: {
+        Row: {
+          analysis_data: Json | null
+          config: Json
+          created_at: string
+          file_name: string | null
+          id: string
+          is_public: boolean
+          name: string
+          share_token: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_data?: Json | null
+          config?: Json
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          share_token?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_data?: Json | null
+          config?: Json
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          share_token?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       upload_sessions: {
         Row: {
           ai_summary: string | null
@@ -26,6 +92,7 @@ export type Database = {
           missing_percent: number
           quality_score: number
           row_count: number
+          user_id: string | null
         }
         Insert: {
           ai_summary?: string | null
@@ -38,6 +105,7 @@ export type Database = {
           missing_percent?: number
           quality_score?: number
           row_count?: number
+          user_id?: string | null
         }
         Update: {
           ai_summary?: string | null
@@ -50,6 +118,7 @@ export type Database = {
           missing_percent?: number
           quality_score?: number
           row_count?: number
+          user_id?: string | null
         }
         Relationships: []
       }

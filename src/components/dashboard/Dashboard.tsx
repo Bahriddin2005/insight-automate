@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Filter, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import KPICards from './KPICards';
 import AutoCharts from './AutoCharts';
 import DataTable from './DataTable';
@@ -10,6 +11,7 @@ import LanguageToggle from './LanguageToggle';
 import ChartCustomizer, { type CustomChartConfig } from './ChartCustomizer';
 import CorrelationHeatmap from './CorrelationHeatmap';
 import { useI18n } from '@/lib/i18nContext';
+import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 
@@ -21,11 +23,17 @@ interface DashboardProps {
 
 export default function Dashboard({ analysis, fileName, onReset }: DashboardProps) {
   const { t, lang } = useI18n();
+  const { user } = useAuth();
   const [catFilters, setCatFilters] = useState<Record<string, string>>({});
   const [showFilters, setShowFilters] = useState(false);
   const [customCharts, setCustomCharts] = useState<CustomChartConfig[]>([]);
   const [aiSummary, setAiSummary] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [saveName, setSaveName] = useState(fileName);
+  const [isPublic, setIsPublic] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [copied, setCopied] = useState(false);
 
   // Date range filter state
   const dateCol = analysis.columnInfo.find(c => c.type === 'datetime');
@@ -104,6 +112,35 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
 
   const numericColNames = numCols.map(c => c.name);
 
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.from('dashboard_configs').insert([{
+        user_id: user.id,
+        name: saveName || fileName,
+        is_public: isPublic,
+        config: JSON.parse(JSON.stringify({ customCharts, catFilters })),
+        file_name: fileName,
+        analysis_data: JSON.parse(JSON.stringify(analysis)),
+      }]).select('share_token').single();
+
+      if (error) throw error;
+      const url = `${window.location.origin}/shared/${data.share_token}`;
+      setShareUrl(url);
+    } catch (e) {
+      console.error('Save error:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="min-h-screen bg-mesh">
       <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
@@ -120,6 +157,27 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
             <LanguageToggle />
           </div>
         </div>
+
+        {/* Save & Share Panel */}
+        {user && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-3 flex flex-wrap items-center gap-2">
+            <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder={t('save.name')} className="h-8 text-xs w-40 bg-secondary border-border" />
+            <Button variant="ghost" size="sm" onClick={() => setIsPublic(!isPublic)} className="text-xs gap-1">
+              {isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+              {isPublic ? t('save.public') : t('save.private')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="text-xs">
+              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+              {t('save.dashboard')}
+            </Button>
+            {shareUrl && (
+              <Button variant="ghost" size="sm" onClick={copyLink} className="text-xs gap-1">
+                {copied ? <Check className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
+                {copied ? t('save.copied') : t('save.copyLink')}
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Filters Panel */}
         {showFilters && (
