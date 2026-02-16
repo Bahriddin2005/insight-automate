@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TableProperties, ChevronDown, ChevronUp } from 'lucide-react';
 import { useI18n } from '@/lib/i18nContext';
@@ -16,9 +16,83 @@ const TYPE_BADGES: Record<string, string> = {
   id: 'bg-destructive/15 text-destructive',
 };
 
+function MiniHistogram({ values, width = 80, height = 24 }: { values: number[]; width?: number; height?: number }) {
+  const bins = 10;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const step = (max - min) / bins || 1;
+  const counts = Array.from({ length: bins }, (_, i) => {
+    const lo = min + i * step;
+    const hi = lo + step;
+    return values.filter(v => v >= lo && (i === bins - 1 ? v <= hi : v < hi)).length;
+  });
+  const maxCount = Math.max(...counts, 1);
+  const barW = width / bins - 1;
+
+  return (
+    <svg width={width} height={height} className="inline-block align-middle">
+      {counts.map((c, i) => {
+        const barH = (c / maxCount) * (height - 2);
+        return (
+          <rect
+            key={i}
+            x={i * (barW + 1)}
+            y={height - barH - 1}
+            width={barW}
+            height={barH}
+            rx={1}
+            fill="hsl(var(--primary))"
+            opacity={0.7}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function MiniCategoryBars({ topValues, width = 80, height = 24 }: { topValues: { value: string; count: number }[]; width?: number; height?: number }) {
+  const items = topValues.slice(0, 5);
+  const maxCount = Math.max(...items.map(v => v.count), 1);
+  const barH = Math.max((height - items.length + 1) / items.length, 3);
+
+  return (
+    <svg width={width} height={height} className="inline-block align-middle">
+      {items.map((item, i) => {
+        const barW = (item.count / maxCount) * (width - 2);
+        return (
+          <rect
+            key={i}
+            x={0}
+            y={i * (barH + 1)}
+            width={barW}
+            height={barH}
+            rx={1}
+            fill="hsl(var(--accent))"
+            opacity={0.7}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 export default function SchemaViewer({ analysis }: SchemaViewerProps) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(true);
+
+  // Pre-compute numeric values per column for sparklines
+  const numericValues = useMemo(() => {
+    const map: Record<string, number[]> = {};
+    analysis.columnInfo.forEach(col => {
+      if (col.type === 'numeric') {
+        map[col.name] = analysis.cleanedData
+          .map(row => Number(row[col.name]))
+          .filter(n => !isNaN(n))
+          .slice(0, 500); // limit for perf
+      }
+    });
+    return map;
+  }, [analysis]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card overflow-hidden">
@@ -43,6 +117,7 @@ export default function SchemaViewer({ analysis }: SchemaViewerProps) {
               <tr className="bg-secondary/30">
                 <th className="px-4 py-2.5 text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{t('schema.column')}</th>
                 <th className="px-4 py-2.5 text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{t('schema.type')}</th>
+                <th className="px-4 py-2.5 text-center text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{t('schema.distribution')}</th>
                 <th className="px-4 py-2.5 text-right text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{t('schema.unique')}</th>
                 <th className="px-4 py-2.5 text-right text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{t('kpi.missing')}</th>
                 <th className="px-4 py-2.5 text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">{t('schema.stats')}</th>
@@ -64,6 +139,17 @@ export default function SchemaViewer({ analysis }: SchemaViewerProps) {
                       <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${TYPE_BADGES[col.type] || 'bg-muted text-muted-foreground'}`}>
                         {col.type}
                       </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      {col.type === 'numeric' && numericValues[col.name]?.length > 0 && (
+                        <MiniHistogram values={numericValues[col.name]} />
+                      )}
+                      {col.type === 'categorical' && col.topValues && col.topValues.length > 0 && (
+                        <MiniCategoryBars topValues={col.topValues} />
+                      )}
+                      {col.type !== 'numeric' && col.type !== 'categorical' && (
+                        <span className="text-muted-foreground text-[10px]">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-right text-xs text-muted-foreground data-font">{col.uniqueCount.toLocaleString()}</td>
                     <td className="px-4 py-2.5 text-right text-xs data-font">

@@ -7,6 +7,7 @@ import { getSheetNames, parseFile } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import LanguageToggle from './LanguageToggle';
+import ThemeToggle from './ThemeToggle';
 import SessionHistory from './SessionHistory';
 import DataPreview from './DataPreview';
 
@@ -76,6 +77,7 @@ export default function FileUpload({ onFileReady, isProcessing }: FileUploadProp
         <Button variant="ghost" size="sm" onClick={() => navigate('/dashboards')} className="text-xs text-muted-foreground">
           <LayoutDashboard className="w-3 h-3 mr-1" /> {t('save.myDashboards')}
         </Button>
+        <ThemeToggle />
         <LanguageToggle />
         <Button variant="ghost" size="sm" onClick={signOut} className="text-xs text-muted-foreground">
           <LogOut className="w-3 h-3 mr-1" /> {t('auth.logout')}
