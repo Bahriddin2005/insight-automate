@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogIn, UserPlus, Loader2, Mail, Lock, User } from 'lucide-react';
@@ -6,12 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useI18n } from '@/lib/i18nContext';
+import { useAuth } from '@/lib/authContext';
 import LanguageToggle from '@/components/dashboard/LanguageToggle';
 
 export default function Auth() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { user, loading: authLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) navigate('/');
+  }, [authLoading, user, navigate]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -29,6 +36,8 @@ export default function Auth() {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        navigate('/');
+        return;
       } else {
         const { error } = await supabase.auth.signUp({
           email,

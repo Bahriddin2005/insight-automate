@@ -145,15 +145,15 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
   return (
     <div className="min-h-screen bg-mesh">
       <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onReset} className="shrink-0 h-9 w-9"><ArrowLeft className="w-4 h-4" /></Button>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={onReset} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9"><ArrowLeft className="w-4 h-4" /></Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold text-foreground truncate">{fileName}</h1>
-            <p className="text-xs text-muted-foreground">{analysis.rows.toLocaleString()} {t('table.rows')} · {analysis.columns} {t('kpi.totalColumns').toLowerCase()} · {t('header.quality')}: {analysis.qualityScore}/100</p>
+            <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">{fileName}</h1>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">{analysis.rows.toLocaleString()} {t('table.rows')} · {analysis.columns} {t('kpi.totalColumns').toLowerCase()} · {t('header.quality')}: {analysis.qualityScore}/100</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-xs">
-              <Filter className="w-3 h-3 mr-1.5" /> {t('filters.button')}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2 sm:px-3">
+              <Filter className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">{t('filters.button')}</span>
             </Button>
             <LanguageToggle />
           </div>
@@ -161,8 +161,8 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
 
         {/* Save & Share Panel */}
         {user && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-3 flex flex-wrap items-center gap-2">
-            <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder={t('save.name')} className="h-8 text-xs w-40 bg-secondary border-border" />
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 pb-2 sm:pb-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder={t('save.name')} className="h-7 sm:h-8 text-[10px] sm:text-xs w-28 sm:w-40 bg-secondary border-border" />
             <Button variant="ghost" size="sm" onClick={() => setIsPublic(!isPublic)} className="text-xs gap-1">
               {isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
               {isPublic ? t('save.public') : t('save.private')}
@@ -246,7 +246,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
         )}
       </motion.header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         <KPICards analysis={analysis} />
         <InsightsPanel analysis={analysis} />
 
