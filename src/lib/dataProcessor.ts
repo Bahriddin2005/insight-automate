@@ -303,3 +303,29 @@ export function toExcelBlob(data: Record<string, unknown>[]): Blob {
   const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
+
+export function calculateCorrelation(data: Record<string, unknown>[], col1: string, col2: string): number {
+  const pairs: [number, number][] = [];
+  data.forEach(row => {
+    const v1 = Number(row[col1]);
+    const v2 = Number(row[col2]);
+    if (!isNaN(v1) && !isNaN(v2)) pairs.push([v1, v2]);
+  });
+  if (pairs.length < 3) return 0;
+  const n = pairs.length;
+  const sumX = pairs.reduce((a, [x]) => a + x, 0);
+  const sumY = pairs.reduce((a, [, y]) => a + y, 0);
+  const sumXY = pairs.reduce((a, [x, y]) => a + x * y, 0);
+  const sumX2 = pairs.reduce((a, [x]) => a + x * x, 0);
+  const sumY2 = pairs.reduce((a, [, y]) => a + y * y, 0);
+  const denom = Math.sqrt((n * sumX2 - sumX ** 2) * (n * sumY2 - sumY ** 2));
+  if (denom === 0) return 0;
+  return (n * sumXY - sumX * sumY) / denom;
+}
+
+export function getCorrelationMatrix(data: Record<string, unknown>[], numericColumns: string[]): { columns: string[]; matrix: number[][] } {
+  const matrix = numericColumns.map(c1 =>
+    numericColumns.map(c2 => c1 === c2 ? 1 : +calculateCorrelation(data, c1, c2).toFixed(2))
+  );
+  return { columns: numericColumns, matrix };
+}

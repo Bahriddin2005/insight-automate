@@ -2,10 +2,11 @@ import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getSheetNames } from '@/lib/dataProcessor';
+import { getSheetNames, parseFile } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
 import LanguageToggle from './LanguageToggle';
 import SessionHistory from './SessionHistory';
+import DataPreview from './DataPreview';
 
 interface FileUploadProps {
   onFileReady: (file: File, sheetIndex: number) => void;
@@ -22,19 +23,43 @@ export default function FileUpload({ onFileReady, isProcessing }: FileUploadProp
   const [sheets, setSheets] = useState<string[]>([]);
   const [sheetIndex, setSheetIndex] = useState(0);
   const [error, setError] = useState('');
+  const [previewData, setPreviewData] = useState<Record<string, unknown>[]>([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = useCallback(async (f: File) => {
     setError('');
+    setPreviewData([]);
     const ext = '.' + f.name.split('.').pop()?.toLowerCase();
     if (!ACCEPTED.includes(ext)) { setError(t('upload.error.type')); return; }
     if (f.size > MAX_SIZE) { setError(t('upload.error.size')); return; }
     setFile(f);
     setSheetIndex(0);
+
     if (ext === '.xlsx' || ext === '.xls') {
       try { const names = await getSheetNames(f); setSheets(names); } catch { setSheets([]); }
     } else { setSheets([]); }
+
+    // Load preview
+    setLoadingPreview(true);
+    try {
+      const raw = await parseFile(f, 0);
+      setPreviewData(raw.slice(0, 100));
+    } catch { /* preview is optional */ }
+    setLoadingPreview(false);
   }, [t]);
+
+  const handleSheetChange = useCallback(async (idx: number) => {
+    setSheetIndex(idx);
+    if (file) {
+      setLoadingPreview(true);
+      try {
+        const raw = await parseFile(file, idx);
+        setPreviewData(raw.slice(0, 100));
+      } catch { setPreviewData([]); }
+      setLoadingPreview(false);
+    }
+  }, [file]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragActive(false);
@@ -53,7 +78,7 @@ export default function FileUpload({ onFileReady, isProcessing }: FileUploadProp
         <p className="text-muted-foreground text-lg max-w-lg mx-auto">{t('app.subtitle')}</p>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.2 }} className="w-full max-w-xl">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.2 }} className="w-full max-w-2xl">
         <div
           className={`upload-border rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 ${dragActive ? 'bg-primary/5 scale-[1.02]' : 'bg-card/40 hover:bg-card/60'}`}
           onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -95,7 +120,7 @@ export default function FileUpload({ onFileReady, isProcessing }: FileUploadProp
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">{t('upload.sheet')}:</span>
                   <div className="relative flex-1">
-                    <select value={sheetIndex} onChange={(e) => setSheetIndex(Number(e.target.value))} className="w-full bg-secondary text-secondary-foreground text-sm rounded-lg px-3 py-2 pr-8 appearance-none border border-border focus:ring-1 focus:ring-primary outline-none">
+                    <select value={sheetIndex} onChange={(e) => handleSheetChange(Number(e.target.value))} className="w-full bg-secondary text-secondary-foreground text-sm rounded-lg px-3 py-2 pr-8 appearance-none border border-border focus:ring-1 focus:ring-primary outline-none">
                       {sheets.map((s, i) => <option key={i} value={i}>{s}</option>)}
                     </select>
                     <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -108,6 +133,20 @@ export default function FileUpload({ onFileReady, isProcessing }: FileUploadProp
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Data Preview */}
+        <AnimatePresence>
+          {previewData.length > 0 && !loadingPreview && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <DataPreview data={previewData} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {loadingPreview && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-muted-foreground text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading preview...
+          </div>
+        )}
       </motion.div>
 
       <SessionHistory />
