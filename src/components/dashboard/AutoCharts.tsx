@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, CartesianGrid, Cell, PieChart, Pie,
+  ScatterChart, Scatter, ZAxis, ReferenceLine,
 } from 'recharts';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
@@ -37,10 +38,54 @@ function createHistogram(values: number[], buckets = 10) {
 
 function ChartCard({ title, children, delay = 0 }: { title: string; children: React.ReactNode; delay?: number }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay }} className="glass-card p-5">
-      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">{title}</h3>
-      <div className="h-64">{children}</div>
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay }} className="glass-card p-3 sm:p-5">
+      <h3 className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4 truncate">{title}</h3>
+      <div className="h-48 sm:h-64">{children}</div>
     </motion.div>
+  );
+}
+
+// Boxplot component using bar chart simulation
+function BoxplotChart({ data, numCols }: { data: Record<string, unknown>[]; numCols: { name: string; stats: NonNullable<import('@/lib/dataProcessor').ColumnInfo['stats']> }[] }) {
+  const boxData = numCols.slice(0, 6).map(col => {
+    const s = col.stats;
+    return {
+      name: col.name.length > 10 ? col.name.slice(0, 10) + '…' : col.name,
+      min: s.min,
+      q1: s.q1,
+      median: s.median,
+      q3: s.q3,
+      max: s.max,
+      iqr: s.iqr,
+      outliers: s.outliers,
+      // For stacked bar simulation
+      base: s.q1,
+      box: s.q3 - s.q1,
+      whiskerLow: s.q1 - s.min,
+      whiskerHigh: s.max - s.q3,
+    };
+  });
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={boxData} margin={{ left: 10, right: 20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 13%)" />
+        <XAxis dataKey="name" tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 10 }} />
+        <YAxis tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 11 }} />
+        <Tooltip
+          {...tooltipStyle}
+          formatter={(_: unknown, name: string, props: { payload: typeof boxData[0] }) => {
+            const d = props.payload;
+            if (name === 'base') return [`Min: ${d.min.toFixed(2)}`, ''];
+            if (name === 'box') return [`Q1: ${d.q1.toFixed(2)} | Med: ${d.median.toFixed(2)} | Q3: ${d.q3.toFixed(2)}`, 'IQR Box'];
+            return [null, ''];
+          }}
+        />
+        <Bar dataKey="base" stackId="box" fill="transparent" />
+        <Bar dataKey="box" stackId="box" fill={COLORS[0]} fillOpacity={0.7} radius={[4, 4, 4, 4]} />
+        <ReferenceLine y={0} stroke="transparent" />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -117,6 +162,16 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
     );
   });
 
+  // Boxplot chart for numeric columns
+  const numWithStats = numCols.filter(c => c.stats).map(c => ({ name: c.name, stats: c.stats! }));
+  if (numWithStats.length >= 1) {
+    charts.push(
+      <ChartCard key="boxplot" title={t('chart.boxplot') || 'Boxplot — Distribution & Outliers'} delay={chartIdx++ * 0.1}>
+        <BoxplotChart data={filteredData} numCols={numWithStats} />
+      </ChartCard>
+    );
+  }
+
   // Time series
   const dateCol = analysis.columnInfo.find(c => c.type === 'datetime');
   if (dateCol) {
@@ -167,5 +222,5 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
     return <div className="glass-card p-8 text-center text-muted-foreground">{t('chart.noData')}</div>;
   }
 
-  return <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{charts}</div>;
+  return <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">{charts}</div>;
 }

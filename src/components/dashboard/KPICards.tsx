@@ -25,14 +25,14 @@ export default function KPICards({ analysis }: KPICardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
       {cards.map((card, i) => (
-        <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.08 }} className="glass-card p-4 group hover:border-primary/30 transition-colors">
-          <div className="flex items-center gap-2 mb-3">
-            <card.icon className={`w-4 h-4 ${card.color}`} />
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{card.label}</span>
+        <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.08 }} className="glass-card p-3 sm:p-4 group hover:border-primary/30 transition-colors">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <card.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${card.color}`} />
+            <span className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wider truncate">{card.label}</span>
           </div>
-          <p className={`data-font text-xl font-semibold ${card.special ? card.color.split(' ')[0] : 'text-foreground'}`}>{card.value}</p>
+          <p className={`data-font text-base sm:text-xl font-semibold ${card.special ? card.color.split(' ')[0] : 'text-foreground'} truncate`}>{card.value}</p>
         </motion.div>
       ))}
     </div>
