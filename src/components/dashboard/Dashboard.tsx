@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock, Image, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,12 @@ import AiAgentChat from './AiAgentChat';
 import CodeView from './CodeView';
 import CleaningReport from './CleaningReport';
 import SchemaViewer from './SchemaViewer';
+import MobileBottomNav from './MobileBottomNav';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
 import { exportDashboardAsPNG, exportDashboardAsPDF } from '@/lib/exportDashboard';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 
 interface DashboardProps {
@@ -40,6 +42,15 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
   const [saving, setSaving] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [mobileTab, setMobileTab] = useState('overview');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onUpload: () => onReset(),
+    onExport: () => exportDashboardAsPNG('full-dashboard-export', fileName),
+    onSave: () => handleSave(),
+  });
 
   // Date range filter state
   const dateCol = analysis.columnInfo.find(c => c.type === 'datetime');
@@ -258,43 +269,51 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
         )}
       </motion.header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        <KPICards analysis={analysis} />
-        <CleaningReport analysis={analysis} fileName={fileName} />
-        <SchemaViewer analysis={analysis} />
-        <InsightsPanel analysis={analysis} />
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
+        {/* Overview section — visible on desktop always, mobile only on overview tab */}
+        <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'overview' && mobileTab !== 'settings' ? 'hidden md:block' : ''}`}>
+          <KPICards analysis={analysis} />
+          <CleaningReport analysis={analysis} fileName={fileName} />
+          <SchemaViewer analysis={analysis} />
+          <InsightsPanel analysis={analysis} />
+        </div>
 
-        {/* AI Summary */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg gradient-warm flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-foreground" />
+        {/* Charts section */}
+        <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'charts' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+          <AutoCharts analysis={analysis} filteredData={filteredData} />
+          {numericColNames.length >= 2 && (
+            <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
+          )}
+          <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
+        </div>
+
+        {/* AI section */}
+        <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'ai' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg gradient-warm flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-foreground" />
+                </div>
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('ai.summary')}</h2>
               </div>
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('ai.summary')}</h2>
+              <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs">
+                {aiLoading ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {t('ai.generating')}</> : t('ai.generate')}
+              </Button>
             </div>
-            <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs">
-              {aiLoading ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {t('ai.generating')}</> : t('ai.generate')}
-            </Button>
-          </div>
-          <p className="text-sm text-foreground/80 leading-relaxed">{aiSummary || t('ai.noSummary')}</p>
-        </motion.div>
+            <p className="text-sm text-foreground/80 leading-relaxed">{aiSummary || t('ai.noSummary')}</p>
+          </motion.div>
+        </div>
 
-        <AutoCharts analysis={analysis} filteredData={filteredData} />
-
-        {/* Correlation Heatmap */}
-        {numericColNames.length >= 2 && (
-          <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
-        )}
-
-        <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
-        
-        <CodeView analysis={analysis} fileName={fileName} />
-        
-        <DataTable data={filteredData} columns={analysis.columnInfo} />
+        {/* Data section */}
+        <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'data' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+          <CodeView analysis={analysis} fileName={fileName} />
+          <DataTable data={filteredData} columns={analysis.columnInfo} />
+        </div>
       </main>
 
       <AiAgentChat analysis={analysis} fileName={fileName} />
+      <MobileBottomNav activeTab={mobileTab} onTabChange={setMobileTab} />
     </div>
   );
 }
