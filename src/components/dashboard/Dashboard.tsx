@@ -8,6 +8,7 @@ import DataTable from './DataTable';
 import InsightsPanel from './InsightsPanel';
 import LanguageToggle from './LanguageToggle';
 import ChartCustomizer, { type CustomChartConfig } from './ChartCustomizer';
+import CorrelationHeatmap from './CorrelationHeatmap';
 import { useI18n } from '@/lib/i18nContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
@@ -20,19 +21,54 @@ interface DashboardProps {
 
 export default function Dashboard({ analysis, fileName, onReset }: DashboardProps) {
   const { t, lang } = useI18n();
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [catFilters, setCatFilters] = useState<Record<string, string>>({});
   const [showFilters, setShowFilters] = useState(false);
   const [customCharts, setCustomCharts] = useState<CustomChartConfig[]>([]);
   const [aiSummary, setAiSummary] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
 
+  // Date range filter state
+  const dateCol = analysis.columnInfo.find(c => c.type === 'datetime');
+  const [dateFrom, setDateFrom] = useState(analysis.dateRange?.min || '');
+  const [dateTo, setDateTo] = useState(analysis.dateRange?.max || '');
+
+  // Numeric range filter state
+  const numCols = analysis.columnInfo.filter(c => c.type === 'numeric' && c.stats);
+  const [numFilter, setNumFilter] = useState<{ col: string; min: number; max: number } | null>(null);
+
   const catCols = analysis.columnInfo.filter(c => c.type === 'categorical' && c.topValues && c.topValues.length <= 20);
 
   const filteredData = useMemo(() => {
-    return analysis.cleanedData.filter(row =>
-      Object.entries(filters).every(([col, val]) => !val || String(row[col]) === val)
-    );
-  }, [analysis.cleanedData, filters]);
+    return analysis.cleanedData.filter(row => {
+      // Categorical filters
+      const catPass = Object.entries(catFilters).every(([col, val]) => !val || String(row[col]) === val);
+      if (!catPass) return false;
+
+      // Date range filter
+      if (dateCol && (dateFrom || dateTo)) {
+        const d = new Date(String(row[dateCol.name]));
+        if (!isNaN(d.getTime())) {
+          if (dateFrom && d < new Date(dateFrom)) return false;
+          if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false;
+        }
+      }
+
+      // Numeric range filter
+      if (numFilter) {
+        const v = Number(row[numFilter.col]);
+        if (!isNaN(v) && (v < numFilter.min || v > numFilter.max)) return false;
+      }
+
+      return true;
+    });
+  }, [analysis.cleanedData, catFilters, dateCol, dateFrom, dateTo, numFilter]);
+
+  const clearAllFilters = () => {
+    setCatFilters({});
+    setDateFrom(analysis.dateRange?.min || '');
+    setDateTo(analysis.dateRange?.max || '');
+    setNumFilter(null);
+  };
 
   const generateAiSummary = async () => {
     setAiLoading(true);
@@ -52,10 +88,9 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
       if (error) throw error;
       setAiSummary(data.summary);
 
-      // Update session with AI summary
       await supabase
         .from('upload_sessions')
-        .update({ ai_summary: data.summary })
+        .update({ ai_summary: data.summary } as Record<string, unknown>)
         .eq('file_name', fileName)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -67,6 +102,8 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
     }
   };
 
+  const numericColNames = numCols.map(c => c.name);
+
   return (
     <div className="min-h-screen bg-mesh">
       <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
@@ -77,25 +114,74 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
             <p className="text-xs text-muted-foreground">{analysis.rows.toLocaleString()} {t('table.rows')} · {analysis.columns} {t('kpi.totalColumns').toLowerCase()} · {t('header.quality')}: {analysis.qualityScore}/100</p>
           </div>
           <div className="flex items-center gap-2">
-            {catCols.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-xs">
-                <Filter className="w-3 h-3 mr-1.5" /> {t('filters.button')}
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-xs">
+              <Filter className="w-3 h-3 mr-1.5" /> {t('filters.button')}
+            </Button>
             <LanguageToggle />
           </div>
         </div>
 
-        {showFilters && catCols.length > 0 && (
+        {/* Filters Panel */}
+        {showFilters && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="border-t border-border/30 overflow-hidden">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap gap-3">
-              {catCols.slice(0, 5).map(col => (
-                <select key={col.name} value={filters[col.name] || ''} onChange={(e) => setFilters(prev => ({ ...prev, [col.name]: e.target.value }))} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none">
-                  <option value="">{col.name} ({t('filters.all')})</option>
-                  {col.topValues!.map(v => <option key={v.value} value={v.value}>{v.value} ({v.count})</option>)}
-                </select>
-              ))}
-              <Button variant="ghost" size="sm" onClick={() => setFilters({})} className="text-xs text-muted-foreground">{t('filters.clear')}</Button>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 space-y-3">
+              {/* Date range filter */}
+              {dateCol && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium w-20">{t('filters.dateRange')}:</span>
+                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                    className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none" />
+                  <span className="text-xs text-muted-foreground">→</span>
+                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                    className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none" />
+                </div>
+              )}
+
+              {/* Numeric range filter */}
+              {numCols.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium w-20">{t('filters.numericRange')}:</span>
+                  <select
+                    value={numFilter?.col || ''}
+                    onChange={(e) => {
+                      const col = numCols.find(c => c.name === e.target.value);
+                      if (col?.stats) setNumFilter({ col: col.name, min: col.stats.min, max: col.stats.max });
+                      else setNumFilter(null);
+                    }}
+                    className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none"
+                  >
+                    <option value="">—</option>
+                    {numCols.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                  </select>
+                  {numFilter && (
+                    <>
+                      <input type="number" value={numFilter.min} onChange={(e) => setNumFilter({ ...numFilter, min: Number(e.target.value) })}
+                        className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none w-24 data-font" />
+                      <span className="text-xs text-muted-foreground">→</span>
+                      <input type="number" value={numFilter.max} onChange={(e) => setNumFilter({ ...numFilter, max: Number(e.target.value) })}
+                        className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none w-24 data-font" />
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Categorical filters */}
+              {catCols.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {catCols.slice(0, 5).map(col => (
+                    <select key={col.name} value={catFilters[col.name] || ''} onChange={(e) => setCatFilters(prev => ({ ...prev, [col.name]: e.target.value }))}
+                      className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none">
+                      <option value="">{col.name} ({t('filters.all')})</option>
+                      {col.topValues!.map(v => <option key={v.value} value={v.value}>{v.value} ({v.count})</option>)}
+                    </select>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-xs text-muted-foreground">{t('filters.clear')}</Button>
+                <span className="text-xs text-muted-foreground data-font">{filteredData.length.toLocaleString()} / {analysis.rows.toLocaleString()} {t('table.rows')}</span>
+              </div>
             </div>
           </motion.div>
         )}
@@ -122,6 +208,12 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
         </motion.div>
 
         <AutoCharts analysis={analysis} filteredData={filteredData} />
+
+        {/* Correlation Heatmap */}
+        {numericColNames.length >= 2 && (
+          <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
+        )}
+
         <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
         <DataTable data={filteredData} columns={analysis.columnInfo} />
       </main>
