@@ -13,6 +13,7 @@ import CorrelationHeatmap from './CorrelationHeatmap';
 import AiAgentChat from './AiAgentChat';
 import CodeView from './CodeView';
 import CleaningReport from './CleaningReport';
+import SchemaViewer from './SchemaViewer';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -251,6 +252,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         <KPICards analysis={analysis} />
         <CleaningReport analysis={analysis} fileName={fileName} />
+        <SchemaViewer analysis={analysis} />
         <InsightsPanel analysis={analysis} />
 
         {/* AI Summary */}

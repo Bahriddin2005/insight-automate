@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Code2, Database, BarChart3, Copy, Check, Download } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18nContext';
 import { generatePythonCode, generateSQLQueries, generatePowerBIGuide } from '@/lib/codeGenerators';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-sql';
+import 'prismjs/themes/prism-tomorrow.css';
 
 interface CodeViewProps {
   analysis: DatasetAnalysis;
@@ -68,97 +72,71 @@ export default function CodeView({ analysis, fileName }: CodeViewProps) {
           </TabsTrigger>
         </TabsList>
 
-        {/* PYTHON TAB */}
         <TabsContent value="python">
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs gap-1"
-              onClick={() => copyToClipboard(pythonCode, 'python')}
-            >
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => copyToClipboard(pythonCode, 'python')}>
               {copiedTab === 'python' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
               {copiedTab === 'python' ? t('save.copied') : t('code.copy')}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs gap-1"
-              onClick={() => downloadFile(pythonCode, `analysis_${fileName.replace(/\.\w+$/, '')}.py`, 'text/x-python')}
-            >
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => downloadFile(pythonCode, `analysis_${fileName.replace(/\.\w+$/, '')}.py`, 'text/x-python')}>
               <Download className="w-3 h-3" /> .py
             </Button>
           </div>
           <CodeBlock code={pythonCode} language="python" />
         </TabsContent>
 
-        {/* SQL TAB */}
         <TabsContent value="sql">
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <select
-              value={sqlDialect}
-              onChange={(e) => setSqlDialect(e.target.value as SQLDialect)}
-              className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none"
-            >
+            <select value={sqlDialect} onChange={(e) => setSqlDialect(e.target.value as SQLDialect)} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none">
               <option value="ansi">ANSI SQL</option>
               <option value="postgresql">PostgreSQL</option>
               <option value="mysql">MySQL</option>
               <option value="sqlserver">SQL Server</option>
             </select>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs gap-1"
-              onClick={() => copyToClipboard(sqlCode, 'sql')}
-            >
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => copyToClipboard(sqlCode, 'sql')}>
               {copiedTab === 'sql' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
               {copiedTab === 'sql' ? t('save.copied') : t('code.copy')}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs gap-1"
-              onClick={() => downloadFile(sqlCode, `queries_${fileName.replace(/\.\w+$/, '')}.sql`, 'text/sql')}
-            >
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => downloadFile(sqlCode, `queries_${fileName.replace(/\.\w+$/, '')}.sql`, 'text/sql')}>
               <Download className="w-3 h-3" /> .sql
             </Button>
           </div>
           <CodeBlock code={sqlCode} language="sql" />
         </TabsContent>
 
-        {/* POWER BI TAB */}
         <TabsContent value="powerbi">
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs gap-1"
-              onClick={() => copyToClipboard(pbiGuide, 'pbi')}
-            >
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => copyToClipboard(pbiGuide, 'pbi')}>
               {copiedTab === 'pbi' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
               {copiedTab === 'pbi' ? t('save.copied') : t('code.copy')}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs gap-1"
-              onClick={() => downloadFile(pbiGuide, `powerbi_guide_${fileName.replace(/\.\w+$/, '')}.txt`, 'text/plain')}
-            >
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => downloadFile(pbiGuide, `powerbi_guide_${fileName.replace(/\.\w+$/, '')}.txt`, 'text/plain')}>
               <Download className="w-3 h-3" /> .txt
             </Button>
           </div>
-          <CodeBlock code={pbiGuide} language="dax" />
+          <CodeBlock code={pbiGuide} language="javascript" />
         </TabsContent>
       </Tabs>
     </motion.div>
   );
 }
 
-function CodeBlock({ code }: { code: string; language: string }) {
+function CodeBlock({ code, language }: { code: string; language: string }) {
+  const codeRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (codeRef.current) {
+      Prism.highlightElement(codeRef.current);
+    }
+  }, [code, language]);
+
   return (
     <div className="relative">
-      <pre className="bg-secondary/50 border border-border rounded-xl p-4 overflow-x-auto max-h-[500px] overflow-y-auto">
-        <code className="text-xs sm:text-sm leading-relaxed text-foreground/90 font-mono whitespace-pre">
+      <pre className="rounded-xl border border-border overflow-x-auto max-h-[500px] overflow-y-auto !bg-secondary/50 !m-0 p-4">
+        <code
+          ref={codeRef}
+          className={`language-${language} !text-xs sm:!text-sm !leading-relaxed font-mono whitespace-pre`}
+        >
           {code}
         </code>
       </pre>
