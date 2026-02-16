@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import FileUpload from '@/components/dashboard/FileUpload';
@@ -14,21 +14,75 @@ import { Loader2 } from 'lucide-react';
 
 type View = 'upload' | 'templates' | 'template-dashboard' | 'full-dashboard';
 
+const SESSION_KEY = 'dash_session';
+
+interface SessionState {
+  view: View;
+  fileName: string;
+  selectedTemplate: TemplateId;
+  analysis: DatasetAnalysis | null;
+}
+
+function saveSession(state: Partial<SessionState>) {
+  try {
+    const existing = loadSession();
+    const merged = { ...existing, ...state };
+    // Only persist if there's actual analysis data
+    if (merged.analysis) {
+      // Limit cleanedData to 2000 rows to avoid exceeding localStorage limits
+      const toStore = {
+        ...merged,
+        analysis: {
+          ...merged.analysis,
+          cleanedData: merged.analysis.cleanedData.slice(0, 2000),
+        },
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(toStore));
+    }
+  } catch {
+    // localStorage full or unavailable — silently ignore
+  }
+}
+
+function loadSession(): SessionState | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as SessionState;
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [analysis, setAnalysis] = useState<DatasetAnalysis | null>(null);
-  const [fileName, setFileName] = useState('');
+
+  // Restore from session
+  const cached = loadSession();
+  const [analysis, setAnalysis] = useState<DatasetAnalysis | null>(cached?.analysis ?? null);
+  const [fileName, setFileName] = useState(cached?.fileName ?? '');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [view, setView] = useState<View>('upload');
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('explorer');
+  const [view, setView] = useState<View>(cached?.analysis ? (cached.view ?? 'templates') : 'upload');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(cached?.selectedTemplate ?? 'explorer');
 
   useEffect(() => { document.title = 'AI Smart Dashboard'; }, []);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
   }, [authLoading, user, navigate]);
+
+  // Persist session on state changes
+  useEffect(() => {
+    if (analysis) {
+      saveSession({ view, fileName, selectedTemplate, analysis });
+    }
+  }, [view, fileName, selectedTemplate, analysis]);
 
   const handleFile = async (file: File, sheetIndex: number) => {
     setIsProcessing(true);
@@ -76,11 +130,12 @@ const Index = () => {
     setView('template-dashboard');
   };
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setAnalysis(null);
     setFileName('');
     setView('upload');
-  };
+    clearSession();
+  }, []);
 
   if (authLoading) return (
     <div className="min-h-screen bg-mesh flex items-center justify-center">
