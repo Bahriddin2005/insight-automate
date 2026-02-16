@@ -1,0 +1,167 @@
+import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { Code2, Database, BarChart3, Copy, Check, Download } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { useI18n } from '@/lib/i18nContext';
+import { generatePythonCode, generateSQLQueries, generatePowerBIGuide } from '@/lib/codeGenerators';
+import type { DatasetAnalysis } from '@/lib/dataProcessor';
+
+interface CodeViewProps {
+  analysis: DatasetAnalysis;
+  fileName: string;
+}
+
+type SQLDialect = 'ansi' | 'postgresql' | 'mysql' | 'sqlserver';
+
+export default function CodeView({ analysis, fileName }: CodeViewProps) {
+  const { t } = useI18n();
+  const [copiedTab, setCopiedTab] = useState('');
+  const [sqlDialect, setSqlDialect] = useState<SQLDialect>('ansi');
+
+  const pythonCode = useMemo(() => generatePythonCode(analysis, fileName), [analysis, fileName]);
+  const sqlCode = useMemo(() => generateSQLQueries(analysis, fileName, sqlDialect), [analysis, fileName, sqlDialect]);
+  const pbiGuide = useMemo(() => generatePowerBIGuide(analysis, fileName), [analysis, fileName]);
+
+  const copyToClipboard = (text: string, tab: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedTab(tab);
+    setTimeout(() => setCopiedTab(''), 2000);
+  };
+
+  const downloadFile = (content: string, name: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="glass-card p-4 sm:p-5"
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Code2 className="w-4 h-4 text-primary" />
+        </div>
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          {t('code.title')}
+        </h2>
+      </div>
+
+      <Tabs defaultValue="python" className="w-full">
+        <TabsList className="w-full grid grid-cols-3 mb-4">
+          <TabsTrigger value="python" className="text-xs sm:text-sm gap-1">
+            <Code2 className="w-3 h-3" /> Python
+          </TabsTrigger>
+          <TabsTrigger value="sql" className="text-xs sm:text-sm gap-1">
+            <Database className="w-3 h-3" /> SQL
+          </TabsTrigger>
+          <TabsTrigger value="powerbi" className="text-xs sm:text-sm gap-1">
+            <BarChart3 className="w-3 h-3" /> Power BI
+          </TabsTrigger>
+        </TabsList>
+
+        {/* PYTHON TAB */}
+        <TabsContent value="python">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1"
+              onClick={() => copyToClipboard(pythonCode, 'python')}
+            >
+              {copiedTab === 'python' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copiedTab === 'python' ? t('save.copied') : t('code.copy')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1"
+              onClick={() => downloadFile(pythonCode, `analysis_${fileName.replace(/\.\w+$/, '')}.py`, 'text/x-python')}
+            >
+              <Download className="w-3 h-3" /> .py
+            </Button>
+          </div>
+          <CodeBlock code={pythonCode} language="python" />
+        </TabsContent>
+
+        {/* SQL TAB */}
+        <TabsContent value="sql">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <select
+              value={sqlDialect}
+              onChange={(e) => setSqlDialect(e.target.value as SQLDialect)}
+              className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none"
+            >
+              <option value="ansi">ANSI SQL</option>
+              <option value="postgresql">PostgreSQL</option>
+              <option value="mysql">MySQL</option>
+              <option value="sqlserver">SQL Server</option>
+            </select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1"
+              onClick={() => copyToClipboard(sqlCode, 'sql')}
+            >
+              {copiedTab === 'sql' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copiedTab === 'sql' ? t('save.copied') : t('code.copy')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1"
+              onClick={() => downloadFile(sqlCode, `queries_${fileName.replace(/\.\w+$/, '')}.sql`, 'text/sql')}
+            >
+              <Download className="w-3 h-3" /> .sql
+            </Button>
+          </div>
+          <CodeBlock code={sqlCode} language="sql" />
+        </TabsContent>
+
+        {/* POWER BI TAB */}
+        <TabsContent value="powerbi">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1"
+              onClick={() => copyToClipboard(pbiGuide, 'pbi')}
+            >
+              {copiedTab === 'pbi' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copiedTab === 'pbi' ? t('save.copied') : t('code.copy')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs gap-1"
+              onClick={() => downloadFile(pbiGuide, `powerbi_guide_${fileName.replace(/\.\w+$/, '')}.txt`, 'text/plain')}
+            >
+              <Download className="w-3 h-3" /> .txt
+            </Button>
+          </div>
+          <CodeBlock code={pbiGuide} language="dax" />
+        </TabsContent>
+      </Tabs>
+    </motion.div>
+  );
+}
+
+function CodeBlock({ code }: { code: string; language: string }) {
+  return (
+    <div className="relative">
+      <pre className="bg-secondary/50 border border-border rounded-xl p-4 overflow-x-auto max-h-[500px] overflow-y-auto">
+        <code className="text-xs sm:text-sm leading-relaxed text-foreground/90 font-mono whitespace-pre">
+          {code}
+        </code>
+      </pre>
+    </div>
+  );
+}

@@ -119,6 +119,9 @@ const translations: Record<Lang, Record<string, string>> = {
     'agent.send': 'Yuborish',
     'agent.thinking': "O'ylayapman...",
     'agent.welcome': "Salom! Men sizning ma'lumotlar tahlilchingizman. Savol bering.",
+    'code.title': 'Kod ko\'rinishi',
+    'code.copy': 'Nusxalash',
+    'code.download': 'Yuklab olish',
   },
   en: {
     'app.title.ai': 'AI Smart',
@@ -238,6 +241,9 @@ const translations: Record<Lang, Record<string, string>> = {
     'agent.send': 'Send',
     'agent.thinking': 'Thinking...',
     'agent.welcome': "Hello! I'm your data analyst. Ask me anything about your dataset.",
+    'code.title': 'Code View',
+    'code.copy': 'Copy',
+    'code.download': 'Download',
   },
 };
 
