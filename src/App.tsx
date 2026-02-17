@@ -12,6 +12,7 @@ import ResetPassword from "./pages/ResetPassword";
 import MyDashboards from "./pages/MyDashboards";
 import SharedDashboard from "./pages/SharedDashboard";
 import Install from "./pages/Install";
+import OfflineBanner from "./components/dashboard/OfflineBanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <OfflineBanner />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
