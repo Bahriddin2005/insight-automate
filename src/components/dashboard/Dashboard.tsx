@@ -29,6 +29,9 @@ import WhatIfSimulation from './WhatIfSimulation';
 import AnomalyDetectionPanel from './AnomalyDetectionPanel';
 import PredictiveForecasting from './PredictiveForecasting';
 import ChartAnnotations from './ChartAnnotations';
+import NaturalLanguageQuery from './NaturalLanguageQuery';
+import ExecutiveReportGenerator from './ExecutiveReportGenerator';
+import RealtimeRefresh from './RealtimeRefresh';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -218,6 +221,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
                 </div>
               )}
             </div>
+            <RealtimeRefresh onRefresh={() => setRefreshKey(k => k + 1)} />
             <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2 sm:px-3">
               <Filter className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">{t('filters.button')}</span>
             </Button>
@@ -343,6 +347,8 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
 
           {/* AI section */}
           <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'ai' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+            {!isLoading && <NaturalLanguageQuery analysis={analysis} filteredData={filteredData} />}
+            {!isLoading && <ExecutiveReportGenerator analysis={analysis} filteredData={filteredData} fileName={fileName} />}
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
