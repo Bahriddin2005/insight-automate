@@ -94,116 +94,7 @@ print(f"Data Quality Score: {quality_score}/100")
 print(df.describe())
 `;
 
-  // ─── FILTERING ───
-  code += `
-# ═══════════════════════════════════════
-# DATA FILTERING & SLICING
-# ═══════════════════════════════════════
-`;
-  if (numCols.length > 0) {
-    const nc = numCols[0];
-    code += `
-# Filter by numeric range
-df_filtered = df[df["${nc.name}"] > df["${nc.name}"].median()]
-print(f"Rows above median ${nc.name}: {len(df_filtered)}")
-`;
-  }
-  if (catCols.length > 0) {
-    const cc = catCols[0];
-    code += `
-# Filter by category
-top_categories = df["${cc.name}"].value_counts().head(5).index.tolist()
-df_top = df[df["${cc.name}"].isin(top_categories)]
-print(f"Rows in top 5 ${cc.name}: {len(df_top)}")
-`;
-  }
-  if (dateCols.length > 0) {
-    code += `
-# Filter by date range
-df["${dateCols[0].name}"] = pd.to_datetime(df["${dateCols[0].name}"], errors="coerce")
-latest = df["${dateCols[0].name}"].max()
-df_recent = df[df["${dateCols[0].name}"] >= latest - pd.Timedelta(days=30)]
-print(f"Rows in last 30 days: {len(df_recent)}")
-`;
-  }
-
-  // ─── GROUPBY ANALYSIS ───
-  code += `
-# ═══════════════════════════════════════
-# GROUP BY ANALYSIS
-# ═══════════════════════════════════════
-`;
-  if (catCols.length > 0 && numCols.length > 0) {
-    const cc = catCols[0];
-    const nc = numCols[0];
-    code += `
-# Group by ${cc.name} — aggregate ${nc.name}
-grouped = df.groupby("${cc.name}")["${nc.name}"].agg(["sum", "mean", "count", "std"])
-grouped = grouped.sort_values("sum", ascending=False).head(10)
-print("\\nGrouped Analysis:")
-print(grouped)
-
-# Pivot table
-`;
-    if (dateCols.length > 0) {
-      code += `pivot = pd.pivot_table(df, values="${nc.name}", index="${cc.name}",
-                        columns=df["${dateCols[0].name}"].dt.month, aggfunc="sum", fill_value=0)
-print("\\nPivot Table (${cc.name} × Month):")
-print(pivot.head(10))
-`;
-    }
-  }
-
-  // ─── ADVANCED ANALYSIS ───
-  code += `
-# ═══════════════════════════════════════
-# ADVANCED DATA ANALYSIS
-# ═══════════════════════════════════════
-`;
-  if (numCols.length >= 2) {
-    code += `
-# Correlation analysis
-correlation = df[[${numCols.map(c => `"${c.name}"`).join(', ')}]].corr()
-print("\\nCorrelation Matrix:")
-print(correlation.round(3))
-
-# Top correlated pairs
-import itertools
-pairs = list(itertools.combinations([${numCols.map(c => `"${c.name}"`).join(', ')}], 2))
-corr_pairs = [(a, b, correlation.loc[a, b]) for a, b in pairs]
-corr_pairs.sort(key=lambda x: abs(x[2]), reverse=True)
-print("\\nStrongest correlations:")
-for a, b, r in corr_pairs[:5]:
-    print(f"  {a} ↔ {b}: {r:.3f}")
-`;
-  }
-
-  if (dateCols.length > 0 && numCols.length > 0) {
-    const nc = numCols[0];
-    const dc = dateCols[0];
-    code += `
-# Rolling averages & growth rate
-ts = df.groupby(df["${dc.name}"].dt.to_period("M"))["${nc.name}"].sum().reset_index()
-ts["${dc.name}"] = ts["${dc.name}"].astype(str)
-ts["rolling_3m"] = ts["${nc.name}"].rolling(3).mean()
-ts["growth_rate"] = ts["${nc.name}"].pct_change() * 100
-print("\\nMonthly Trend with Growth Rate:")
-print(ts.tail(12))
-`;
-  }
-
-  if (catCols.length > 0) {
-    code += `
-# Pareto analysis (80/20 rule)
-pareto = df["${catCols[0].name}"].value_counts().reset_index()
-pareto.columns = ["${catCols[0].name}", "count"]
-pareto["cumulative_pct"] = (pareto["count"].cumsum() / pareto["count"].sum() * 100).round(1)
-pareto_80 = pareto[pareto["cumulative_pct"] <= 80]
-print(f"\\nPareto: {len(pareto_80)} out of {len(pareto)} categories make up 80% of data")
-`;
-  }
-
-  // ─── VISUALIZATIONS ───
+  // Visualizations
   if (numCols.length > 0) {
     const c = numCols[0];
     code += `
@@ -230,12 +121,10 @@ fig.show()
 
   if (dateCols.length > 0 && numCols.length > 0) {
     code += `
-# Time series with rolling average
+# Time series
 ts = df.groupby(df["${dateCols[0].name}"].dt.to_period("M"))["${numCols[0].name}"].sum().reset_index()
 ts["${dateCols[0].name}"] = ts["${dateCols[0].name}"].astype(str)
-ts["rolling_avg"] = ts["${numCols[0].name}"].rolling(3).mean()
-fig = px.line(ts, x="${dateCols[0].name}", y=["${numCols[0].name}", "rolling_avg"],
-              title="Trend with Rolling Average", template="plotly_dark")
+fig = px.line(ts, x="${dateCols[0].name}", y="${numCols[0].name}", title="Trend over Time", template="plotly_dark")
 fig.show()
 `;
   }
@@ -243,15 +132,9 @@ fig.show()
   if (numCols.length >= 2) {
     code += `
 # Correlation heatmap
+import plotly.figure_factory as ff
 corr = df[[${numCols.map(c => `"${c.name}"`).join(', ')}]].corr()
-fig = px.imshow(corr, text_auto=True, title="Correlation Heatmap", template="plotly_dark",
-                color_continuous_scale="Tealgrn")
-fig.show()
-
-# Scatter plot — top 2 correlated
-fig = px.scatter(df, x="${numCols[0].name}", y="${numCols[1].name}",
-                 ${catCols.length > 0 ? `color="${catCols[0].name}",` : ''}
-                 title="${numCols[0].name} vs ${numCols[1].name}", template="plotly_dark")
+fig = px.imshow(corr, text_auto=True, title="Correlation Heatmap", template="plotly_dark")
 fig.show()
 `;
   }
@@ -308,20 +191,6 @@ FROM ${table};
   ).join(',\n');
   sql += `\nFROM ${table};\n\n`;
 
-  // Filtering examples
-  sql += `-- ═══════════════════════════════════════\n-- FILTERING QUERIES\n-- ═══════════════════════════════════════\n\n`;
-  if (numCols.length > 0) {
-    const nc = numCols[0];
-    sql += `-- Filter: ${nc.name} above average\nSELECT *\nFROM ${table}\nWHERE ${nc.name} > (SELECT AVG(${nc.name}) FROM ${table})${limitEnd};\n\n`;
-  }
-  if (catCols.length > 0 && numCols.length > 0) {
-    sql += `-- Filter: Top categories by ${numCols[0].name}\nSELECT ${catCols[0].name}, SUM(${numCols[0].name}) AS total\nFROM ${table}\nGROUP BY ${catCols[0].name}\nHAVING SUM(${numCols[0].name}) > 0\nORDER BY total DESC${limitEnd};\n\n`;
-  }
-  if (dateCols.length > 0) {
-    const dc = dateCols[0].name;
-    sql += `-- Filter: Last 30 days\nSELECT *\nFROM ${table}\nWHERE ${dc} >= ${dialect === 'postgresql' ? `CURRENT_DATE - INTERVAL '30 days'` : dialect === 'mysql' ? `DATE_SUB(CURDATE(), INTERVAL 30 DAY)` : dialect === 'sqlserver' ? `DATEADD(DAY, -30, GETDATE())` : `DATE('now', '-30 days')`}${limitEnd};\n\n`;
-  }
-
   // Group by categorical
   catCols.forEach(c => {
     sql += `-- Top 10 by ${c.name}\n${topSelect}\n  ${c.name},\n  COUNT(*) AS cnt`;
@@ -341,30 +210,12 @@ FROM ${table};
     sql += `-- Time series aggregation (monthly)\nSELECT\n  ${dateGroup} AS month,\n  COUNT(*) AS record_count`;
     if (numCols.length > 0) sql += `,\n  SUM(${numCols[0].name}) AS total_${numCols[0].name}`;
     sql += `\nFROM ${table}\nGROUP BY ${dateGroup}\nORDER BY month;\n\n`;
-
-    // Growth rate with window functions
-    if (numCols.length > 0 && (dialect === 'postgresql' || dialect === 'mysql' || dialect === 'sqlserver')) {
-      sql += `-- Month-over-Month growth rate\nSELECT\n  ${dateGroup} AS month,\n  SUM(${numCols[0].name}) AS total,\n  LAG(SUM(${numCols[0].name})) OVER (ORDER BY ${dateGroup}) AS prev_month,\n  ROUND((SUM(${numCols[0].name}) - LAG(SUM(${numCols[0].name})) OVER (ORDER BY ${dateGroup}))::NUMERIC /\n    NULLIF(LAG(SUM(${numCols[0].name})) OVER (ORDER BY ${dateGroup}), 0) * 100, 2) AS growth_pct\nFROM ${table}\nGROUP BY ${dateGroup}\nORDER BY month;\n\n`;
-    }
   }
 
   // Numeric stats
   numCols.forEach(c => {
     sql += `-- Statistics for ${c.name}\nSELECT\n  MIN(${c.name}) AS min_val,\n  MAX(${c.name}) AS max_val,\n  AVG(${c.name}) AS avg_val,\n  COUNT(${c.name}) AS non_null_count\nFROM ${table};\n\n`;
   });
-
-  // Percentile / distribution
-  if (numCols.length > 0 && dialect === 'postgresql') {
-    sql += `-- Percentile analysis\nSELECT\n`;
-    sql += numCols.map(c => `  PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY ${c.name}) AS p25_${c.name},\n  PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY ${c.name}) AS median_${c.name},\n  PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY ${c.name}) AS p75_${c.name}`).join(',\n');
-    sql += `\nFROM ${table};\n\n`;
-  }
-
-  // Anomaly detection
-  if (numCols.length > 0) {
-    const nc = numCols[0];
-    sql += `-- Anomaly detection (IQR method)\nWITH stats AS (\n  SELECT\n    ${dialect === 'postgresql' ? `PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY ${nc.name}) AS q1,\n    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY ${nc.name}) AS q3` : `AVG(${nc.name}) - 1.5 * STDDEV(${nc.name}) AS q1,\n    AVG(${nc.name}) + 1.5 * STDDEV(${nc.name}) AS q3`}\n  FROM ${table}\n)\nSELECT COUNT(*) AS outlier_count\nFROM ${table}, stats\nWHERE ${nc.name} < q1 - 1.5 * (q3 - q1)\n   OR ${nc.name} > q3 + 1.5 * (q3 - q1);\n\n`;
-  }
 
   return sql;
 }
