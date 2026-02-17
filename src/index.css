@@ -130,6 +130,14 @@
     @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-xl;
   }
 
+  /* Executive Metrics: oq kartochkalar */
+  .executive-app .glass-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
   .glow-primary {
     box-shadow: 0 0 30px -8px hsl(190 85% 48% / 0.3);
   }
@@ -191,4 +199,518 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /* 3D Chart Containers */
+  .chart-3d-wrapper {
+    perspective: 1200px;
+    transform-style: preserve-3d;
+  }
+  .chart-3d-tilt-1 { transform: perspective(1200px) rotateX(8deg) rotateY(-4deg); }
+  .chart-3d-tilt-2 { transform: perspective(1200px) rotateX(6deg) rotateY(5deg); }
+  .chart-3d-tilt-3 { transform: perspective(1200px) rotateX(10deg) rotateY(2deg); }
+  .chart-3d-tilt-4 { transform: perspective(1200px) rotateX(5deg) rotateY(-6deg); }
+  .chart-3d-tilt-5 { transform: perspective(1200px) rotateX(7deg) rotateY(4deg); }
+  .chart-3d-tilt-6 { transform: perspective(1200px) rotateX(9deg) rotateY(-3deg); }
+
+  .chart-card-3d {
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+  }
+  .chart-card-depth {
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.2),
+      0 10px 20px -5px rgb(0 0 0 / 0.3),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.05);
+  }
 }
+
+/* Intelligence Studio — Futuristic 3D dashboard */
+.intelligence-studio-bg {
+  background: linear-gradient(180deg, #030712 0%, #0f172a 30%, #0c1222 100%);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(34, 211, 238, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 50%),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(34, 211, 238, 0.03) 2px, rgba(34, 211, 238, 0.03) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(34, 211, 238, 0.03) 2px, rgba(34, 211, 238, 0.03) 4px);
+  min-height: 100vh;
+}
+
+.intelligence-studio-header {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(34, 211, 238, 0.15);
+}
+
+.intelligence-studio-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(34, 211, 238, 0.15);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+}
+
+.intelligence-studio-select {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 6px 10px;
+}
+
+.intelligence-studio-export-btn {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.4);
+  color: rgba(34, 211, 238, 0.95);
+}
+
+.intelligence-studio-export-btn:hover {
+  background: rgba(34, 211, 238, 0.2);
+  border-color: rgba(34, 211, 238, 0.6);
+}
+
+.intelligence-kpi-card {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.intelligence-kpi-card:hover {
+  transform: translateY(-2px);
+}
+
+.intelligence-chart-card {
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 16px;
+  padding: 1.25rem;
+  transition: border-color 0.2s;
+}
+
+.intelligence-chart-card:hover {
+  border-color: rgba(34, 211, 238, 0.35);
+}
+
+.intelligence-chart-base {
+  background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(34, 211, 238, 0.08) 0%, rgba(168, 85, 247, 0.04) 40%, transparent 70%);
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid rgba(34, 211, 238, 0.1);
+}
+
+.intelligence-ai-insight {
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.intelligence-ai-insight .intelligence-chart-base {
+  background: rgba(30, 41, 59, 0.3);
+}
+
+.intelligence-correlations .intelligence-chart-base {
+  background: radial-gradient(ellipse 70% 70% at 50% 100%, rgba(34, 211, 238, 0.1) 0%, rgba(168, 85, 247, 0.06) 50%, transparent 100%);
+}
+
+.intelligence-cube-base {
+  box-shadow: 0 0 40px -10px rgba(34, 211, 238, 0.2);
+}
+
+.intelligence-correlation-grid {
+  min-height: 200px;
+}
+
+.intelligence-bottom-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #7c3aed 0%, #06b6d4 50%, #22c55e 100%);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+}
+
+/* Power BI — Dark Luxury Executive BI (FinTech Premium) */
+.powerbi-canvas {
+  background: #0B1220;
+}
+
+.powerbi-header {
+  background: #111827;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+}
+
+.powerbi-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #00D4FF 0%, #0ea5e9 100%);
+  color: #0B1220;
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+.powerbi-panel {
+  background: #0F172A;
+  border-color: rgba(0, 212, 255, 0.1);
+}
+
+.powerbi-panel-left { border-right: 1px solid rgba(0, 212, 255, 0.1); }
+.powerbi-panel-right { border-left: 1px solid rgba(0, 212, 255, 0.1); }
+
+.powerbi-report-bg {
+  background: #0B1220;
+}
+
+/* Dark Luxury — Card & Surface */
+.dlux-card {
+  background: linear-gradient(145deg, #111827 0%, #0F172A 100%);
+  border: 1px solid rgba(0, 212, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 1px rgba(0, 212, 255, 0.2);
+  transition: all 0.25s ease;
+}
+
+.dlux-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 212, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.2);
+}
+
+/* Dark Luxury — Premium KPI */
+.dlux-kpi {
+  background: linear-gradient(145deg, #111827 0%, #0F172A 100%);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 0 20px rgba(0, 212, 255, 0.06);
+  transition: all 0.25s ease;
+}
+
+.dlux-kpi:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 32px rgba(0, 212, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-color: rgba(0, 212, 255, 0.25);
+}
+
+.dlux-kpi-label { font-size: 10px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+.dlux-kpi-value { font-size: 38px; font-weight: 700; color: #E5E7EB; line-height: 1.2; letter-spacing: -0.02em; }
+.dlux-kpi-growth { font-size: 11px; margin-top: 6px; }
+
+/* Dark Luxury — AI Insight Panel (Glassmorphism) */
+.dlux-insight-panel {
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 24px rgba(0, 212, 255, 0.06);
+  padding: 16px;
+}
+
+.dlux-insight-title { font-size: 11px; font-weight: 700; color: #00D4FF; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+.dlux-insight-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.dlux-insight-item:last-child { border-bottom: none; }
+
+/* Board Presentation Mode */
+.powerbi-canvas.board-mode .powerbi-report-bg { max-width: 1400px; margin: 0 auto; }
+
+/* Premium Upload Page — Professional Dark Luxury */
+.premium-upload-bg {
+  background: #070d18;
+  background-image:
+    radial-gradient(ellipse 140% 80% at 50% -20%, rgba(0, 212, 255, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(20, 241, 149, 0.03) 0%, transparent 50%);
+}
+.premium-glow {
+  background: radial-gradient(ellipse 100% 50% at 50% 0%, rgba(0, 212, 255, 0.04) 0%, transparent 60%);
+}
+.premium-nav-bar {
+  background: rgba(7, 13, 24, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+}
+.premium-nav-btn {
+  font-size: 0.75rem;
+  color: #9CA3AF;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s ease;
+}
+.premium-nav-btn:hover {
+  color: #00D4FF;
+  background: rgba(0, 212, 255, 0.06);
+}
+.premium-nav-btn-logout:hover {
+  color: #FF4D4F !important;
+  background: rgba(255, 77, 79, 0.06) !important;
+}
+.letter-spacing-tight { letter-spacing: -0.03em; }
+.premium-tabs {
+  background: rgba(17, 24, 39, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+}
+.premium-tab {
+  color: #9CA3AF;
+}
+.premium-tab[data-state=active] {
+  background: rgba(0, 212, 255, 0.1);
+  color: #00D4FF;
+  border: 1px solid rgba(0, 212, 255, 0.25);
+}
+.premium-upload-zone {
+  background: linear-gradient(168deg, rgba(17, 24, 39, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border: 2px dashed rgba(0, 212, 255, 0.3);
+  box-shadow: 0 16px 56px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.premium-upload-zone:hover {
+  border-color: rgba(0, 212, 255, 0.45);
+  box-shadow: 0 20px 64px rgba(0, 0, 0, 0.55), 0 0 48px rgba(0, 212, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+.premium-upload-dragging {
+  border-style: solid;
+  border-color: rgba(0, 212, 255, 0.55);
+  box-shadow: 0 0 56px rgba(0, 212, 255, 0.18);
+}
+.premium-upload-icon {
+  background: linear-gradient(145deg, #00D4FF 0%, #0ea5e9 100%);
+  box-shadow: 0 8px 32px rgba(0, 212, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+.premium-analyze-btn {
+  background: linear-gradient(135deg, #00D4FF 0%, #0ea5e9 100%);
+  color: #0B1220;
+  box-shadow: 0 4px 24px rgba(0, 212, 255, 0.35);
+}
+.premium-analyze-btn:hover:not(:disabled) {
+  box-shadow: 0 8px 32px rgba(0, 212, 255, 0.45);
+  transform: translateY(-1px);
+}
+.premium-file-card {
+  background: linear-gradient(168deg, rgba(17, 24, 39, 0.98) 0%, rgba(15, 23, 42, 0.99) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.premium-session-card {
+  background: linear-gradient(168deg, rgba(17, 24, 39, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  transition: all 0.25s ease;
+}
+.premium-session-card:hover {
+  border-color: rgba(0, 212, 255, 0.22);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+}
+
+/* White cards — rasmdagi oq kartochkalar */
+.powerbi-card {
+  background: #ffffff;
+  border-radius: 2px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.2s;
+}
+
+.powerbi-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.powerbi-card-selected {
+  border-color: #ffaa00;
+  box-shadow: 0 2px 8px rgba(255, 170, 0, 0.25);
+}
+
+/* KPI — rasmdagi: kichik label, period, katta qora qiymat */
+.powerbi-kpi-card {
+  background: #ffffff;
+  border-radius: 2px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 1rem 1.25rem;
+}
+
+.powerbi-kpi-card .pbi-label { color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.powerbi-kpi-card .pbi-period { color: #9ca3af; font-size: 10px; text-transform: uppercase; margin-top: 2px; }
+.powerbi-kpi-card .pbi-value { color: #111827; font-weight: 700; font-size: 1.5rem; }
+
+.powerbi-slicer {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 2px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.powerbi-slicer-item-selected {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.powerbi-matrix {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.powerbi-matrix th {
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+}
+
+.powerbi-resize-handle {
+  background: rgba(0, 212, 255, 0.2);
+  transition: background 0.2s;
+}
+
+.powerbi-resize-handle:hover {
+  background: rgba(0, 212, 255, 0.4);
+}
+
+.powerbi-export-btn {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.3);
+  color: #00D4FF;
+}
+
+.powerbi-export-btn:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.5);
+  color: #E5E7EB;
+}
+
+/* Legacy light theme (overridden by Power BI dark) */
+.f500-bg { background: #0B1220; }
+.f500-card {
+  background: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s;
+}
+.f500-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+.f500-kpi {
+  background: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+  padding: 16px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.f500-kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: #1E3A8A;
+}
+.f500-kpi:hover { box-shadow: 0 4px 12px rgba(30,58,138,0.12); }
+.f500-kpi-label { font-size: 10px; color: #6B7280; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+.f500-kpi-value { font-size: 32px; font-weight: 700; color: #111827; line-height: 1.2; }
+.f500-kpi-growth { font-size: 11px; margin-top: 4px; }
+
+.f500-chart-title { font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; }
+.f500-divider { height: 1px; background: #E5E7EB; margin: 24px 0; }
+
+.f500-summary {
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.04);
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.f500-summary-title { font-size: 11px; font-weight: 700; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+.f500-summary-list { display: flex; flex-direction: column; gap: 10px; }
+.f500-summary-item { display: flex; align-items: flex-start; gap: 8px; }
+
+.f500-header {
+  background: #FFFFFF;
+  border-bottom: 1px solid #E5E7EB;
+  padding: 12px 24px;
+}
+
+@media print {
+  .powerbi-header button,
+  .powerbi-header input,
+  .powerbi-panel-left,
+  .powerbi-panel-right,
+  .powerbi-resize-handle { display: none !important; }
+  .f500-bg { background: #F4F6F9 !important; }
+}
+
+/* Executive Metrics Dashboard — Professional Power BI look (rasmga mos) */
+.executive-app {
+  min-height: 100vh;
+  background: #1e1e1e;
+}
+
+.executive-header {
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  padding: 0.75rem 1.5rem;
+}
+
+.executive-header .exec-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: #ffaa00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.executive-search {
+  background: #3c3c3c;
+  border: 1px solid #4a4a4a;
+  color: #cccccc;
+  border-radius: 2px;
+}
+
+.executive-search::placeholder {
+  color: #808080;
+}
+
+.exec-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.exec-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.exec-kpi-card .exec-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+.exec-kpi-card .exec-period { font-size: 10px; color: #9ca3af; text-transform: uppercase; margin-top: 2px; }
+.exec-kpi-card .exec-value { font-size: 1.5rem; font-weight: 700; color: #111827; }
+
+.exec-chart-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.exec-chart-card .exec-chart-title { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; }
+.exec-chart-card .exec-chart-subtitle { font-size: 10px; color: #9ca3af; }
+
+/* Power BI chart colors */
+.exec-chart-teal { color: #14b8a6; }
+.exec-chart-blue { color: #4472C4; }
+.exec-chart-green { color: #22c55e; }
+.exec-chart-red { color: #ef4444; }
+.exec-chart-amber { color: #f59e0b; }

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, LogOut, LayoutDashboard, Download, Globe, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getSheetNames, parseFile } from '@/lib/dataProcessor';
+import { getSheetNames, parseFile, getRowsFromParseResult } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import LanguageToggle from './LanguageToggle';
@@ -19,13 +19,14 @@ import type { DatasetAnalysis } from '@/lib/dataProcessor';
 interface FileUploadProps {
   onFileReady: (file: File, sheetIndex: number) => void;
   onApiDataReady?: (analysis: DatasetAnalysis, name: string) => void;
+  onSessionRestore?: (analysis: DatasetAnalysis, fileName: string) => void;
   isProcessing: boolean;
 }
 
 const ACCEPTED = ['.csv', '.xlsx', '.xls', '.json', '.sql'];
 const MAX_SIZE = 25 * 1024 * 1024;
 
-export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }: FileUploadProps) {
+export default function FileUpload({ onFileReady, onApiDataReady, onSessionRestore, isProcessing }: FileUploadProps) {
   const { t } = useI18n();
   const { signOut } = useAuth();
   const navigate = useNavigate();
@@ -54,7 +55,8 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
 
     setLoadingPreview(true);
     try {
-      const raw = await parseFile(f, 0);
+      const parseResult = await parseFile(f, 0);
+      const raw = getRowsFromParseResult(parseResult);
       setPreviewData(raw.slice(0, 100));
     } catch { /* preview is optional */ }
     setLoadingPreview(false);
@@ -65,7 +67,8 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
     if (file) {
       setLoadingPreview(true);
       try {
-        const raw = await parseFile(file, idx);
+        const parseResult = await parseFile(file, idx);
+        const raw = getRowsFromParseResult(parseResult);
         setPreviewData(raw.slice(0, 100));
       } catch { setPreviewData([]); }
       setLoadingPreview(false);
@@ -107,8 +110,8 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.2 }} className="w-full max-w-2xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full mb-4 grid grid-cols-2">
-            <TabsTrigger value="file" className="flex items-center gap-2"><Upload className="w-4 h-4" /> File Upload</TabsTrigger>
-            <TabsTrigger value="api" className="flex items-center gap-2"><Globe className="w-4 h-4" /> API Connection</TabsTrigger>
+            <TabsTrigger value="file" className="flex items-center gap-2"><Upload className="w-4 h-4" /> {t('upload.tabFile')}</TabsTrigger>
+            <TabsTrigger value="api" className="flex items-center gap-2"><Globe className="w-4 h-4" /> {t('upload.tabApi')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="file">
@@ -194,7 +197,6 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
               </div>
               {onApiDataReady && <ApiConnector onDataReady={onApiDataReady} />}
             </div>
-            {/* Saved connections below the connector */}
             {onApiDataReady && (
               <div className="mt-4 space-y-4">
                 <SavedApiConnections onDataReady={onApiDataReady} />
@@ -205,7 +207,7 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
         </Tabs>
       </motion.div>
 
-      <SessionHistory />
+      <SessionHistory onSessionRestore={onSessionRestore} onTriggerFileUpload={() => inputRef.current?.click()} />
     </div>
   );
 }

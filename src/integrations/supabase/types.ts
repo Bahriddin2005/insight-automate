@@ -238,6 +238,7 @@ export type Database = {
       upload_sessions: {
         Row: {
           ai_summary: string | null
+          analysis_data: Json | null
           column_count: number
           column_info: Json | null
           created_at: string
@@ -251,6 +252,7 @@ export type Database = {
         }
         Insert: {
           ai_summary?: string | null
+          analysis_data?: Json | null
           column_count?: number
           column_info?: Json | null
           created_at?: string
@@ -264,6 +266,7 @@ export type Database = {
         }
         Update: {
           ai_summary?: string | null
+          analysis_data?: Json | null
           column_count?: number
           column_info?: Json | null
           created_at?: string

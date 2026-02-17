@@ -4,10 +4,11 @@ import { Code2, Database, BarChart3, Copy, Check, Download } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18nContext';
-import { generatePythonCode, generateSQLQueries, generatePowerBIGuide } from '@/lib/codeGenerators';
+import { generatePythonCode, generateRCode, generateSQLQueries, generatePowerBIGuide } from '@/lib/codeGenerators';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-r';
 import 'prismjs/components/prism-sql';
 import 'prismjs/themes/prism-tomorrow.css';
 
@@ -24,6 +25,7 @@ export default function CodeView({ analysis, fileName }: CodeViewProps) {
   const [sqlDialect, setSqlDialect] = useState<SQLDialect>('ansi');
 
   const pythonCode = useMemo(() => generatePythonCode(analysis, fileName), [analysis, fileName]);
+  const rCode = useMemo(() => generateRCode(analysis, fileName), [analysis, fileName]);
   const sqlCode = useMemo(() => generateSQLQueries(analysis, fileName, sqlDialect), [analysis, fileName, sqlDialect]);
   const pbiGuide = useMemo(() => generatePowerBIGuide(analysis, fileName), [analysis, fileName]);
 
@@ -60,9 +62,12 @@ export default function CodeView({ analysis, fileName }: CodeViewProps) {
       </div>
 
       <Tabs defaultValue="python" className="w-full">
-        <TabsList className="w-full grid grid-cols-3 mb-4">
+        <TabsList className="w-full grid grid-cols-4 mb-4">
           <TabsTrigger value="python" className="text-xs sm:text-sm gap-1">
             <Code2 className="w-3 h-3" /> Python
+          </TabsTrigger>
+          <TabsTrigger value="r" className="text-xs sm:text-sm gap-1">
+            <Code2 className="w-3 h-3" /> R
           </TabsTrigger>
           <TabsTrigger value="sql" className="text-xs sm:text-sm gap-1">
             <Database className="w-3 h-3" /> SQL
@@ -85,7 +90,37 @@ export default function CodeView({ analysis, fileName }: CodeViewProps) {
           <CodeBlock code={pythonCode} language="python" />
         </TabsContent>
 
-        <TabsContent value="sql">
+        <TabsContent value="r">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => copyToClipboard(rCode, 'r')}>
+              {copiedTab === 'r' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copiedTab === 'r' ? t('save.copied') : t('code.copy')}
+            </Button>
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => downloadFile(rCode, `analysis_${fileName.replace(/\.\w+$/, '')}.R`, 'text/x-rsrc')}>
+              <Download className="w-3 h-3" /> .R
+            </Button>
+          </div>
+          <CodeBlock code={rCode} language="r" />
+        </TabsContent>
+
+        <TabsContent value="sql" className="space-y-4">
+          {analysis.sqlSelectQueries && analysis.sqlSelectQueries.length > 0 && (
+            <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Database className="w-3 h-3" /> SELECT Queries from uploaded SQL file
+              </h4>
+              <div className="space-y-3">
+                {analysis.sqlSelectQueries.map((sq, i) => (
+                  <div key={i} className="rounded-lg bg-secondary/50 p-3">
+                    <p className="text-[10px] text-muted-foreground mb-1">
+                      {sq.table ? `FROM ${sq.table}` : ''} — columns: {sq.columns.join(', ')}
+                    </p>
+                    <pre className="text-xs text-foreground overflow-x-auto whitespace-pre-wrap font-mono">{sq.query}</pre>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <select value={sqlDialect} onChange={(e) => setSqlDialect(e.target.value as SQLDialect)} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border focus:ring-1 focus:ring-primary outline-none">
               <option value="ansi">ANSI SQL</option>

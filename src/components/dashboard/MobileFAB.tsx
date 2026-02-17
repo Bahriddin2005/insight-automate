@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Image, FileText, Save, Share2 } from 'lucide-react';
+import { Plus, Image, FileText, Save, Share2, BarChart2 } from 'lucide-react';
 
 interface MobileFABProps {
   onExportPNG: () => void;
   onExportPDF: () => void;
+  onExportReport?: () => void;
   onSave: () => void;
   onShare?: () => void;
 }
@@ -12,22 +13,24 @@ interface MobileFABProps {
 const ACTIONS = [
   { id: 'png', icon: Image, label: 'PNG' },
   { id: 'pdf', icon: FileText, label: 'PDF' },
+  { id: 'report', icon: BarChart2, label: 'Hisobot' },
   { id: 'save', icon: Save, label: 'Saqlash' },
   { id: 'share', icon: Share2, label: 'Ulashish' },
 ] as const;
 
-export default function MobileFAB({ onExportPNG, onExportPDF, onSave, onShare }: MobileFABProps) {
+export default function MobileFAB({ onExportPNG, onExportPDF, onExportReport, onSave, onShare }: MobileFABProps) {
   const [open, setOpen] = useState(false);
 
   const handleAction = (id: string) => {
     setOpen(false);
     if (id === 'png') onExportPNG();
     else if (id === 'pdf') onExportPDF();
+    else if (id === 'report') onExportReport?.();
     else if (id === 'save') onSave();
     else if (id === 'share') onShare?.();
   };
 
-  const visibleActions = ACTIONS.filter(a => a.id !== 'share' || onShare);
+  const visibleActions = ACTIONS.filter(a => (a.id !== 'share' || onShare) && (a.id !== 'report' || onExportReport));
 
   return (
     <div className="fixed right-4 bottom-20 z-30 md:hidden">
