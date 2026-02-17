@@ -17,6 +17,7 @@ import CleaningReport from './CleaningReport';
 import SchemaViewer from './SchemaViewer';
 import MobileBottomNav from './MobileBottomNav';
 import PullToRefresh from './PullToRefresh';
+import MobileFAB from './MobileFAB';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -328,6 +329,12 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
       {/* Desktop main (non-mobile keeps working normally) */}
 
       <AiAgentChat analysis={analysis} fileName={fileName} />
+      <MobileFAB
+        onExportPNG={() => exportDashboardAsPNG('full-dashboard-export', fileName)}
+        onExportPDF={() => exportDashboardAsPDF('full-dashboard-export', fileName)}
+        onSave={handleSave}
+        onShare={shareUrl ? copyLink : undefined}
+      />
       <MobileBottomNav activeTab={mobileTab} onTabChange={setMobileTab} />
     </div>
   );
