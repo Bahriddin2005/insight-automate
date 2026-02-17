@@ -26,6 +26,9 @@ import ExecutiveSummaryPanel from './ExecutiveSummaryPanel';
 import ChurnRiskPanel from './ChurnRiskPanel';
 import TrendComparisonChart from './TrendComparisonChart';
 import WhatIfSimulation from './WhatIfSimulation';
+import AnomalyDetectionPanel from './AnomalyDetectionPanel';
+import PredictiveForecasting from './PredictiveForecasting';
+import ChartAnnotations from './ChartAnnotations';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -316,6 +319,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
           <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'overview' && mobileTab !== 'settings' ? 'hidden md:block' : ''}`}>
             {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
             {!isLoading && <IntelligentKPICards analysis={analysis} />}
+            {!isLoading && <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} />}
             <CleaningReport analysis={analysis} fileName={fileName} />
             <SchemaViewer analysis={analysis} />
             <InsightsPanel analysis={analysis} />
@@ -325,6 +329,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
           <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'charts' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
             {isLoading ? <ChartSkeleton /> : <AutoCharts analysis={analysis} filteredData={filteredData} />}
             {!isLoading && <TrendComparisonChart analysis={analysis} filteredData={filteredData} />}
+            {!isLoading && <PredictiveForecasting analysis={analysis} filteredData={filteredData} />}
             {!isLoading && numericColNames.length >= 2 && (
               <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
             )}

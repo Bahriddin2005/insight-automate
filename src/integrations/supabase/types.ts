@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      chart_annotations: {
+        Row: {
+          chart_key: string
+          color: string | null
+          created_at: string
+          dashboard_id: string
+          data_point_label: string
+          data_point_value: number | null
+          id: string
+          note: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chart_key: string
+          color?: string | null
+          created_at?: string
+          dashboard_id: string
+          data_point_label: string
+          data_point_value?: number | null
+          id?: string
+          note: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chart_key?: string
+          color?: string | null
+          created_at?: string
+          dashboard_id?: string
+          data_point_label?: string
+          data_point_value?: number | null
+          id?: string
+          note?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       dashboard_configs: {
         Row: {
           analysis_data: Json | null

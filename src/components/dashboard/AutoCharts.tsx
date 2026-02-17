@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import ChartAnnotations from './ChartAnnotations';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, CartesianGrid, Cell, PieChart, Pie,
@@ -38,10 +39,13 @@ function createHistogram(values: number[], buckets = 10) {
   return result;
 }
 
-function ChartCard({ title, children, delay = 0 }: { title: string; children: React.ReactNode; delay?: number }) {
+function ChartCard({ title, children, delay = 0, chartKey, dashboardId }: { title: string; children: React.ReactNode; delay?: number; chartKey?: string; dashboardId?: string }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay }} className="glass-card p-3 sm:p-5">
-      <h3 className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4 truncate">{title}</h3>
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h3 className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider truncate">{title}</h3>
+        {chartKey && dashboardId && <ChartAnnotations dashboardId={dashboardId} chartKey={chartKey} />}
+      </div>
       <div className="h-48 sm:h-64">{children}</div>
     </motion.div>
   );
