@@ -145,10 +145,18 @@ const Index = () => {
 
   if (!user) return null;
 
+  const pageVariants = {
+    initial: { opacity: 0, scale: 0.97, y: 12 },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.97, y: -12 },
+  };
+
+  const pageTransition = { duration: 0.35, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] };
+
   return (
     <AnimatePresence mode="wait">
       {view === 'upload' && (
-        <motion.div key="upload" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div key="upload" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}>
           <FileUpload onFileReady={handleFile} isProcessing={isProcessing} />
           {error && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm">{error}</div>
@@ -157,7 +165,7 @@ const Index = () => {
       )}
 
       {view === 'templates' && analysis && (
-        <motion.div key="templates" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div key="templates" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}>
           <TemplateGallery
             analysis={analysis}
             onSelect={handleSelectTemplate}
@@ -166,7 +174,7 @@ const Index = () => {
       )}
 
       {view === 'template-dashboard' && analysis && (
-        <motion.div key="template-dash" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div key="template-dash" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}>
           <TemplateDashboard
             analysis={analysis}
             templateId={selectedTemplate}
@@ -179,7 +187,7 @@ const Index = () => {
       )}
 
       {view === 'full-dashboard' && analysis && (
-        <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div key="dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}>
           <Dashboard analysis={analysis} fileName={fileName} onReset={handleReset} />
         </motion.div>
       )}
