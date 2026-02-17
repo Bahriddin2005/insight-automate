@@ -40,7 +40,69 @@ export async function parseFile(file: File, sheetIndex = 0): Promise<Record<stri
   const ext = file.name.split('.').pop()?.toLowerCase();
   if (ext === 'csv') return parseCSV(file);
   if (ext === 'xlsx' || ext === 'xls') return parseExcel(file, sheetIndex);
-  throw new Error('Unsupported file type. Please upload CSV, XLSX, or XLS.');
+  if (ext === 'json') return parseJSON(file);
+  throw new Error('Unsupported file type. Please upload CSV, XLSX, XLS, or JSON.');
+}
+
+function parseJSON(file: File): Promise<Record<string, unknown>[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const raw = JSON.parse(e.target?.result as string);
+        const data = flattenJSON(raw);
+        if (!data.length) throw new Error('No tabular data found in JSON.');
+        resolve(data);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+export function flattenJSON(input: unknown): Record<string, unknown>[] {
+  // If array of objects, flatten each
+  if (Array.isArray(input)) {
+    if (input.length === 0) return [];
+    if (typeof input[0] === 'object' && input[0] !== null) {
+      return input.map(item => flattenObject(item as Record<string, unknown>));
+    }
+    return input.map((v, i) => ({ index: i, value: v }));
+  }
+  // If object with array values, find the main array
+  if (typeof input === 'object' && input !== null) {
+    const obj = input as Record<string, unknown>;
+    for (const key of Object.keys(obj)) {
+      if (Array.isArray(obj[key]) && (obj[key] as unknown[]).length > 0) {
+        const arr = obj[key] as unknown[];
+        if (typeof arr[0] === 'object' && arr[0] !== null) {
+          return arr.map(item => flattenObject(item as Record<string, unknown>));
+        }
+      }
+    }
+    // Single object → single row
+    return [flattenObject(obj)];
+  }
+  return [];
+}
+
+function flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const newKey = prefix ? `${prefix}.${key}` : key;
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      Object.assign(result, flattenObject(value as Record<string, unknown>, newKey));
+    } else if (Array.isArray(value)) {
+      if (value.length > 0 && typeof value[0] === 'object') {
+        result[newKey] = JSON.stringify(value);
+      } else {
+        result[newKey] = value.join(', ');
+      }
+    } else {
+      result[newKey] = value;
+    }
+  }
+  return result;
 }
 
 function parseCSV(file: File): Promise<Record<string, unknown>[]> {

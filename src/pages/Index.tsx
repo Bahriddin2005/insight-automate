@@ -71,7 +71,7 @@ const Index = () => {
   const [view, setView] = useState<View>(cached?.analysis ? (cached.view ?? 'templates') : 'upload');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(cached?.selectedTemplate ?? 'explorer');
 
-  useEffect(() => { document.title = 'AI Smart Dashboard'; }, []);
+  useEffect(() => { document.title = 'Intelligence Studio — API-Driven Decision Engine'; }, []);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
@@ -125,6 +125,12 @@ const Index = () => {
     }
   };
 
+  const handleApiDataReady = useCallback((apiAnalysis: DatasetAnalysis, name: string) => {
+    setAnalysis(apiAnalysis);
+    setFileName(name);
+    setView('templates');
+  }, []);
+
   const handleSelectTemplate = (templateId: TemplateId) => {
     setSelectedTemplate(templateId);
     setView('template-dashboard');
@@ -157,7 +163,7 @@ const Index = () => {
     <AnimatePresence mode="wait">
       {view === 'upload' && (
         <motion.div key="upload" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}>
-          <FileUpload onFileReady={handleFile} isProcessing={isProcessing} />
+          <FileUpload onFileReady={handleFile} onApiDataReady={handleApiDataReady} isProcessing={isProcessing} />
           {error && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm">{error}</div>
           )}
