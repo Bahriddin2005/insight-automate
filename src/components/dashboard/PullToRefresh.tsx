@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { toast } from '@/hooks/use-toast';
 import { RefreshCw } from 'lucide-react';
 
 interface PullToRefreshProps {
@@ -15,7 +16,6 @@ export default function PullToRefresh({ onRefresh, children }: PullToRefreshProp
   const [pullDistance, setPullDistance] = useState(0);
   const startY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const controls = useAnimation();
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (containerRef.current && containerRef.current.scrollTop === 0) {
@@ -40,6 +40,9 @@ export default function PullToRefresh({ onRefresh, children }: PullToRefreshProp
       setPullDistance(THRESHOLD);
       try {
         await onRefresh();
+        // Haptic feedback (Vibration API)
+        if (navigator.vibrate) navigator.vibrate(50);
+        toast({ title: '✓ Dashboard yangilandi', duration: 2000 });
       } finally {
         setRefreshing(false);
         setPullDistance(0);
