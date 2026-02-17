@@ -23,6 +23,9 @@ import MobileFAB from './MobileFAB';
 import IntelligentKPICards from './IntelligentKPICards';
 import CohortFunnelAnalysis from './CohortFunnelAnalysis';
 import ExecutiveSummaryPanel from './ExecutiveSummaryPanel';
+import ChurnRiskPanel from './ChurnRiskPanel';
+import TrendComparisonChart from './TrendComparisonChart';
+import WhatIfSimulation from './WhatIfSimulation';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -321,6 +324,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
           {/* Charts section */}
           <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'charts' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
             {isLoading ? <ChartSkeleton /> : <AutoCharts analysis={analysis} filteredData={filteredData} />}
+            {!isLoading && <TrendComparisonChart analysis={analysis} filteredData={filteredData} />}
             {!isLoading && numericColNames.length >= 2 && (
               <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
             )}
@@ -328,6 +332,8 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
               <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
             )}
             {!isLoading && <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />}
+            {!isLoading && <ChurnRiskPanel analysis={analysis} filteredData={filteredData} />}
+            {!isLoading && <WhatIfSimulation analysis={analysis} filteredData={filteredData} />}
           </div>
 
           {/* AI section */}
