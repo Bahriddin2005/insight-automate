@@ -41,7 +41,121 @@ export async function parseFile(file: File, sheetIndex = 0): Promise<Record<stri
   if (ext === 'csv') return parseCSV(file);
   if (ext === 'xlsx' || ext === 'xls') return parseExcel(file, sheetIndex);
   if (ext === 'json') return parseJSON(file);
-  throw new Error('Unsupported file type. Please upload CSV, XLSX, XLS, or JSON.');
+  if (ext === 'sql') return parseSQL(file);
+  throw new Error('Unsupported file type. Please upload CSV, XLSX, XLS, JSON, or SQL.');
+}
+
+function parseSQL(file: File): Promise<Record<string, unknown>[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const sql = e.target?.result as string;
+        const data = extractDataFromSQL(sql);
+        if (!data.length) throw new Error('No INSERT data found in SQL file. Ensure it contains INSERT INTO statements.');
+        resolve(data);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+function extractDataFromSQL(sql: string): Record<string, unknown>[] {
+  const rows: Record<string, unknown>[] = [];
+
+  // Extract column names from CREATE TABLE if available
+  const createMatch = sql.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"']?(\w+)[`"']?\s*\(([\s\S]*?)\);/i);
+  let columnNames: string[] = [];
+  if (createMatch) {
+    const colDefs = createMatch[2];
+    columnNames = colDefs
+      .split(',')
+      .map(line => line.trim())
+      .filter(line => !line.match(/^\s*(PRIMARY|UNIQUE|INDEX|KEY|CONSTRAINT|CHECK|FOREIGN)/i))
+      .map(line => {
+        const match = line.match(/^[`"']?(\w+)[`"']?\s+/);
+        return match ? match[1] : '';
+      })
+      .filter(Boolean);
+  }
+
+  // Parse INSERT INTO statements
+  const insertRegex = /INSERT\s+INTO\s+[`"']?(\w+)[`"']?\s*(?:\(([^)]+)\))?\s*VALUES\s*([\s\S]*?)(?:;|$)/gi;
+  let insertMatch;
+  
+  while ((insertMatch = insertRegex.exec(sql)) !== null) {
+    // Column names from INSERT statement take priority
+    const insertCols = insertMatch[2]
+      ? insertMatch[2].split(',').map(c => c.trim().replace(/[`"']/g, ''))
+      : columnNames;
+
+    const valuesStr = insertMatch[3];
+    // Match each (...) group
+    const rowRegex = /\(([^)]+)\)/g;
+    let rowMatch;
+    while ((rowMatch = rowRegex.exec(valuesStr)) !== null) {
+      const values = parseInsertValues(rowMatch[1]);
+      const row: Record<string, unknown> = {};
+      values.forEach((val, i) => {
+        const colName = insertCols[i] || `col_${i + 1}`;
+        row[colName] = val;
+      });
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
+function parseInsertValues(valuesStr: string): unknown[] {
+  const values: unknown[] = [];
+  let current = '';
+  let inString = false;
+  let stringChar = '';
+  
+  for (let i = 0; i < valuesStr.length; i++) {
+    const ch = valuesStr[i];
+    
+    if (inString) {
+      if (ch === stringChar && valuesStr[i + 1] !== stringChar) {
+        inString = false;
+        values.push(current);
+        current = '';
+      } else if (ch === stringChar && valuesStr[i + 1] === stringChar) {
+        current += ch;
+        i++; // skip escaped quote
+      } else {
+        current += ch;
+      }
+    } else if (ch === "'" || ch === '"') {
+      inString = true;
+      stringChar = ch;
+      current = '';
+    } else if (ch === ',') {
+      if (current.trim()) {
+        values.push(parseSQLValue(current.trim()));
+        current = '';
+      }
+    } else {
+      current += ch;
+    }
+  }
+  
+  if (current.trim() && !inString) {
+    values.push(parseSQLValue(current.trim()));
+  }
+  
+  return values;
+}
+
+function parseSQLValue(val: string): unknown {
+  if (val.toUpperCase() === 'NULL') return null;
+  if (val.toUpperCase() === 'TRUE') return true;
+  if (val.toUpperCase() === 'FALSE') return false;
+  const num = Number(val);
+  if (!isNaN(num) && val !== '') return num;
+  return val;
 }
 
 function parseJSON(file: File): Promise<Record<string, unknown>[]> {

@@ -22,7 +22,7 @@ interface FileUploadProps {
   isProcessing: boolean;
 }
 
-const ACCEPTED = ['.csv', '.xlsx', '.xls', '.json'];
+const ACCEPTED = ['.csv', '.xlsx', '.xls', '.json', '.sql'];
 const MAX_SIZE = 25 * 1024 * 1024;
 
 export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }: FileUploadProps) {
@@ -119,14 +119,14 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
               onDrop={handleDrop}
               onClick={() => inputRef.current?.click()}
             >
-              <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,.json" className="hidden" onChange={(e) => e.target.files?.[0] && validateFile(e.target.files[0])} />
+              <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,.json,.sql" className="hidden" onChange={(e) => e.target.files?.[0] && validateFile(e.target.files[0])} />
               <motion.div animate={dragActive ? { scale: 1.1 } : { scale: 1 }} className="mb-4 inline-block">
                 <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto">
                   <Upload className="w-8 h-8 text-primary-foreground" />
                 </div>
               </motion.div>
               <p className="text-foreground font-medium text-lg mb-1">{t('upload.drop')}</p>
-              <p className="text-muted-foreground text-sm">CSV, Excel (.xlsx/.xls), JSON — up to 25MB</p>
+              <p className="text-muted-foreground text-sm">CSV, Excel (.xlsx/.xls), JSON, SQL — up to 25MB</p>
             </div>
 
             <AnimatePresence>
