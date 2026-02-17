@@ -6,6 +6,8 @@ import {
 } from 'recharts';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
+import { useIsMobile } from '@/hooks/use-mobile';
+import ChartGestureWrapper from './ChartGestureWrapper';
 
 const COLORS = [
   'hsl(190, 85%, 48%)', 'hsl(160, 65%, 42%)', 'hsl(35, 90%, 55%)',
@@ -96,6 +98,7 @@ interface AutoChartsProps {
 
 export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) {
   const { t } = useI18n();
+  const isMobile = useIsMobile();
   const charts: React.ReactNode[] = [];
   let chartIdx = 0;
 
@@ -222,5 +225,12 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
     return <div className="glass-card p-8 text-center text-muted-foreground">{t('chart.noData')}</div>;
   }
 
-  return <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">{charts}</div>;
+  return (
+    <>
+      {/* Mobile: swipeable carousel with pinch-to-zoom */}
+      {isMobile && <ChartGestureWrapper charts={charts} />}
+      {/* Desktop: grid */}
+      <div className="hidden md:grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">{charts}</div>
+    </>
+  );
 }
