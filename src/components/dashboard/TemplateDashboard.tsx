@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LayoutGrid, Maximize2, Save, GripVertical, Loader2, Check, Link2, Globe, Lock, Image, FileText } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Maximize2, Save, GripVertical, Loader2, Check, Link2, Globe, Lock, Image, FileText, Code2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,6 +15,7 @@ import { getCorrelationMatrix } from '@/lib/dataProcessor';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import { exportDashboardAsPNG, exportDashboardAsPDF } from '@/lib/exportDashboard';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import CodeView from './CodeView';
 
 const COLORS = [
   'hsl(190, 85%, 48%)', 'hsl(160, 65%, 42%)', 'hsl(35, 90%, 55%)',
@@ -394,6 +395,9 @@ export default function TemplateDashboard({ analysis, templateId, fileName, onBa
             );
           })}
         </div>
+
+        {/* Code View — Python, SQL, Power BI */}
+        <CodeView analysis={analysis} fileName={fileName} />
       </main>
     </div>
   );
