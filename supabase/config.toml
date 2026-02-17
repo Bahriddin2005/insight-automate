@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.nl-query]
 verify_jwt = false
+
+[functions.api-proxy]
+verify_jwt = false

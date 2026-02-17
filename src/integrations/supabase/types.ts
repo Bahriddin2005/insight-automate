@@ -14,6 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_connections: {
+        Row: {
+          auth_config: Json
+          auth_type: string
+          created_at: string
+          custom_headers: Json
+          endpoint_url: string
+          id: string
+          json_root_path: string | null
+          last_fetched_at: string | null
+          last_row_count: number | null
+          last_schema: Json | null
+          method: string
+          name: string
+          pagination_config: Json
+          pagination_type: string | null
+          request_body: Json | null
+          schedule: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_config?: Json
+          auth_type?: string
+          created_at?: string
+          custom_headers?: Json
+          endpoint_url: string
+          id?: string
+          json_root_path?: string | null
+          last_fetched_at?: string | null
+          last_row_count?: number | null
+          last_schema?: Json | null
+          method?: string
+          name: string
+          pagination_config?: Json
+          pagination_type?: string | null
+          request_body?: Json | null
+          schedule?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_config?: Json
+          auth_type?: string
+          created_at?: string
+          custom_headers?: Json
+          endpoint_url?: string
+          id?: string
+          json_root_path?: string | null
+          last_fetched_at?: string | null
+          last_row_count?: number | null
+          last_schema?: Json | null
+          method?: string
+          name?: string
+          pagination_config?: Json
+          pagination_type?: string | null
+          request_body?: Json | null
+          schedule?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      api_ingestion_logs: {
+        Row: {
+          connection_id: string
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          row_count: number | null
+          schema_snapshot: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          row_count?: number | null
+          schema_snapshot?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          row_count?: number | null
+          schema_snapshot?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_ingestion_logs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "api_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_annotations: {
         Row: {
           chart_key: string
