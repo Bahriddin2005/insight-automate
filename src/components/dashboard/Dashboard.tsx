@@ -32,6 +32,8 @@ import ChartAnnotations from './ChartAnnotations';
 import NaturalLanguageQuery from './NaturalLanguageQuery';
 import ExecutiveReportGenerator from './ExecutiveReportGenerator';
 import RealtimeRefresh from './RealtimeRefresh';
+import DatasetComparison from './DatasetComparison';
+import DragDropLayout, { getDefaultPanels, type LayoutPanel } from './DragDropLayout';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,6 +65,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
   const [refreshKey, setRefreshKey] = useState(0);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [layoutPanels, setLayoutPanels] = useState<LayoutPanel[]>(getDefaultPanels());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Simulate initial render loading for skeleton effect
@@ -319,36 +322,35 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
 
       <PullToRefresh onRefresh={handlePullRefresh}>
         <main key={refreshKey} className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
-          {/* Overview section — visible on desktop always, mobile only on overview tab */}
-          <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'overview' && mobileTab !== 'settings' ? 'hidden md:block' : ''}`}>
-            {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
-            {!isLoading && <IntelligentKPICards analysis={analysis} />}
-            {!isLoading && <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} />}
-            <CleaningReport analysis={analysis} fileName={fileName} />
-            <SchemaViewer analysis={analysis} />
-            <InsightsPanel analysis={analysis} />
+          {/* Drag-and-drop layout section */}
+          <div className={`${mobileTab !== 'overview' && mobileTab !== 'charts' && mobileTab !== 'ai' ? 'hidden md:block' : ''}`}>
+            <DragDropLayout panels={layoutPanels} onLayoutChange={setLayoutPanels}>
+              {(panelId) => {
+                switch (panelId) {
+                  case 'kpi': return isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />;
+                  case 'intelligent-kpi': return !isLoading ? <IntelligentKPICards analysis={analysis} /> : null;
+                  case 'anomaly': return !isLoading ? <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} /> : null;
+                  case 'cleaning': return <CleaningReport analysis={analysis} fileName={fileName} />;
+                  case 'schema': return <SchemaViewer analysis={analysis} />;
+                  case 'insights': return <InsightsPanel analysis={analysis} />;
+                  case 'charts': return isLoading ? <ChartSkeleton /> : <AutoCharts analysis={analysis} filteredData={filteredData} />;
+                  case 'trend': return !isLoading ? <TrendComparisonChart analysis={analysis} filteredData={filteredData} /> : null;
+                  case 'forecasting': return !isLoading ? <PredictiveForecasting analysis={analysis} filteredData={filteredData} /> : null;
+                  case 'correlation': return !isLoading && numericColNames.length >= 2 ? <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} /> : null;
+                  case 'cohort': return !isLoading ? <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} /> : null;
+                  case 'churn': return !isLoading ? <ChurnRiskPanel analysis={analysis} filteredData={filteredData} /> : null;
+                  case 'whatif': return !isLoading ? <WhatIfSimulation analysis={analysis} filteredData={filteredData} /> : null;
+                  case 'comparison': return !isLoading ? <DatasetComparison primaryAnalysis={analysis} primaryName={fileName} /> : null;
+                  case 'nl-query': return !isLoading ? <NaturalLanguageQuery analysis={analysis} filteredData={filteredData} /> : null;
+                  case 'report': return !isLoading ? <ExecutiveReportGenerator analysis={analysis} filteredData={filteredData} fileName={fileName} /> : null;
+                  default: return null;
+                }
+              }}
+            </DragDropLayout>
           </div>
 
-          {/* Charts section */}
-          <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'charts' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
-            {isLoading ? <ChartSkeleton /> : <AutoCharts analysis={analysis} filteredData={filteredData} />}
-            {!isLoading && <TrendComparisonChart analysis={analysis} filteredData={filteredData} />}
-            {!isLoading && <PredictiveForecasting analysis={analysis} filteredData={filteredData} />}
-            {!isLoading && numericColNames.length >= 2 && (
-              <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
-            )}
-            {!isLoading && (
-              <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
-            )}
-            {!isLoading && <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />}
-            {!isLoading && <ChurnRiskPanel analysis={analysis} filteredData={filteredData} />}
-            {!isLoading && <WhatIfSimulation analysis={analysis} filteredData={filteredData} />}
-          </div>
-
-          {/* AI section */}
+          {/* AI summary section */}
           <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'ai' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
-            {!isLoading && <NaturalLanguageQuery analysis={analysis} filteredData={filteredData} />}
-            {!isLoading && <ExecutiveReportGenerator analysis={analysis} filteredData={filteredData} fileName={fileName} />}
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
