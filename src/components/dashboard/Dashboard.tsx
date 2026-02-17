@@ -16,6 +16,7 @@ import CodeView from './CodeView';
 import CleaningReport from './CleaningReport';
 import SchemaViewer from './SchemaViewer';
 import MobileBottomNav from './MobileBottomNav';
+import PullToRefresh from './PullToRefresh';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,7 +44,17 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [mobileTab, setMobileTab] = useState('overview');
+  const [refreshKey, setRefreshKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePullRefresh = useCallback(async () => {
+    // Re-trigger reactivity by bumping key
+    setRefreshKey(k => k + 1);
+    setCatFilters({});
+    setNumFilter(null);
+    // Small delay for visual feedback
+    await new Promise(r => setTimeout(r, 600));
+  }, []);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -269,48 +280,52 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
         )}
       </motion.header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
-        {/* Overview section — visible on desktop always, mobile only on overview tab */}
-        <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'overview' && mobileTab !== 'settings' ? 'hidden md:block' : ''}`}>
-          <KPICards analysis={analysis} />
-          <CleaningReport analysis={analysis} fileName={fileName} />
-          <SchemaViewer analysis={analysis} />
-          <InsightsPanel analysis={analysis} />
-        </div>
+      <PullToRefresh onRefresh={handlePullRefresh}>
+        <main key={refreshKey} className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
+          {/* Overview section — visible on desktop always, mobile only on overview tab */}
+          <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'overview' && mobileTab !== 'settings' ? 'hidden md:block' : ''}`}>
+            <KPICards analysis={analysis} />
+            <CleaningReport analysis={analysis} fileName={fileName} />
+            <SchemaViewer analysis={analysis} />
+            <InsightsPanel analysis={analysis} />
+          </div>
 
-        {/* Charts section */}
-        <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'charts' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
-          <AutoCharts analysis={analysis} filteredData={filteredData} />
-          {numericColNames.length >= 2 && (
-            <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
-          )}
-          <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
-        </div>
+          {/* Charts section */}
+          <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'charts' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+            <AutoCharts analysis={analysis} filteredData={filteredData} />
+            {numericColNames.length >= 2 && (
+              <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
+            )}
+            <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
+          </div>
 
-        {/* AI section */}
-        <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'ai' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg gradient-warm flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-foreground" />
+          {/* AI section */}
+          <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'ai' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg gradient-warm flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-foreground" />
+                  </div>
+                  <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('ai.summary')}</h2>
                 </div>
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('ai.summary')}</h2>
+                <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs">
+                  {aiLoading ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {t('ai.generating')}</> : t('ai.generate')}
+                </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs">
-                {aiLoading ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {t('ai.generating')}</> : t('ai.generate')}
-              </Button>
-            </div>
-            <p className="text-sm text-foreground/80 leading-relaxed">{aiSummary || t('ai.noSummary')}</p>
-          </motion.div>
-        </div>
+              <p className="text-sm text-foreground/80 leading-relaxed">{aiSummary || t('ai.noSummary')}</p>
+            </motion.div>
+          </div>
 
-        {/* Data section */}
-        <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'data' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
-          <CodeView analysis={analysis} fileName={fileName} />
-          <DataTable data={filteredData} columns={analysis.columnInfo} />
-        </div>
-      </main>
+          {/* Data section */}
+          <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'data' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+            <CodeView analysis={analysis} fileName={fileName} />
+            <DataTable data={filteredData} columns={analysis.columnInfo} />
+          </div>
+        </main>
+      </PullToRefresh>
+
+      {/* Desktop main (non-mobile keeps working normally) */}
 
       <AiAgentChat analysis={analysis} fileName={fileName} />
       <MobileBottomNav activeTab={mobileTab} onTabChange={setMobileTab} />
