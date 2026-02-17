@@ -1,10 +1,12 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock, Image, FileText } from 'lucide-react';
+import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock, Image, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import KPICards from './KPICards';
+import KPICardsSkeleton from './KPICardsSkeleton';
 import AutoCharts from './AutoCharts';
+import ChartSkeleton from './ChartSkeleton';
 import DataTable from './DataTable';
 import InsightsPanel from './InsightsPanel';
 import LanguageToggle from './LanguageToggle';
@@ -22,6 +24,7 @@ import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
 import { exportDashboardAsPNG, exportDashboardAsPDF } from '@/lib/exportDashboard';
+import { exportAsCSV, exportAsJSON, exportAsExcel } from '@/lib/exportData';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 
@@ -46,7 +49,15 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
   const [copied, setCopied] = useState(false);
   const [mobileTab, setMobileTab] = useState('overview');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Simulate initial render loading for skeleton effect
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, [refreshKey]);
 
   const handlePullRefresh = useCallback(async () => {
     // Re-trigger reactivity by bumping key
@@ -186,6 +197,18 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
             <Button variant="outline" size="sm" onClick={() => exportDashboardAsPDF('full-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
               <FileText className="w-3 h-3" /> <span className="hidden sm:inline ml-1">PDF</span>
             </Button>
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
+                <Download className="w-3 h-3" /> <span className="hidden sm:inline ml-1">Data</span>
+              </Button>
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
+                  <button onClick={() => { exportAsCSV(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">CSV</button>
+                  <button onClick={() => { exportAsJSON(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">JSON</button>
+                  <button onClick={() => { exportAsExcel(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">Excel</button>
+                </div>
+              )}
+            </div>
             <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2 sm:px-3">
               <Filter className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">{t('filters.button')}</span>
             </Button>
@@ -285,7 +308,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
         <main key={refreshKey} className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
           {/* Overview section — visible on desktop always, mobile only on overview tab */}
           <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'overview' && mobileTab !== 'settings' ? 'hidden md:block' : ''}`}>
-            <KPICards analysis={analysis} />
+            {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
             <CleaningReport analysis={analysis} fileName={fileName} />
             <SchemaViewer analysis={analysis} />
             <InsightsPanel analysis={analysis} />
@@ -293,11 +316,13 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
 
           {/* Charts section */}
           <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'charts' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
-            <AutoCharts analysis={analysis} filteredData={filteredData} />
-            {numericColNames.length >= 2 && (
+            {isLoading ? <ChartSkeleton /> : <AutoCharts analysis={analysis} filteredData={filteredData} />}
+            {!isLoading && numericColNames.length >= 2 && (
               <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
             )}
-            <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
+            {!isLoading && (
+              <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
+            )}
           </div>
 
           {/* AI section */}
