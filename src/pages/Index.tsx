@@ -63,12 +63,24 @@ const Index = () => {
   const navigate = useNavigate();
 
   // Restore from session
-  const cached = loadSession();
-  const [analysis, setAnalysis] = useState<DatasetAnalysis | null>(cached?.analysis ?? null);
-  const [fileName, setFileName] = useState(cached?.fileName ?? '');
+  // Check for case study data from portfolio
+  const caseStudyData = (() => {
+    try {
+      const raw = sessionStorage.getItem('case_study_analysis');
+      if (raw) {
+        sessionStorage.removeItem('case_study_analysis');
+        return JSON.parse(raw);
+      }
+    } catch {}
+    return null;
+  })();
+
+  const cached = caseStudyData ? null : loadSession();
+  const [analysis, setAnalysis] = useState<DatasetAnalysis | null>(caseStudyData?.analysis ?? cached?.analysis ?? null);
+  const [fileName, setFileName] = useState(caseStudyData?.fileName ?? cached?.fileName ?? '');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [view, setView] = useState<View>(cached?.analysis ? (cached.view ?? 'templates') : 'upload');
+  const [view, setView] = useState<View>(caseStudyData?.analysis ? 'templates' : (cached?.analysis ? (cached.view ?? 'templates') : 'upload'));
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(cached?.selectedTemplate ?? 'explorer');
 
   useEffect(() => { document.title = 'Intelligence Studio — API-Driven Decision Engine'; }, []);
