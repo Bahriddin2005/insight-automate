@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, LogOut, LayoutDashboard, Download, Globe } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, LogOut, LayoutDashboard, Download, Globe, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getSheetNames, parseFile } from '@/lib/dataProcessor';
@@ -80,6 +80,9 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
   return (
     <div className="min-h-screen bg-mesh flex flex-col items-center justify-center p-6">
       <div className="absolute top-4 right-4 flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/portfolio')} className="text-xs text-muted-foreground">
+          <Briefcase className="w-3 h-3 mr-1" /> Portfolio
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => navigate('/install')} className="text-xs text-muted-foreground">
           <Download className="w-3 h-3 mr-1" /> Install App
         </Button>

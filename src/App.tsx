@@ -12,6 +12,8 @@ import ResetPassword from "./pages/ResetPassword";
 import MyDashboards from "./pages/MyDashboards";
 import SharedDashboard from "./pages/SharedDashboard";
 import Install from "./pages/Install";
+import Portfolio from "./pages/Portfolio";
+import CaseStudyDetail from "./pages/CaseStudyDetail";
 import OfflineBanner from "./components/dashboard/OfflineBanner";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +36,8 @@ const App = () => (
               <Route path="/dashboards" element={<MyDashboards />} />
               <Route path="/shared/:token" element={<SharedDashboard />} />
               <Route path="/install" element={<Install />} />
+              <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/portfolio/:id" element={<CaseStudyDetail />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
