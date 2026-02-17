@@ -20,6 +20,9 @@ import SchemaViewer from './SchemaViewer';
 import MobileBottomNav from './MobileBottomNav';
 import PullToRefresh from './PullToRefresh';
 import MobileFAB from './MobileFAB';
+import IntelligentKPICards from './IntelligentKPICards';
+import CohortFunnelAnalysis from './CohortFunnelAnalysis';
+import ExecutiveSummaryPanel from './ExecutiveSummaryPanel';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -309,6 +312,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
           {/* Overview section — visible on desktop always, mobile only on overview tab */}
           <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'overview' && mobileTab !== 'settings' ? 'hidden md:block' : ''}`}>
             {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
+            {!isLoading && <IntelligentKPICards analysis={analysis} />}
             <CleaningReport analysis={analysis} fileName={fileName} />
             <SchemaViewer analysis={analysis} />
             <InsightsPanel analysis={analysis} />
@@ -323,6 +327,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
             {!isLoading && (
               <ChartCustomizer columns={analysis.columnInfo} data={filteredData} customCharts={customCharts} onAddChart={c => setCustomCharts(prev => [...prev, c])} onRemoveChart={id => setCustomCharts(prev => prev.filter(c => c.id !== id))} />
             )}
+            {!isLoading && <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />}
           </div>
 
           {/* AI section */}
@@ -354,6 +359,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
       {/* Desktop main (non-mobile keeps working normally) */}
 
       <AiAgentChat analysis={analysis} fileName={fileName} />
+      <ExecutiveSummaryPanel analysis={analysis} fileName={fileName} />
       <MobileFAB
         onExportPNG={() => exportDashboardAsPNG('full-dashboard-export', fileName)}
         onExportPDF={() => exportDashboardAsPDF('full-dashboard-export', fileName)}
