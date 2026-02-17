@@ -13,6 +13,7 @@ import SessionHistory from './SessionHistory';
 import DataPreview from './DataPreview';
 import ApiConnector from './ApiConnector';
 import SavedApiConnections from './SavedApiConnections';
+import ApiHealthMonitor from './ApiHealthMonitor';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 
 interface FileUploadProps {
@@ -192,8 +193,9 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
             </div>
             {/* Saved connections below the connector */}
             {onApiDataReady && (
-              <div className="mt-4">
+              <div className="mt-4 space-y-4">
                 <SavedApiConnections onDataReady={onApiDataReady} />
+                <ApiHealthMonitor />
               </div>
             )}
           </TabsContent>
