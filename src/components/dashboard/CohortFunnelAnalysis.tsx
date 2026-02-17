@@ -134,14 +134,10 @@ export default function CohortFunnelAnalysis({ analysis, filteredData }: Props) 
                 />
                 <Tooltip
                   {...tooltipStyle}
-                  formatter={(value: number, _: string, props?: { payload?: FunnelStep }) => {
-                    const p = props?.payload;
-                    if (!p) return [String(value), ''];
-                    return [
-                      `${value} (${p.percent.toFixed(1)}%)${p.dropoff > 0 ? ` | Drop: ${p.dropoff.toFixed(1)}%` : ''}`,
-                      'Count'
-                    ];
-                  }}
+                  formatter={(value: number, _: string, props: { payload: FunnelStep }) => [
+                    `${value} (${props.payload.percent.toFixed(1)}%)${props.payload.dropoff > 0 ? ` | Drop: ${props.payload.dropoff.toFixed(1)}%` : ''}`,
+                    'Count'
+                  ]}
                 />
                 <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                   {funnel.map((_, i) => (

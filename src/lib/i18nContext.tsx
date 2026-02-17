@@ -13,24 +13,10 @@ const I18nContext = createContext<I18nContextType>({
   t: (key) => key,
 });
 
-const LANG_KEY = 'app_lang';
-
-function loadLang(): Lang {
-  try {
-    const saved = localStorage.getItem(LANG_KEY) as Lang | null;
-    if (saved && (saved === 'uz' || saved === 'en' || saved === 'ru')) return saved;
-  } catch {}
-  return 'uz';
-}
-
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>(loadLang);
-  const setLangPersisted = (l: Lang) => {
-    setLang(l);
-    try { localStorage.setItem(LANG_KEY, l); } catch {}
-  };
+  const [lang, setLang] = useState<Lang>('uz');
   return (
-    <I18nContext.Provider value={{ lang, setLang: setLangPersisted, t: (key, params) => t(lang, key, params) }}>
+    <I18nContext.Provider value={{ lang, setLang, t: (key, params) => t(lang, key, params) }}>
       {children}
     </I18nContext.Provider>
   );

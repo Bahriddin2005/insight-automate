@@ -1,27 +1,25 @@
 import { motion } from 'framer-motion';
 import ChartAnnotations from './ChartAnnotations';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, Legend,
-  LineChart, Line, Area, AreaChart, CartesianGrid, Cell, PieChart, Pie,
-  ReferenceLine,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  LineChart, Line, CartesianGrid, Cell, PieChart, Pie,
+  ScatterChart, Scatter, ZAxis, ReferenceLine,
 } from 'recharts';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ChartGestureWrapper from './ChartGestureWrapper';
 
-/* Power BI Executive Metrics palette */
-const COLORS = ['#4472C4', '#ED7D31', '#70AD47', '#FFC000', '#5B9BD5', '#A5A5A5'];
-
-/** Gradient for bars - hex support */
-function bar3DGradient(id: string, base: string) {
-  return { id, light: base, dark: base };
-}
+const COLORS = [
+  'hsl(190, 85%, 48%)', 'hsl(160, 65%, 42%)', 'hsl(35, 90%, 55%)',
+  'hsl(280, 65%, 60%)', 'hsl(350, 70%, 55%)', 'hsl(210, 70%, 55%)',
+];
 
 const tooltipStyle = {
   contentStyle: {
-    background: '#ffffff', border: '1px solid #e5e7eb',
-    borderRadius: '4px', color: '#374151', fontSize: '12px',
+    background: 'hsl(225, 20%, 9%)', border: '1px solid hsl(220, 15%, 16%)',
+    borderRadius: '8px', color: 'hsl(210, 20%, 92%)', fontSize: '13px',
+    fontFamily: '"JetBrains Mono", monospace',
   },
 };
 
@@ -41,32 +39,14 @@ function createHistogram(values: number[], buckets = 10) {
   return result;
 }
 
-type ChartVariant = 'missing' | 'bar' | 'histogram' | 'boxplot' | 'line' | 'pie';
-
-function ChartCard3D({ title, children, delay = 0, chartKey, dashboardId, variant = 'bar' }: { title: string; children: React.ReactNode; delay?: number; chartKey?: string; dashboardId?: string; variant?: ChartVariant }) {
-  const tiltClass = { missing: 'chart-3d-tilt-1', bar: 'chart-3d-tilt-2', histogram: 'chart-3d-tilt-3', boxplot: 'chart-3d-tilt-4', line: 'chart-3d-tilt-5', pie: 'chart-3d-tilt-6' }[variant];
-  const designMap: Record<ChartVariant, string> = {
-    missing: 'exec-chart-card rounded p-4 sm:p-5',
-    bar: 'exec-chart-card rounded p-4 sm:p-5',
-    histogram: 'exec-chart-card rounded p-4 sm:p-5',
-    boxplot: 'exec-chart-card rounded p-4 sm:p-5',
-    line: 'exec-chart-card rounded p-4 sm:p-5',
-    pie: 'exec-chart-card rounded p-4 sm:p-5',
-  };
+function ChartCard({ title, children, delay = 0, chartKey, dashboardId }: { title: string; children: React.ReactNode; delay?: number; chartKey?: string; dashboardId?: string }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24, rotateX: -12 }}
-      animate={{ opacity: 1, y: 0, rotateX: 0 }}
-      transition={{ duration: 0.5, delay }}
-      className={`chart-3d-wrapper ${tiltClass}`}
-    >
-      <div className={`${designMap[variant]} transition-all duration-300`}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="exec-chart-title text-[11px] truncate">{title}</h3>
-          {chartKey && dashboardId && <ChartAnnotations dashboardId={dashboardId} chartKey={chartKey} />}
-        </div>
-        <div className="h-52 sm:h-72 min-h-[200px] [transform:translateZ(20px)]">{children}</div>
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay }} className="glass-card p-3 sm:p-5">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h3 className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider truncate">{title}</h3>
+        {chartKey && dashboardId && <ChartAnnotations dashboardId={dashboardId} chartKey={chartKey} />}
       </div>
+      <div className="h-48 sm:h-64">{children}</div>
     </motion.div>
   );
 }
@@ -92,32 +72,23 @@ function BoxplotChart({ data, numCols }: { data: Record<string, unknown>[]; numC
     };
   });
 
-  const boxG = bar3DGradient('boxplot-bar', COLORS[0]);
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={boxData} margin={{ left: 10, right: 20, bottom: 5 }}>
-        <defs>
-          <linearGradient id={boxG.id} x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stopColor={boxG.dark} />
-            <stop offset="50%" stopColor={COLORS[0]} />
-            <stop offset="100%" stopColor={boxG.light} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-        <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 10 }} />
-        <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} />
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 13%)" />
+        <XAxis dataKey="name" tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 10 }} />
+        <YAxis tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 11 }} />
         <Tooltip
           {...tooltipStyle}
-          formatter={(_: unknown, name: string, props?: { payload?: typeof boxData[0] }) => {
-            const d = props?.payload;
-            if (!d) return [null, ''];
+          formatter={(_: unknown, name: string, props: { payload: typeof boxData[0] }) => {
+            const d = props.payload;
             if (name === 'base') return [`Min: ${d.min.toFixed(2)}`, ''];
             if (name === 'box') return [`Q1: ${d.q1.toFixed(2)} | Med: ${d.median.toFixed(2)} | Q3: ${d.q3.toFixed(2)}`, 'IQR Box'];
             return [null, ''];
           }}
         />
         <Bar dataKey="base" stackId="box" fill="transparent" />
-        <Bar dataKey="box" stackId="box" fill={`url(#${boxG.id})`} radius={[6, 6, 6, 6]} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+        <Bar dataKey="box" stackId="box" fill={COLORS[0]} fillOpacity={0.7} radius={[4, 4, 4, 4]} />
         <ReferenceLine y={0} stroke="transparent" />
       </BarChart>
     </ResponsiveContainer>
@@ -143,27 +114,17 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
     .map(c => ({ name: c.name.length > 12 ? c.name.slice(0, 12) + '…' : c.name, percent: +c.missingPercent.toFixed(1) }));
 
   if (missingData.length > 0) {
-    const g = bar3DGradient('missing-bar', COLORS[3]);
     charts.push(
-      <ChartCard3D key="missing" title={t('chart.missing')} delay={chartIdx++ * 0.1} variant="missing">
+      <ChartCard key="missing" title={t('chart.missing')} delay={chartIdx++ * 0.1}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={missingData} layout="vertical" margin={{ left: 10, right: 20 }}>
-            <defs>
-              <linearGradient id={g.id} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={g.dark} />
-                <stop offset="50%" stopColor={COLORS[3]} />
-                <stop offset="100%" stopColor={g.light} />
-              </linearGradient>
-            </defs>
-            <XAxis type="number" tick={{ fill: 'hsl(215, 12%, 55%)', fontSize: 11 }} />
-            <YAxis type="category" dataKey="name" tick={{ fill: 'hsl(215, 12%, 55%)', fontSize: 11 }} width={80} />
+            <XAxis type="number" tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 11 }} />
+            <YAxis type="category" dataKey="name" tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 11 }} width={80} />
             <Tooltip {...tooltipStyle} />
-            <Bar dataKey="percent" radius={[0, 8, 8, 0]} fill={`url(#${g.id})`} stroke="rgba(255,255,255,0.15)" strokeWidth={1}>
-              <LabelList dataKey="percent" position="right" fill="hsl(215,12%,75%)" fontSize={11} formatter={(v: number) => `${v}%`} />
-            </Bar>
+            <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{missingData.map((_, i) => <Cell key={i} fill={COLORS[3]} fillOpacity={0.8} />)}</Bar>
           </BarChart>
         </ResponsiveContainer>
-      </ChartCard3D>
+      </ChartCard>
     );
   }
 
@@ -174,33 +135,17 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
       name: v.value.length > 14 ? v.value.slice(0, 14) + '…' : v.value, count: v.count,
     }));
     charts.push(
-      <ChartCard3D key={`cat-${col.name}`} title={`${col.name} — ${t('chart.topValues')}`} delay={chartIdx++ * 0.1} variant="bar">
+      <ChartCard key={`cat-${col.name}`} title={`${col.name} — ${t('chart.topValues')}`} delay={chartIdx++ * 0.1}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ left: 10, right: 20, bottom: 40 }}>
-            <defs>
-              {COLORS.map((c, i) => {
-                const safeId = `bar3d-${String(col.name).replace(/\s/g, '_')}-${i}`;
-                const g = bar3DGradient(safeId, c);
-                return (
-                  <linearGradient key={i} id={g.id} x1="0" y1="1" x2="0" y2="0">
-                    <stop offset="0%" stopColor={g.dark} />
-                    <stop offset="40%" stopColor={c} />
-                    <stop offset="100%" stopColor={g.light} />
-                  </linearGradient>
-                );
-              })}
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 18%)" vertical={false} />
-            <XAxis dataKey="name" tick={{ fill: 'hsl(215, 12%, 55%)', fontSize: 10 }} angle={-35} textAnchor="end" />
-            <YAxis tick={{ fill: 'hsl(215, 12%, 55%)', fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 13%)" />
+            <XAxis dataKey="name" tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 10 }} angle={-35} textAnchor="end" />
+            <YAxis tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 11 }} />
             <Tooltip {...tooltipStyle} />
-            <Bar dataKey="count" radius={[8, 8, 0, 0]} stroke="rgba(255,255,255,0.2)" strokeWidth={1}>
-              {data.map((_, i) => <Cell key={i} fill={`url(#bar3d-${String(col.name).replace(/\s/g, '_')}-${i % COLORS.length})`} />)}
-              <LabelList dataKey="count" position="top" fill="hsl(215,12%,75%)" fontSize={11} fontFamily="system-ui" stroke="none" />
-            </Bar>
+            <Bar dataKey="count" radius={[4, 4, 0, 0]}>{data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={0.85} />)}</Bar>
           </BarChart>
         </ResponsiveContainer>
-      </ChartCard3D>
+      </ChartCard>
     );
   });
 
@@ -209,28 +154,18 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
   numCols.slice(0, 3).forEach(col => {
     const values = filteredData.map(r => Number(r[col.name])).filter(n => !isNaN(n));
     const data = createHistogram(values);
-    const g = bar3DGradient(`hist-${col.name}`, COLORS[0]);
     charts.push(
-      <ChartCard3D key={`num-${col.name}`} title={`${col.name} — ${t('chart.distribution')}`} delay={chartIdx++ * 0.1} variant="histogram">
+      <ChartCard key={`num-${col.name}`} title={`${col.name} — ${t('chart.distribution')}`} delay={chartIdx++ * 0.1}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ left: 10, right: 20, bottom: 5 }}>
-            <defs>
-              <linearGradient id={g.id} x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor={g.dark} />
-                <stop offset="50%" stopColor={COLORS[0]} />
-                <stop offset="100%" stopColor={g.light} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 18%)" vertical={false} />
-            <XAxis dataKey="range" tick={{ fill: 'hsl(215, 12%, 55%)', fontSize: 10 }} />
-            <YAxis tick={{ fill: 'hsl(215, 12%, 55%)', fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 13%)" />
+            <XAxis dataKey="range" tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 10 }} />
+            <YAxis tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 11 }} />
             <Tooltip {...tooltipStyle} />
-            <Bar dataKey="count" fill={`url(#${g.id})`} radius={[8, 8, 0, 0]} stroke="rgba(255,255,255,0.15)" strokeWidth={1}>
-              <LabelList dataKey="count" position="top" fill="hsl(215,12%,75%)" fontSize={10} />
-            </Bar>
+            <Bar dataKey="count" fill={COLORS[0]} radius={[4, 4, 0, 0]} fillOpacity={0.8} />
           </BarChart>
         </ResponsiveContainer>
-      </ChartCard3D>
+      </ChartCard>
     );
   });
 
@@ -238,9 +173,9 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
   const numWithStats = numCols.filter(c => c.stats).map(c => ({ name: c.name, stats: c.stats! }));
   if (numWithStats.length >= 1) {
     charts.push(
-      <ChartCard3D key="boxplot" title={t('chart.boxplot') || 'Boxplot — Distribution & Outliers'} delay={chartIdx++ * 0.1} variant="boxplot">
+      <ChartCard key="boxplot" title={t('chart.boxplot') || 'Boxplot — Distribution & Outliers'} delay={chartIdx++ * 0.1}>
         <BoxplotChart data={filteredData} numCols={numWithStats} />
-      </ChartCard3D>
+      </ChartCard>
     );
   }
 
@@ -258,58 +193,40 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
     const tsData = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([date, value]) => ({ date, value: +value.toFixed(2) }));
     if (tsData.length > 1) {
       charts.push(
-        <ChartCard3D key="ts" title={`${firstNumCol ? firstNumCol.name : t('chart.count')} — ${t('chart.overTime')}`} delay={chartIdx++ * 0.1} variant="line">
+        <ChartCard key="ts" title={`${firstNumCol ? firstNumCol.name : t('chart.count')} — ${t('chart.overTime')}`} delay={chartIdx++ * 0.1}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={tsData} margin={{ left: 10, right: 20, bottom: 5 }}>
-              <defs>
-                <linearGradient id="lineArea3d" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={COLORS[1]} stopOpacity={0.5} />
-                  <stop offset="100%" stopColor={COLORS[1]} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} />
+            <LineChart data={tsData} margin={{ left: 10, right: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 15%, 13%)" />
+              <XAxis dataKey="date" tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 10 }} />
+              <YAxis tick={{ fill: 'hsl(215, 12%, 50%)', fontSize: 11 }} />
               <Tooltip {...tooltipStyle} />
-              <Area type="monotone" dataKey="value" stroke="none" fill="url(#lineArea3d)" />
-              <Line type="monotone" dataKey="value" stroke={COLORS[1]} strokeWidth={3} dot={{ fill: COLORS[1], r: 4, strokeWidth: 2, stroke: '#ffffff' }} activeDot={{ r: 6, fill: COLORS[1], stroke: 'white', strokeWidth: 2 }} />
-            </AreaChart>
+              <Line type="monotone" dataKey="value" stroke={COLORS[1]} strokeWidth={2} dot={false} />
+            </LineChart>
           </ResponsiveContainer>
-        </ChartCard3D>
+        </ChartCard>
       );
     }
   }
 
   // Pie
   if (catCols.length > 0 && catCols[0].topValues) {
-    const pieData = catCols[0].topValues.slice(0, 6).map((v, i) => ({ name: v.value, value: v.count, fill: COLORS[i % COLORS.length] }));
+    const pieData = catCols[0].topValues.slice(0, 6).map(v => ({ name: v.value, value: v.count }));
     charts.push(
-      <ChartCard3D key="pie" title={`${catCols[0].name} — ${t('chart.breakdown')}`} delay={chartIdx++ * 0.1} variant="pie">
+      <ChartCard key="pie" title={`${catCols[0].name} — ${t('chart.breakdown')}`} delay={chartIdx++ * 0.1}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <defs>
-              {pieData.map((d, i) => (
-                <radialGradient key={i} id={`pie3d-${i}`} cx="30%" cy="30%">
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.6)" />
-                  <stop offset="50%" stopColor={d.fill} />
-                  <stop offset="100%" stopColor="rgba(0,0,0,0.4)" />
-                </radialGradient>
-              ))}
-            </defs>
-            <Pie data={pieData} cx="50%" cy="50%" outerRadius="65%" innerRadius="35%" dataKey="value" nameKey="name" paddingAngle={4} strokeWidth={2} stroke="#ffffff">
-              {pieData.map((d, i) => <Cell key={i} fill={`url(#pie3d-${i})`} />)}
-              <LabelList dataKey="name" position="outside" fill="#374151" fontSize={11} formatter={(v: string, _n: string, entry?: { value?: number; payload?: { value?: number } }) => `${v} (${entry?.value ?? entry?.payload?.value ?? ''})`} stroke="none" />
+            <Pie data={pieData} cx="50%" cy="50%" outerRadius="75%" innerRadius="45%" dataKey="value" nameKey="name" paddingAngle={2} strokeWidth={0}>
+              {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={0.85} />)}
             </Pie>
-            <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v) => <span style={{ color: '#6b7280' }}>{v}</span>} />
-            <Tooltip {...tooltipStyle} formatter={(v: number, name: string, props: { payload: { value: number } }) => [`${v} (${((v / pieData.reduce((a, d) => a + d.value, 0)) * 100).toFixed(1)}%)`, name]} />
+            <Tooltip {...tooltipStyle} />
           </PieChart>
         </ResponsiveContainer>
-      </ChartCard3D>
+      </ChartCard>
     );
   }
 
   if (charts.length === 0) {
-    return <div className="exec-card p-8 text-center text-[#6b7280]">{t('chart.noData')}</div>;
+    return <div className="glass-card p-8 text-center text-muted-foreground">{t('chart.noData')}</div>;
   }
 
   return (

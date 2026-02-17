@@ -34,18 +34,9 @@ export interface DatasetAnalysis {
   qualityScore: number;
   dateRange?: { min: string; max: string };
   parsingErrors: number;
-  /** Parsed SELECT queries from SQL file (structure only, for display) */
-  sqlSelectQueries?: { query: string; columns: string[]; table?: string }[];
 }
 
-export interface SqlParseResult {
-  rows: Record<string, unknown>[];
-  selectQueries: { query: string; columns: string[]; table?: string }[];
-}
-
-export type ParseFileResult = Record<string, unknown>[] | SqlParseResult;
-
-export async function parseFile(file: File, sheetIndex = 0): Promise<ParseFileResult> {
+export async function parseFile(file: File, sheetIndex = 0): Promise<Record<string, unknown>[]> {
   const ext = file.name.split('.').pop()?.toLowerCase();
   if (ext === 'csv') return parseCSV(file);
   if (ext === 'xlsx' || ext === 'xls') return parseExcel(file, sheetIndex);
@@ -54,58 +45,20 @@ export async function parseFile(file: File, sheetIndex = 0): Promise<ParseFileRe
   throw new Error('Unsupported file type. Please upload CSV, XLSX, XLS, JSON, or SQL.');
 }
 
-/** Extract rows from parse result (handles both array and SqlParseResult) */
-export function getRowsFromParseResult(r: ParseFileResult): Record<string, unknown>[] {
-  return Array.isArray(r) ? r : r.rows;
-}
-
-/** Extract SELECT queries from parse result (SQL files only) */
-export function getSelectQueriesFromParseResult(r: ParseFileResult): { query: string; columns: string[]; table?: string }[] {
-  return Array.isArray(r) ? [] : r.selectQueries;
-}
-
-function parseSQL(file: File): Promise<SqlParseResult> {
+function parseSQL(file: File): Promise<Record<string, unknown>[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const sql = e.target?.result as string;
-        const rows = extractDataFromSQL(sql);
-        const selectQueries = extractSelectQueriesFromSQL(sql);
-        if (!rows.length && !selectQueries.length) {
-          throw new Error('No INSERT or SELECT statements found in SQL file.');
-        }
-        resolve({ rows, selectQueries });
+        const data = extractDataFromSQL(sql);
+        if (!data.length) throw new Error('No INSERT data found in SQL file. Ensure it contains INSERT INTO statements.');
+        resolve(data);
       } catch (err) { reject(err); }
     };
     reader.onerror = reject;
     reader.readAsText(file);
   });
-}
-
-function extractSelectQueriesFromSQL(sql: string): { query: string; columns: string[]; table?: string }[] {
-  const result: { query: string; columns: string[]; table?: string }[] = [];
-  const selectRegex = /SELECT\s+([\s\S]*?)\s+FROM\s+[`"']?(\w+)[`"']?/gi;
-  let match;
-  while ((match = selectRegex.exec(sql)) !== null) {
-    const selectList = match[1].trim();
-    const table = match[2];
-    let columns: string[] = ['*'];
-    if (selectList !== '*') {
-      columns = selectList.split(',').map(c => {
-        const trimmed = c.trim();
-        const aliasMatch = trimmed.match(/\bAS\s+[`"']?(\w+)[`"']?$/i);
-        if (aliasMatch) return aliasMatch[1];
-        const colMatch = trimmed.match(/[`"']?(\w+)[`"']?\s*$/);
-        return colMatch ? colMatch[1] : trimmed.replace(/[`"']/g, '').split(/\s+/).pop() || trimmed;
-      }).filter(Boolean);
-    }
-    const start = match.index;
-    const semiPos = sql.indexOf(';', start);
-    const query = (semiPos >= 0 ? sql.slice(start, semiPos + 1) : sql.slice(start)).trim();
-    result.push({ query, columns, table });
-  }
-  return result;
 }
 
 function extractDataFromSQL(sql: string): Record<string, unknown>[] {
@@ -210,9 +163,7 @@ function parseJSON(file: File): Promise<Record<string, unknown>[]> {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        let text = (e.target?.result as string) || '';
-        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-        const raw = JSON.parse(text);
+        const raw = JSON.parse(e.target?.result as string);
         const data = flattenJSON(raw);
         if (!data.length) throw new Error('No tabular data found in JSON.');
         resolve(data);
@@ -274,50 +225,10 @@ function parseCSV(file: File): Promise<Record<string, unknown>[]> {
       header: true,
       skipEmptyLines: true,
       dynamicTyping: false,
-      transformHeader: (h) => normalizeWhitespace(String(h || '').replace(/\uFEFF/g, '')),
-      complete: (result) => {
-        const data = (result.data as Record<string, unknown>[]).filter(row =>
-          Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '')
-        );
-        resolve(data);
-      },
+      complete: (result) => resolve(result.data as Record<string, unknown>[]),
       error: (err) => reject(err),
     });
   });
-}
-
-/** Normalize string: trim, collapse whitespace, treat empty as null */
-function normalizeWhitespace(s: string): string {
-  return s.replace(/\s+/g, ' ').trim();
-}
-
-/** Parse numeric string with high accuracy: currency, thousands, decimals, scientific */
-function parseNumericStrict(val: string): number | null {
-  const cleaned = String(val)
-    .replace(/\uFEFF/g, '')
-    .replace(/\s+/g, '')
-    .replace(/[$€£¥%\s]/g, '');
-  if (!cleaned) return null;
-  const negParen = /^\((.+)\)$/.exec(cleaned);
-  let numStr = negParen ? '-' + negParen[1] : cleaned;
-  if (/^\d{1,3}(,\d{3})*(\.\d+)?$/.test(numStr)) numStr = numStr.replace(/,/g, '');
-  else if (/^\d{1,3}(\.\d{3})*(,\d+)?$/.test(numStr)) numStr = numStr.replace(/\./g, '').replace(',', '.');
-  const n = Number(numStr);
-  return !isNaN(n) ? n : null;
-}
-
-/** Parse date from various formats */
-function parseDateStrict(val: string): Date | null {
-  const s = String(val).replace(/\uFEFF/g, '').trim();
-  if (!s) return null;
-  if (/^\d{5}$/.test(s)) {
-    const excelEpoch = new Date(1899, 11, 30);
-    const days = parseInt(s, 10);
-    excelEpoch.setDate(excelEpoch.getDate() + days);
-    return excelEpoch;
-  }
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d;
 }
 
 function parseExcel(file: File, sheetIndex: number): Promise<Record<string, unknown>[]> {
@@ -325,23 +236,10 @@ function parseExcel(file: File, sheetIndex: number): Promise<Record<string, unkn
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const wb = XLSX.read(e.target?.result, { type: 'array', raw: false });
+        const wb = XLSX.read(e.target?.result, { type: 'array' });
         const sheetName = wb.SheetNames[sheetIndex] || wb.SheetNames[0];
-        const rawData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '', raw: false });
-        const data = (rawData as Record<string, unknown>[]).map(row => {
-          const cleaned: Record<string, unknown> = {};
-          Object.entries(row).forEach(([k, v]) => {
-            const key = String(k || '').replace(/\uFEFF/g, '').trim() || k;
-            let val = v;
-            if (typeof val === 'string') {
-              val = val.replace(/\uFEFF/g, '').trim();
-              if (val === '') val = null;
-            }
-            cleaned[key] = val === '' ? null : val;
-          });
-          return cleaned;
-        });
-        resolve(data);
+        const data = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+        resolve(data as Record<string, unknown>[]);
       } catch (err) { reject(err); }
     };
     reader.onerror = reject;
@@ -375,12 +273,7 @@ function detectColumnType(values: unknown[], colName: string): ColumnType {
     return 'id';
   }
 
-  const numericCount = sample.filter(v => {
-    const s = String(v).replace(/\uFEFF/g, '').trim();
-    if (!s) return false;
-    const n = parseNumericStrict(s);
-    return n !== null || !isNaN(Number(s.replace(/,/g, '')));
-  }).length;
+  const numericCount = sample.filter(v => !isNaN(Number(String(v).replace(/,/g, '')))).length;
   if (numericCount / sample.length > 0.8) return 'numeric';
 
   const datePatterns = [/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/, /^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}/, /^\w+ \d{1,2},? \d{4}/];
@@ -400,47 +293,27 @@ function detectColumnType(values: unknown[], colName: string): ColumnType {
 export function analyzeDataset(rawData: Record<string, unknown>[]): DatasetAnalysis {
   if (!rawData.length) throw new Error('Empty dataset');
 
-  const rawColumns = Object.keys(rawData[0]);
-  const columns = rawColumns.map((c, i) => {
-    const n = normalizeWhitespace(c).replace(/\s+/g, '_');
-    return n || `col_${i + 1}`;
-  });
-  const colMap = Object.fromEntries(rawColumns.map((rc, i) => [rc, columns[i]]));
-
+  const columns = Object.keys(rawData[0]);
   let parsingErrors = 0;
   const rawRowCount = rawData.length;
 
-  // Step 1: Trim, normalize whitespace, collapse empty strings to null
+  // Trim & normalize
   let data = rawData.map(row => {
     const cleaned: Record<string, unknown> = {};
-    rawColumns.forEach(rawCol => {
-      const key = colMap[rawCol];
-      let val = row[rawCol];
-      if (typeof val === 'string') {
-        val = val.replace(/\uFEFF/g, '').trim();
-        if (val.replace(/\s+/g, '') === '') val = null;
-        else val = normalizeWhitespace(val);
-      }
-      cleaned[key] = val === '' ? null : val;
+    columns.forEach(col => {
+      let val = row[col];
+      if (typeof val === 'string') val = val.trim();
+      cleaned[col] = val;
     });
     return cleaned;
   });
 
-  // Step 2: Remove empty rows and exact duplicates (normalized key)
+  // Remove exact duplicates
   const seen = new Set<string>();
   const deduped: Record<string, unknown>[] = [];
   data.forEach(row => {
-    const normalizedRow = Object.fromEntries(
-      Object.entries(row).map(([k, v]) => [
-        k,
-        typeof v === 'string' ? normalizeWhitespace(v) : v,
-      ])
-    );
-    const key = JSON.stringify(normalizedRow);
-    if (!seen.has(key)) {
-      seen.add(key);
-      deduped.push(row);
-    }
+    const key = JSON.stringify(row);
+    if (!seen.has(key)) { seen.add(key); deduped.push(row); }
   });
   const duplicatesRemoved = data.length - deduped.length;
   data = deduped;
@@ -451,22 +324,15 @@ export function analyzeDataset(rawData: Record<string, unknown>[]): DatasetAnaly
     type: detectColumnType(data.map(r => r[col]), col),
   }));
 
-  // Step 3: Convert numeric with high accuracy (currency, locale, scientific)
+  // Convert numeric strings
   data = data.map(row => {
     const cleaned: Record<string, unknown> = {};
     columnTypes.forEach(({ name, type }) => {
       let val = row[name];
-      if (type === 'numeric' && val !== null && val !== undefined) {
-        const strVal = String(val).trim();
-        if (strVal !== '') {
-          const num = parseNumericStrict(strVal);
-          if (num !== null) cleaned[name] = num;
-          else {
-            const fallback = Number(strVal.replace(/,/g, ''));
-            if (!isNaN(fallback)) cleaned[name] = fallback;
-            else { cleaned[name] = val; parsingErrors++; }
-          }
-        } else cleaned[name] = null;
+      if (type === 'numeric' && val !== null && val !== undefined && String(val).trim() !== '') {
+        const num = Number(String(val).replace(/,/g, ''));
+        if (!isNaN(num)) { cleaned[name] = num; }
+        else { cleaned[name] = val; parsingErrors++; }
       } else {
         cleaned[name] = val;
       }
@@ -529,19 +395,11 @@ export function analyzeDataset(rawData: Record<string, unknown>[]): DatasetAnaly
     }
 
     if (type === 'datetime') {
-      const dates = nonEmpty
-        .map(v => parseDateStrict(String(v)) || new Date(String(v)))
-        .filter(d => d && !isNaN(d.getTime()))
-        .sort((a, b) => a.getTime() - b.getTime());
+      const dates = nonEmpty.map(v => new Date(String(v))).filter(d => !isNaN(d.getTime())).sort((a, b) => a.getTime() - b.getTime());
       if (dates.length > 0) {
         info.dateRange = { min: dates[0].toISOString().split('T')[0], max: dates[dates.length - 1].toISOString().split('T')[0] };
         if (!globalDateRange) globalDateRange = info.dateRange;
       }
-      data.forEach(row => {
-        if (row[name] === null || row[name] === undefined || String(row[name]).trim() === '') return;
-        const d = parseDateStrict(String(row[name])) || new Date(String(row[name]));
-        if (d && !isNaN(d.getTime())) row[name] = d.toISOString().split('T')[0];
-      });
     }
 
     if (type === 'text') {

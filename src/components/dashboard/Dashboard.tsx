@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock, Image, FileText, Download, BarChart2, LayoutGrid, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock, Image, FileText, Download } from 'lucide-react';
 import DataSourceBadge from './DataSourceBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,13 +17,11 @@ import CorrelationHeatmap from './CorrelationHeatmap';
 import AiAgentChat from './AiAgentChat';
 import CodeView from './CodeView';
 import CleaningReport from './CleaningReport';
-import StatisticsPanel from './StatisticsPanel';
 import SchemaViewer from './SchemaViewer';
 import MobileBottomNav from './MobileBottomNav';
 import PullToRefresh from './PullToRefresh';
 import MobileFAB from './MobileFAB';
 import IntelligentKPICards from './IntelligentKPICards';
-import IntelligenceStudioView from './IntelligenceStudioView';
 import CohortFunnelAnalysis from './CohortFunnelAnalysis';
 import ExecutiveSummaryPanel from './ExecutiveSummaryPanel';
 import ChurnRiskPanel from './ChurnRiskPanel';
@@ -36,11 +34,11 @@ import NaturalLanguageQuery from './NaturalLanguageQuery';
 import ExecutiveReportGenerator from './ExecutiveReportGenerator';
 import RealtimeRefresh from './RealtimeRefresh';
 import DatasetComparison from './DatasetComparison';
-import DragDropLayout, { getDefaultPanels, getVisualPanels, type LayoutPanel } from './DragDropLayout';
+import DragDropLayout, { getDefaultPanels, type LayoutPanel } from './DragDropLayout';
 import { useI18n } from '@/lib/i18nContext';
 import { useAuth } from '@/lib/authContext';
 import { supabase } from '@/integrations/supabase/client';
-import { exportDashboardAsPNG, exportDashboardAsPDF, exportDashboardReport } from '@/lib/exportDashboard';
+import { exportDashboardAsPNG, exportDashboardAsPDF } from '@/lib/exportDashboard';
 import { exportAsCSV, exportAsJSON, exportAsExcel } from '@/lib/exportData';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
@@ -49,13 +47,9 @@ interface DashboardProps {
   analysis: DatasetAnalysis;
   fileName: string;
   onReset: () => void;
-  /** Shablon dashboarddan kelganda — faqat vizual ko'rinish (KPI, grafiklar, statistika) */
-  visualMode?: boolean;
-  /** Power BI rejimiga o'tish (Dashboard sarlavhasida tugma) */
-  onPowerBI?: () => void;
 }
 
-export default function Dashboard({ analysis, fileName, onReset, visualMode = false, onPowerBI }: DashboardProps) {
+export default function Dashboard({ analysis, fileName, onReset }: DashboardProps) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const [catFilters, setCatFilters] = useState<Record<string, string>>({});
@@ -72,7 +66,7 @@ export default function Dashboard({ analysis, fileName, onReset, visualMode = fa
   const [refreshKey, setRefreshKey] = useState(0);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [layoutPanels, setLayoutPanels] = useState<LayoutPanel[]>(() => visualMode ? getVisualPanels() : getDefaultPanels());
+  const [layoutPanels, setLayoutPanels] = useState<LayoutPanel[]>(getDefaultPanels());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Simulate initial render loading for skeleton effect
@@ -203,90 +197,48 @@ export default function Dashboard({ analysis, fileName, onReset, visualMode = fa
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const [showFullMode, setShowFullMode] = useState(!visualMode);
-  const [intelligenceStudioMode, setIntelligenceStudioMode] = useState(visualMode);
-
-  const isVisualOnly = visualMode && !showFullMode;
-
-  if (intelligenceStudioMode) {
-    return (
-      <IntelligenceStudioView
-        analysis={analysis}
-        filteredData={filteredData}
-        fileName={fileName}
-        onSwitchToStandard={() => setIntelligenceStudioMode(false)}
-        onPowerBI={onPowerBI}
-      />
-    );
-  }
-
   return (
-    <div id="full-dashboard-export" className="min-h-screen bg-[#e8e9eb]">
-      <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="sticky top-0 z-30 executive-header">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="icon" onClick={onReset} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9 rounded text-[#cccccc] hover:text-white hover:bg-white/10"><ArrowLeft className="w-4 h-4" /></Button>
+    <div id="full-dashboard-export" className="min-h-screen bg-mesh">
+      <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={onReset} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9"><ArrowLeft className="w-4 h-4" /></Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-sm sm:text-lg font-semibold text-white truncate">{fileName}</h1>
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[10px] sm:text-xs text-[#a0a0a0]">{analysis.rows.toLocaleString()} {t('table.rows')} · {analysis.columns} {t('kpi.totalColumns').toLowerCase()} · {t('header.quality')}: {analysis.qualityScore}/100</p>
+            <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">{fileName}</h1>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{analysis.rows.toLocaleString()} {t('table.rows')} · {analysis.columns} {t('kpi.totalColumns').toLowerCase()} · {t('header.quality')}: {analysis.qualityScore}/100</p>
               <DataSourceBadge fileName={fileName} />
             </div>
           </div>
-          {isVisualOnly && (
-            <Button variant="outline" size="sm" onClick={() => { setShowFullMode(true); setLayoutPanels(getDefaultPanels()); setIntelligenceStudioMode(false); }} className="text-[10px] sm:text-xs h-8 sm:h-9 gap-1.5 border-[#3c3c3c] text-[#cccccc] hover:bg-white/10 hover:text-white">
-              <Sparkles className="w-3 h-3" /> Barcha panel
-            </Button>
-          )}
-          <Button
-            variant={intelligenceStudioMode ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setIntelligenceStudioMode(!intelligenceStudioMode)}
-            className={`text-[10px] sm:text-xs h-8 sm:h-9 gap-1.5 ${intelligenceStudioMode ? 'bg-[#14b8a6] hover:bg-[#0d9488] text-white' : 'border-[#3c3c3c] text-[#cccccc] hover:bg-white/10 hover:text-white'}`}
-          >
-            <LayoutGrid className="w-3 h-3" /> Intelligence Studio
-          </Button>
-          {onPowerBI && (
-            <Button variant="outline" size="sm" onClick={onPowerBI} className="text-[10px] sm:text-xs h-8 sm:h-9 gap-1.5 bg-[#ffaa00]/20 hover:bg-[#ffaa00]/30 border-[#ffaa00]/50 text-[#ffaa00]">
-              <BarChart3 className="w-3 h-3" /> Power BI
-            </Button>
-          )}
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button variant="outline" size="sm" onClick={() => exportDashboardAsPNG('full-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2 border-[#3c3c3c] text-[#cccccc] hover:bg-white/10 hover:text-white" title="PNG">
+            <Button variant="outline" size="sm" onClick={() => exportDashboardAsPNG('full-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
               <Image className="w-3 h-3" /> <span className="hidden sm:inline ml-1">PNG</span>
             </Button>
-            {!isVisualOnly && (
-              <>
-                <Button variant="outline" size="sm" onClick={() => exportDashboardAsPDF('full-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
-                  <FileText className="w-3 h-3" /> <span className="hidden sm:inline ml-1">PDF</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => exportDashboardReport(analysis, fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
-                  <BarChart2 className="w-3 h-3" /> <span className="hidden sm:inline ml-1">Hisobot</span>
-                </Button>
-                <div className="relative">
-                  <Button variant="outline" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
-                    <Download className="w-3 h-3" /> <span className="hidden sm:inline ml-1">Data</span>
-                  </Button>
-                  {showExportMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
-                      <button onClick={() => { exportAsCSV(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">CSV</button>
-                      <button onClick={() => { exportAsJSON(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">JSON</button>
-                      <button onClick={() => { exportAsExcel(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">Excel</button>
-                    </div>
-                  )}
+            <Button variant="outline" size="sm" onClick={() => exportDashboardAsPDF('full-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
+              <FileText className="w-3 h-3" /> <span className="hidden sm:inline ml-1">PDF</span>
+            </Button>
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
+                <Download className="w-3 h-3" /> <span className="hidden sm:inline ml-1">Data</span>
+              </Button>
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
+                  <button onClick={() => { exportAsCSV(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">CSV</button>
+                  <button onClick={() => { exportAsJSON(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">JSON</button>
+                  <button onClick={() => { exportAsExcel(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">Excel</button>
                 </div>
-                <RealtimeRefresh onRefresh={() => setRefreshKey(k => k + 1)} />
-                <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2 sm:px-3">
-                  <Filter className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">{t('filters.button')}</span>
-                </Button>
-              </>
-            )}
+              )}
+            </div>
+            <RealtimeRefresh onRefresh={() => setRefreshKey(k => k + 1)} />
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2 sm:px-3">
+              <Filter className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">{t('filters.button')}</span>
+            </Button>
             <ThemeToggle />
             <LanguageToggle />
           </div>
         </div>
 
-        {/* Save & Share Panel — faqat to'liq rejimda */}
-        {!isVisualOnly && user && (
+        {/* Save & Share Panel */}
+        {user && (
           <div className="max-w-7xl mx-auto px-3 sm:px-6 pb-2 sm:pb-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
             <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder={t('save.name')} className="h-7 sm:h-8 text-[10px] sm:text-xs w-28 sm:w-40 bg-secondary border-border" />
             <Button variant="ghost" size="sm" onClick={() => setIsPublic(!isPublic)} className="text-xs gap-1">
@@ -306,8 +258,8 @@ export default function Dashboard({ analysis, fileName, onReset, visualMode = fa
           </div>
         )}
 
-        {/* Filters Panel — faqat to'liq rejimda */}
-        {!isVisualOnly && showFilters && (
+        {/* Filters Panel */}
+        {showFilters && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="border-t border-border/30 overflow-hidden">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 space-y-3">
               {/* Date range filter */}
@@ -376,14 +328,13 @@ export default function Dashboard({ analysis, fileName, onReset, visualMode = fa
         <main key={refreshKey} className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
           {/* Drag-and-drop layout section */}
           <div className={`${mobileTab !== 'overview' && mobileTab !== 'charts' && mobileTab !== 'ai' ? 'hidden md:block' : ''}`}>
-            <DragDropLayout panels={layoutPanels} onLayoutChange={setLayoutPanels} hideLayoutEditor={isVisualOnly}>
+            <DragDropLayout panels={layoutPanels} onLayoutChange={setLayoutPanels}>
               {(panelId) => {
                 switch (panelId) {
                   case 'kpi': return isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />;
                   case 'intelligent-kpi': return !isLoading ? <IntelligentKPICards analysis={analysis} /> : null;
                   case 'anomaly': return !isLoading ? <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} /> : null;
                   case 'cleaning': return <CleaningReport analysis={analysis} fileName={fileName} />;
-                  case 'statistics': return !isLoading ? <StatisticsPanel analysis={analysis} /> : null;
                   case 'schema': return <SchemaViewer analysis={analysis} />;
                   case 'insights': return <InsightsPanel analysis={analysis} />;
                   case 'charts': return isLoading ? <ChartSkeleton /> : <AutoCharts analysis={analysis} filteredData={filteredData} />;
@@ -402,46 +353,43 @@ export default function Dashboard({ analysis, fileName, onReset, visualMode = fa
             </DragDropLayout>
           </div>
 
-          {/* AI va Data — faqat to'liq rejimda */}
-          {!isVisualOnly && (
-            <>
-              <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'ai' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
-                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg gradient-warm flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-foreground" />
-                      </div>
-                      <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('ai.summary')}</h2>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs">
-                      {aiLoading ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {t('ai.generating')}</> : t('ai.generate')}
-                    </Button>
+          {/* AI summary section */}
+          <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'ai' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg gradient-warm flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-foreground" />
                   </div>
-                  <p className="text-sm text-foreground/80 leading-relaxed">{aiSummary || t('ai.noSummary')}</p>
-                </motion.div>
+                  <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('ai.summary')}</h2>
+                </div>
+                <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs">
+                  {aiLoading ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {t('ai.generating')}</> : t('ai.generate')}
+                </Button>
               </div>
-              <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'data' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
-                <CodeView analysis={analysis} fileName={fileName} />
-                <DataTable data={filteredData} columns={analysis.columnInfo} />
-              </div>
-            </>
-          )}
+              <p className="text-sm text-foreground/80 leading-relaxed">{aiSummary || t('ai.noSummary')}</p>
+            </motion.div>
+          </div>
+
+          {/* Data section */}
+          <div className={`space-y-4 sm:space-y-6 ${mobileTab !== 'data' && mobileTab !== 'overview' ? 'hidden md:block' : ''}`}>
+            <CodeView analysis={analysis} fileName={fileName} />
+            <DataTable data={filteredData} columns={analysis.columnInfo} />
+          </div>
         </main>
       </PullToRefresh>
 
       {/* Desktop main (non-mobile keeps working normally) */}
 
-      {!isVisualOnly && <AiAgentChat analysis={analysis} fileName={fileName} />}
-      {!isVisualOnly && <ExecutiveSummaryPanel analysis={analysis} fileName={fileName} />}
+      <AiAgentChat analysis={analysis} fileName={fileName} />
+      <ExecutiveSummaryPanel analysis={analysis} fileName={fileName} />
       <MobileFAB
         onExportPNG={() => exportDashboardAsPNG('full-dashboard-export', fileName)}
         onExportPDF={() => exportDashboardAsPDF('full-dashboard-export', fileName)}
-        onExportReport={() => exportDashboardReport(analysis, fileName)}
         onSave={handleSave}
         onShare={shareUrl ? copyLink : undefined}
       />
-      {!isVisualOnly && <MobileBottomNav activeTab={mobileTab} onTabChange={setMobileTab} />}
+      <MobileBottomNav activeTab={mobileTab} onTabChange={setMobileTab} />
     </div>
   );
 }

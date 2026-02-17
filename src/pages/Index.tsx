@@ -5,7 +5,7 @@ import FileUpload from '@/components/dashboard/FileUpload';
 import Dashboard from '@/components/dashboard/Dashboard';
 import TemplateGallery from '@/components/dashboard/TemplateGallery';
 import TemplateDashboard from '@/components/dashboard/TemplateDashboard';
-import { parseFile, analyzeDataset, getRowsFromParseResult, getSelectQueriesFromParseResult } from '@/lib/dataProcessor';
+import { parseFile, analyzeDataset } from '@/lib/dataProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/authContext';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
@@ -27,7 +27,9 @@ function saveSession(state: Partial<SessionState>) {
   try {
     const existing = loadSession();
     const merged = { ...existing, ...state };
+    // Only persist if there's actual analysis data
     if (merged.analysis) {
+      // Limit cleanedData to 2000 rows to avoid exceeding localStorage limits
       const toStore = {
         ...merged,
         analysis: {
@@ -38,7 +40,7 @@ function saveSession(state: Partial<SessionState>) {
       localStorage.setItem(SESSION_KEY, JSON.stringify(toStore));
     }
   } catch {
-    // localStorage full or unavailable
+    // localStorage full or unavailable — silently ignore
   }
 }
 
@@ -46,9 +48,7 @@ function loadSession(): SessionState | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as SessionState;
-    if (parsed.view === 'power-bi') parsed.view = 'templates';
-    return parsed;
+    return JSON.parse(raw) as SessionState;
   } catch {
     return null;
   }
@@ -62,6 +62,8 @@ const Index = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
+  // Restore from session
+  // Check for case study data from portfolio
   const caseStudyData = (() => {
     try {
       const raw = sessionStorage.getItem('case_study_analysis');
@@ -87,6 +89,7 @@ const Index = () => {
     if (!authLoading && !user) navigate('/auth');
   }, [authLoading, user, navigate]);
 
+  // Persist session on state changes
   useEffect(() => {
     if (analysis) {
       saveSession({ view, fileName, selectedTemplate, analysis });
@@ -97,19 +100,8 @@ const Index = () => {
     setIsProcessing(true);
     setError('');
     try {
-      const parseResult = await parseFile(file, sheetIndex);
-      const rawData = getRowsFromParseResult(parseResult);
-      const selectQueries = getSelectQueriesFromParseResult(parseResult);
-      if (!rawData.length && !selectQueries.length) {
-        setError('SQL file contains no extractable data or queries.');
-        return;
-      }
-      if (!rawData.length) {
-        setError('SQL file has SELECT queries but no INSERT data. Upload a file with INSERT INTO statements for dashboard analysis.');
-        return;
-      }
+      const rawData = await parseFile(file, sheetIndex);
       const result = analyzeDataset(rawData);
-      if (selectQueries.length) result.sqlSelectQueries = selectQueries;
       setAnalysis(result);
       setFileName(file.name);
       setView('templates');
@@ -125,11 +117,7 @@ const Index = () => {
           await supabase.from('upload_sessions').delete().in('id', toDelete);
         }
 
-        const analysisToStore = {
-          ...result,
-          cleanedData: result.cleanedData.slice(0, 2000),
-        };
-        const basePayload = {
+        await supabase.from('upload_sessions').insert([{
           file_name: file.name,
           row_count: result.rows,
           column_count: result.columns,
@@ -138,14 +126,7 @@ const Index = () => {
           duplicates_removed: result.duplicatesRemoved,
           column_info: JSON.parse(JSON.stringify(result.columnInfo)),
           user_id: user?.id,
-        };
-        let { error: insertErr } = await supabase.from('upload_sessions').insert([{
-          ...basePayload,
-          analysis_data: JSON.parse(JSON.stringify(analysisToStore)),
         }]);
-        if (insertErr) {
-          await supabase.from('upload_sessions').insert([basePayload]);
-        }
       } catch (dbErr) {
         console.error('Failed to save session:', dbErr);
       }
@@ -159,12 +140,6 @@ const Index = () => {
   const handleApiDataReady = useCallback((apiAnalysis: DatasetAnalysis, name: string) => {
     setAnalysis(apiAnalysis);
     setFileName(name);
-    setView('templates');
-  }, []);
-
-  const handleSessionRestore = useCallback((restoredAnalysis: DatasetAnalysis, restoredFileName: string) => {
-    setAnalysis(restoredAnalysis);
-    setFileName(restoredFileName);
     setView('templates');
   }, []);
 
@@ -200,7 +175,7 @@ const Index = () => {
     <AnimatePresence mode="wait">
       {view === 'upload' && (
         <motion.div key="upload" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}>
-          <FileUpload onFileReady={handleFile} onApiDataReady={handleApiDataReady} onSessionRestore={handleSessionRestore} isProcessing={isProcessing} />
+          <FileUpload onFileReady={handleFile} onApiDataReady={handleApiDataReady} isProcessing={isProcessing} />
           {error && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm">{error}</div>
           )}
@@ -209,7 +184,10 @@ const Index = () => {
 
       {view === 'templates' && analysis && (
         <motion.div key="templates" variants={pageVariants} initial="initial" animate="animate" exit="exit" transition={pageTransition}>
-          <TemplateGallery analysis={analysis} onSelect={handleSelectTemplate} />
+          <TemplateGallery
+            analysis={analysis}
+            onSelect={handleSelectTemplate}
+          />
         </motion.div>
       )}
 

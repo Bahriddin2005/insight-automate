@@ -15,10 +15,9 @@ interface Props {
   panels: LayoutPanel[];
   onLayoutChange: (panels: LayoutPanel[]) => void;
   children: (panelId: string) => React.ReactNode;
-  hideLayoutEditor?: boolean;
 }
 
-export default function DragDropLayout({ panels, onLayoutChange, children, hideLayoutEditor = false }: Props) {
+export default function DragDropLayout({ panels, onLayoutChange, children }: Props) {
   const [editing, setEditing] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -74,8 +73,7 @@ export default function DragDropLayout({ panels, onLayoutChange, children, hideL
 
   return (
     <div>
-      {/* Layout editor toggle — yashiriladi vizual rejimda */}
-      {!hideLayoutEditor && (
+      {/* Layout editor toggle */}
       <div className="flex items-center justify-end mb-3">
         <Button
           variant={editing ? 'default' : 'outline'}
@@ -87,10 +85,9 @@ export default function DragDropLayout({ panels, onLayoutChange, children, hideL
           {editing ? 'Done' : 'Edit Layout'}
         </Button>
       </div>
-      )}
 
       {/* Panel visibility controls when editing */}
-      {!hideLayoutEditor && editing && (
+      {editing && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
@@ -157,16 +154,6 @@ export default function DragDropLayout({ panels, onLayoutChange, children, hideL
   );
 }
 
-/** Vizual rejim — faqat KPI, grafiklar va statistika (shablon dashboarddan kelganda) */
-export function getVisualPanels(): LayoutPanel[] {
-  return [
-    { id: 'kpi', label: 'KPI Cards', visible: true, size: 'wide', order: 0 },
-    { id: 'statistics', label: 'Aniq statistika', visible: true, size: 'normal', order: 0.5 },
-    { id: 'charts', label: 'Auto Charts', visible: true, size: 'wide', order: 1 },
-    { id: 'insights', label: 'Insights', visible: true, size: 'wide', order: 2 },
-  ];
-}
-
 // Default panel configuration
 export function getDefaultPanels(): LayoutPanel[] {
   return [
@@ -174,7 +161,6 @@ export function getDefaultPanels(): LayoutPanel[] {
     { id: 'intelligent-kpi', label: 'Smart KPIs', visible: true, size: 'wide', order: 1 },
     { id: 'anomaly', label: 'Anomaly Detection', visible: true, size: 'wide', order: 2 },
     { id: 'cleaning', label: 'Cleaning Report', visible: true, size: 'normal', order: 3 },
-    { id: 'statistics', label: 'Aniq statistika', visible: true, size: 'normal', order: 3.5 },
     { id: 'schema', label: 'Schema Viewer', visible: true, size: 'normal', order: 4 },
     { id: 'insights', label: 'Insights', visible: true, size: 'wide', order: 5 },
     { id: 'charts', label: 'Auto Charts', visible: true, size: 'wide', order: 6 },

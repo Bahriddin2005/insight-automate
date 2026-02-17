@@ -1,8 +1,6 @@
 import type { ColumnInfo, DatasetAnalysis } from './dataProcessor';
 
-export type TemplateId = 'executive' | 'sales' | 'finance' | 'education' | 'hr' | 'marketing' | 'quality' | 'explorer'
-  | 'healthcare' | 'logistics' | 'ecommerce' | 'support' | 'inventory' | 'realestate' | 'operations' | 'social'
-  | 'growth' | 'ai-product';
+export type TemplateId = 'executive' | 'sales' | 'finance' | 'education' | 'hr' | 'marketing' | 'quality' | 'explorer';
 
 export interface TemplateSlot {
   id: string;
@@ -184,196 +182,6 @@ export const TEMPLATES: DashboardTemplate[] = [
       { id: 'heatmap', label: 'Correlations', type: 'heatmap', requires: ['numeric'], description: 'Matrix' },
     ],
   },
-  {
-    id: 'healthcare',
-    name: 'Healthcare Analytics',
-    nameUz: 'Sog\'liqni saqlash tahlili',
-    description: 'Patient metrics, treatment outcomes, utilization trends.',
-    descriptionUz: 'Bemor ko\'rsatkichlari, davolash natijalari, foydalanish trendlari.',
-    icon: '🏥',
-    color: 'from-green-500 to-emerald-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Records', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_avg', label: 'Avg Metric', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Data Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'kpi_date', label: 'Period', type: 'kpi', requires: ['datetime'], description: 'Range' },
-      { id: 'category_bar', label: 'Category Breakdown', type: 'bar', requires: ['categorical'], description: 'By category' },
-      { id: 'trend', label: 'Trend Over Time', type: 'line', requires: ['datetime', 'numeric'], description: 'Time series' },
-      { id: 'histogram', label: 'Distribution', type: 'histogram', requires: ['numeric'], description: 'Histogram' },
-      { id: 'missing_chart', label: 'Completeness', type: 'missing', requires: [], description: 'Missing' },
-    ],
-  },
-  {
-    id: 'logistics',
-    name: 'Logistics & Supply Chain',
-    nameUz: 'Logistika va yetkazib berish',
-    description: 'Shipments, delivery times, route performance, inventory flow.',
-    descriptionUz: 'Yuk tashish, yetkazib berish vaqti, marshrut samaradorligi.',
-    icon: '📦',
-    color: 'from-amber-500 to-orange-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Shipments', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_total', label: 'Total Value', type: 'kpi', requires: ['numeric'], description: 'Sum' },
-      { id: 'kpi_avg', label: 'Avg Delivery', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'route_bar', label: 'Route Performance', type: 'bar', requires: ['categorical'], description: 'By route' },
-      { id: 'trend', label: 'Volume Trend', type: 'line', requires: ['datetime', 'numeric'], description: 'Over time' },
-      { id: 'category_pie', label: 'Category Split', type: 'pie', requires: ['categorical'], description: 'Distribution' },
-      { id: 'histogram', label: 'Value Distribution', type: 'histogram', requires: ['numeric'], description: 'Histogram' },
-    ],
-  },
-  {
-    id: 'ecommerce',
-    name: 'E-commerce Analytics',
-    nameUz: 'E-ticaret tahlili',
-    description: 'Orders, conversion, product performance, customer segments.',
-    descriptionUz: 'Buyurtmalar, konversiya, mahsulot natijalari, mijoz segmentlari.',
-    icon: '🛒',
-    color: 'from-violet-500 to-purple-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Orders', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_total', label: 'Total Revenue', type: 'kpi', requires: ['numeric'], description: 'Sum' },
-      { id: 'kpi_avg', label: 'Avg Order', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'product_bar', label: 'Top Products', type: 'bar', requires: ['categorical'], description: 'Best sellers' },
-      { id: 'trend', label: 'Sales Trend', type: 'line', requires: ['datetime', 'numeric'], description: 'Over time' },
-      { id: 'category_pie', label: 'Category Mix', type: 'pie', requires: ['categorical'], description: 'Distribution' },
-      { id: 'histogram', label: 'Order Distribution', type: 'histogram', requires: ['numeric'], description: 'Histogram' },
-    ],
-  },
-  {
-    id: 'support',
-    name: 'Customer Support',
-    nameUz: 'Mijoz qo\'llab-quvvatlash',
-    description: 'Tickets, resolution time, satisfaction, agent performance.',
-    descriptionUz: 'Tiketlar, hal qilish vaqti, qoniqish, operator samaradorligi.',
-    icon: '🎧',
-    color: 'from-cyan-500 to-blue-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Tickets', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_avg', label: 'Avg Resolution', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Data Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'kpi_date', label: 'Period', type: 'kpi', requires: ['datetime'], description: 'Range' },
-      { id: 'agent_bar', label: 'Agent Performance', type: 'bar', requires: ['categorical'], description: 'By agent' },
-      { id: 'trend', label: 'Volume Trend', type: 'line', requires: ['datetime', 'numeric'], description: 'Over time' },
-      { id: 'category_pie', label: 'Category Split', type: 'pie', requires: ['categorical'], description: 'Types' },
-      { id: 'missing_chart', label: 'Completeness', type: 'missing', requires: [], description: 'Missing' },
-    ],
-  },
-  {
-    id: 'inventory',
-    name: 'Inventory & Stock',
-    nameUz: 'Zaxira va tovar',
-    description: 'Stock levels, movement, reorder points, warehouse metrics.',
-    descriptionUz: 'Ombordagi zaxira, harakat, qayta buyurtma nuqtalari.',
-    icon: '📋',
-    color: 'from-lime-500 to-green-600',
-    slots: [
-      { id: 'kpi_rows', label: 'SKUs', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_total', label: 'Total Value', type: 'kpi', requires: ['numeric'], description: 'Sum' },
-      { id: 'kpi_avg', label: 'Avg Stock', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'category_bar', label: 'Category Stock', type: 'bar', requires: ['categorical'], description: 'By category' },
-      { id: 'trend', label: 'Movement Trend', type: 'line', requires: ['datetime', 'numeric'], description: 'Over time' },
-      { id: 'histogram', label: 'Stock Distribution', type: 'histogram', requires: ['numeric'], description: 'Histogram' },
-      { id: 'heatmap', label: 'Correlations', type: 'heatmap', requires: ['numeric'], description: 'Matrix' },
-    ],
-  },
-  {
-    id: 'realestate',
-    name: 'Real Estate',
-    nameUz: 'Ko\'chmas mulk',
-    description: 'Properties, prices, listings, market trends.',
-    descriptionUz: 'Ob\'ektlar, narxlar, ro\'yxatlar, bozor trendlari.',
-    icon: '🏠',
-    color: 'from-rose-500 to-pink-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Listings', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_total', label: 'Total Value', type: 'kpi', requires: ['numeric'], description: 'Sum' },
-      { id: 'kpi_avg', label: 'Avg Price', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'location_bar', label: 'By Location', type: 'bar', requires: ['categorical'], description: 'Top areas' },
-      { id: 'trend', label: 'Price Trend', type: 'line', requires: ['datetime', 'numeric'], description: 'Over time' },
-      { id: 'category_pie', label: 'Type Split', type: 'pie', requires: ['categorical'], description: 'Distribution' },
-      { id: 'histogram', label: 'Price Distribution', type: 'histogram', requires: ['numeric'], description: 'Histogram' },
-    ],
-  },
-  {
-    id: 'operations',
-    name: 'Operations & Ops',
-    nameUz: 'Operatsiyalar',
-    description: 'Process metrics, throughput, efficiency, resource utilization.',
-    descriptionUz: 'Jarayon ko\'rsatkichlari, oqim, samaradorlik.',
-    icon: '⚙️',
-    color: 'from-slate-500 to-zinc-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Records', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_total', label: 'Total Output', type: 'kpi', requires: ['numeric'], description: 'Sum' },
-      { id: 'kpi_avg', label: 'Avg Metric', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'process_bar', label: 'Process Breakdown', type: 'bar', requires: ['categorical'], description: 'By process' },
-      { id: 'trend', label: 'Throughput Trend', type: 'line', requires: ['datetime', 'numeric'], description: 'Over time' },
-      { id: 'heatmap', label: 'Correlations', type: 'heatmap', requires: ['numeric'], description: 'Matrix' },
-      { id: 'missing_chart', label: 'Completeness', type: 'missing', requires: [], description: 'Missing' },
-    ],
-  },
-  {
-    id: 'growth',
-    name: 'Growth & Retention',
-    nameUz: "O'sashton va saqlanish",
-    description: 'DAU/MAU, cohorts, retention curves, MoM/YoY growth.',
-    descriptionUz: 'Kunlik/oylik foydalanuvchilar, kohortlar, saqlanish egri chiziqlari.',
-    icon: '🌱',
-    color: 'from-emerald-500 to-teal-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Users/Events', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_avg', label: 'Avg per User', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Data Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'kpi_date', label: 'Period', type: 'kpi', requires: ['datetime'], description: 'Date range' },
-      { id: 'trend', label: 'DAU/MAU Trend', type: 'line', requires: ['datetime', 'numeric'], description: 'Time series' },
-      { id: 'cohort_bar', label: 'Cohort Breakdown', type: 'bar', requires: ['categorical'], description: 'By cohort' },
-      { id: 'retention_line', label: 'Retention Curve', type: 'line', requires: ['datetime', 'numeric'], description: 'Retention' },
-      { id: 'category_pie', label: 'Segment Split', type: 'pie', requires: ['categorical'], description: 'Distribution' },
-    ],
-  },
-  {
-    id: 'ai-product',
-    name: 'AI Product Analytics',
-    nameUz: 'AI mahsulot tahlili',
-    description: 'Tokens, latency, model usage, AI performance metrics.',
-    descriptionUz: 'Tokenlar, kechikish, model foydalanish, AI samaradorlik.',
-    icon: '🤖',
-    color: 'from-violet-500 to-fuchsia-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Requests', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_avg', label: 'Avg Latency', type: 'kpi', requires: ['numeric'], description: 'Mean ms' },
-      { id: 'kpi_total', label: 'Total Tokens', type: 'kpi', requires: ['numeric'], description: 'Sum' },
-      { id: 'kpi_quality', label: 'Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'model_bar', label: 'Model Usage', type: 'bar', requires: ['categorical'], description: 'By model' },
-      { id: 'latency_trend', label: 'Latency Over Time', type: 'line', requires: ['datetime', 'numeric'], description: 'Trend' },
-      { id: 'token_histogram', label: 'Token Distribution', type: 'histogram', requires: ['numeric'], description: 'Histogram' },
-      { id: 'heatmap', label: 'Correlations', type: 'heatmap', requires: ['numeric'], description: 'Matrix' },
-    ],
-  },
-  {
-    id: 'social',
-    name: 'Social & Engagement',
-    nameUz: 'Ijtimoiy tarmoq va jalb',
-    description: 'Engagement, reach, followers, content performance.',
-    descriptionUz: 'Jalb qilish, qamrov, obunachilar, kontent natijalari.',
-    icon: '📱',
-    color: 'from-sky-500 to-indigo-600',
-    slots: [
-      { id: 'kpi_rows', label: 'Posts/Events', type: 'kpi', requires: [], description: 'Count' },
-      { id: 'kpi_total', label: 'Total Engagement', type: 'kpi', requires: ['numeric'], description: 'Sum' },
-      { id: 'kpi_avg', label: 'Avg Engagement', type: 'kpi', requires: ['numeric'], description: 'Mean' },
-      { id: 'kpi_quality', label: 'Quality', type: 'kpi', requires: [], description: 'Score' },
-      { id: 'channel_bar', label: 'Channel Performance', type: 'bar', requires: ['categorical'], description: 'By channel' },
-      { id: 'trend', label: 'Engagement Trend', type: 'line', requires: ['datetime', 'numeric'], description: 'Over time' },
-      { id: 'category_pie', label: 'Content Split', type: 'pie', requires: ['categorical'], description: 'Distribution' },
-      { id: 'histogram', label: 'Distribution', type: 'histogram', requires: ['numeric'], description: 'Histogram' },
-    ],
-  },
 ];
 
 export function autoBindColumns(template: DashboardTemplate, analysis: DatasetAnalysis): SlotBinding[] {
@@ -419,24 +227,15 @@ export function suggestTemplate(analysis: DatasetAnalysis): TemplateId {
   const catCols = analysis.columnInfo.filter(c => c.type === 'categorical');
   const dateCols = analysis.columnInfo.filter(c => c.type === 'datetime');
 
+  // Heuristics based on column names and types
   const colNames = analysis.columnInfo.map(c => c.name.toLowerCase()).join(' ');
 
-  if (analysis.qualityScore < 70) return 'quality';
-  if (/revenue|sales|price|amount|order|product/.test(colNames) && dateCols.length > 0) return 'sales';
-  if (/patient|treatment|diagnosis|hospital|medical/.test(colNames)) return 'healthcare';
-  if (/shipment|delivery|route|warehouse|logistics|freight/.test(colNames)) return 'logistics';
-  if (/order|cart|checkout|product|sku|ecommerce/.test(colNames)) return 'ecommerce';
-  if (/ticket|support|resolution|agent|satisfaction/.test(colNames)) return 'support';
-  if (/stock|inventory|sku|warehouse|quantity|reorder/.test(colNames)) return 'inventory';
-  if (/property|price|listing|location|square|realestate|mulk/.test(colNames)) return 'realestate';
-  if (/throughput|process|efficiency|utilization|output/.test(colNames)) return 'operations';
-  if (/user_id|userid|user\.id|dau|mau|cohort|retention|churn/.test(colNames) && dateCols.length > 0) return 'growth';
-  if (/token|latency|model|prompt|llm|embedding|inference/.test(colNames)) return 'ai-product';
-  if (/engagement|followers|post|reach|likes|social|content/.test(colNames)) return 'social';
+  if (/revenue|sales|price|amount|order/.test(colNames) && dateCols.length > 0) return 'sales';
   if (/score|grade|student|subject|class/.test(colNames)) return 'education';
-  if (/employee|department|salary|hire|position|xodim/.test(colNames)) return 'hr';
+  if (/employee|department|salary|hire|position/.test(colNames)) return 'hr';
   if (/campaign|lead|click|conversion|channel/.test(colNames)) return 'marketing';
   if (/transaction|payment|debit|credit|balance/.test(colNames)) return 'finance';
+  if (analysis.qualityScore < 70) return 'quality';
   if (dateCols.length > 0 && numCols.length > 0) return 'executive';
   return 'explorer';
 }
