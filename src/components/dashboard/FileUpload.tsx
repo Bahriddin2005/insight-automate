@@ -12,6 +12,7 @@ import ThemeToggle from './ThemeToggle';
 import SessionHistory from './SessionHistory';
 import DataPreview from './DataPreview';
 import ApiConnector from './ApiConnector';
+import SavedApiConnections from './SavedApiConnections';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 
 interface FileUploadProps {
@@ -189,6 +190,12 @@ export default function FileUpload({ onFileReady, onApiDataReady, isProcessing }
               </div>
               {onApiDataReady && <ApiConnector onDataReady={onApiDataReady} />}
             </div>
+            {/* Saved connections below the connector */}
+            {onApiDataReady && (
+              <div className="mt-4">
+                <SavedApiConnections onDataReady={onApiDataReady} />
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </motion.div>

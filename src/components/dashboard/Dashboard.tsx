@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Filter, Sparkles, Loader2, Save, Link2, Check, Globe, Lock, Image, FileText, Download } from 'lucide-react';
+import DataSourceBadge from './DataSourceBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import KPICards from './KPICards';
@@ -203,7 +204,10 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
           <Button variant="ghost" size="icon" onClick={onReset} className="shrink-0 h-8 w-8 sm:h-9 sm:w-9"><ArrowLeft className="w-4 h-4" /></Button>
           <div className="flex-1 min-w-0">
             <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">{fileName}</h1>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">{analysis.rows.toLocaleString()} {t('table.rows')} · {analysis.columns} {t('kpi.totalColumns').toLowerCase()} · {t('header.quality')}: {analysis.qualityScore}/100</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{analysis.rows.toLocaleString()} {t('table.rows')} · {analysis.columns} {t('kpi.totalColumns').toLowerCase()} · {t('header.quality')}: {analysis.qualityScore}/100</p>
+              <DataSourceBadge fileName={fileName} />
+            </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
             <Button variant="outline" size="sm" onClick={() => exportDashboardAsPNG('full-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-9 px-2">
