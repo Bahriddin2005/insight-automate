@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.api-proxy]
 verify_jwt = false
+
+[functions.aida-tts]
+verify_jwt = false
+
+[functions.aida-stt-token]
+verify_jwt = false
+
+[functions.aida-voice-agent]
+verify_jwt = false
