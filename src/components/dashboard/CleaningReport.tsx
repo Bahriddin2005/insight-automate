@@ -19,6 +19,10 @@ export default function CleaningReport({ analysis, fileName }: CleaningReportPro
   const highMissing = analysis.columnInfo.filter(c => c.missingPercent > 10);
   const outlierCols = numCols.filter(c => c.stats && c.stats.outliers > 0);
 
+  const inconsistentCols = analysis.columnInfo.filter(c => c.inconsistentFormats && c.inconsistentFormats > 0);
+  const constantCols = analysis.columnInfo.filter(c => c.cardinality === 'constant');
+  const nullPatternCols = analysis.columnInfo.filter(c => c.nullPattern && c.nullPattern !== 'none' && c.nullPattern !== 'random');
+
   const actions: { label: string; detail: string; type: 'success' | 'warning' }[] = [
     { label: t('report.trimmed'), detail: `${analysis.columns} ${t('report.columns')}`, type: 'success' },
     { label: t('report.duplicatesRemoved'), detail: `${analysis.duplicatesRemoved} ${t('table.rows')}`, type: analysis.duplicatesRemoved > 0 ? 'warning' : 'success' },
@@ -26,6 +30,9 @@ export default function CleaningReport({ analysis, fileName }: CleaningReportPro
     { label: t('report.datesParsed'), detail: `${dateCols.length} ${t('report.columns')}`, type: 'success' },
     { label: t('report.missingFilled'), detail: `${numCols.length} median + ${catCols.length} mode`, type: highMissing.length > 0 ? 'warning' : 'success' },
     { label: t('report.outliersDetected'), detail: `${outlierCols.reduce((a, c) => a + (c.stats?.outliers || 0), 0)} ${t('report.inColumns')} ${outlierCols.length}`, type: outlierCols.length > 0 ? 'warning' : 'success' },
+    ...(inconsistentCols.length > 0 ? [{ label: 'Format nomuvofiqligi', detail: `${inconsistentCols.length} ustun`, type: 'warning' as const }] : []),
+    ...(constantCols.length > 0 ? [{ label: 'Doimiy qiymatli ustunlar', detail: `${constantCols.length} ustun`, type: 'warning' as const }] : []),
+    ...(nullPatternCols.length > 0 ? [{ label: 'Null pattern aniqlandi', detail: nullPatternCols.map(c => `${c.name}: ${c.nullPattern}`).join(', '), type: 'warning' as const }] : []),
   ];
 
   const generateDataDictionary = () => {
@@ -35,6 +42,9 @@ export default function CleaningReport({ analysis, fileName }: CleaningReportPro
       missing_count: c.missingCount,
       missing_percent: +c.missingPercent.toFixed(2),
       unique_count: c.uniqueCount,
+      cardinality: c.cardinality || 'unknown',
+      null_pattern: c.nullPattern || 'unknown',
+      inconsistent_formats: c.inconsistentFormats || 0,
       ...(c.stats ? {
         min: c.stats.min,
         max: c.stats.max,

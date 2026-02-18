@@ -21,6 +21,10 @@ export interface ColumnInfo {
   };
   topValues?: { value: string; count: number }[];
   dateRange?: { min: string; max: string };
+  // Enhanced profiling
+  cardinality?: 'unique' | 'high' | 'medium' | 'low' | 'constant';
+  nullPattern?: 'none' | 'random' | 'systematic' | 'leading' | 'trailing';
+  inconsistentFormats?: number;
 }
 
 export interface DatasetAnalysis {
@@ -471,6 +475,44 @@ export function analyzeDataset(rawData: Record<string, unknown>[]): DatasetAnaly
       missingPercent: values.length > 0 ? (missingCount / values.length) * 100 : 0,
       uniqueCount: new Set(nonEmpty.map(String)).size,
     };
+
+    // Cardinality classification
+    const cardRatio = values.length > 0 ? info.uniqueCount / values.length : 0;
+    if (info.uniqueCount === 1) info.cardinality = 'constant';
+    else if (cardRatio > 0.95) info.cardinality = 'unique';
+    else if (cardRatio > 0.5) info.cardinality = 'high';
+    else if (cardRatio > 0.1) info.cardinality = 'medium';
+    else info.cardinality = 'low';
+
+    // Null pattern analysis
+    if (missingCount === 0) {
+      info.nullPattern = 'none';
+    } else {
+      const nullFlags = values.map(v => v === null || v === undefined || String(v).trim() === '');
+      const firstThird = nullFlags.slice(0, Math.ceil(nullFlags.length / 3));
+      const lastThird = nullFlags.slice(-Math.ceil(nullFlags.length / 3));
+      const firstNullRate = firstThird.filter(Boolean).length / firstThird.length;
+      const lastNullRate = lastThird.filter(Boolean).length / lastThird.length;
+      const overallRate = missingCount / values.length;
+      
+      if (firstNullRate > overallRate * 2 && lastNullRate < overallRate * 0.5) info.nullPattern = 'leading';
+      else if (lastNullRate > overallRate * 2 && firstNullRate < overallRate * 0.5) info.nullPattern = 'trailing';
+      else {
+        // Check for systematic (e.g., every Nth row)
+        let consecutiveNulls = 0, maxConsecutive = 0;
+        nullFlags.forEach(f => { if (f) consecutiveNulls++; else { maxConsecutive = Math.max(maxConsecutive, consecutiveNulls); consecutiveNulls = 0; } });
+        info.nullPattern = maxConsecutive > 5 ? 'systematic' : 'random';
+      }
+    }
+
+    // Inconsistent format detection (for text/categorical)
+    if (type === 'categorical' || type === 'text') {
+      const strs = nonEmpty.map(v => String(v));
+      const hasUpper = strs.filter(s => /[A-Z]/.test(s)).length;
+      const hasLower = strs.filter(s => /[a-z]/.test(s)).length;
+      const mixedCase = (hasUpper > 0.2 * strs.length && hasLower > 0.2 * strs.length) ? Math.min(hasUpper, hasLower) : 0;
+      info.inconsistentFormats = mixedCase;
+    }
 
     if (type === 'numeric') {
       const nums = nonEmpty.map(v => Number(v)).filter(n => !isNaN(n)).sort((a, b) => a - b);

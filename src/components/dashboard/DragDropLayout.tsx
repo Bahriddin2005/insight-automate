@@ -166,6 +166,7 @@ export function getDefaultPanels(): LayoutPanel[] {
     { id: 'charts', label: 'Auto Charts', visible: true, size: 'wide', order: 6 },
     { id: 'trend', label: 'Trend Comparison', visible: true, size: 'wide', order: 7 },
     { id: 'forecasting', label: 'Forecasting', visible: true, size: 'wide', order: 8 },
+    { id: 'prophet', label: 'Prophet Forecast', visible: true, size: 'wide', order: 9 },
     { id: 'correlation', label: 'Correlation', visible: true, size: 'normal', order: 9 },
     { id: 'cohort', label: 'Cohort & Funnel', visible: true, size: 'wide', order: 10 },
     { id: 'churn', label: 'Churn Risk', visible: true, size: 'normal', order: 11 },
