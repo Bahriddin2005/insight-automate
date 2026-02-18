@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles } from 'lucide-react';
+import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -455,7 +456,22 @@ export default function AidaAssistant() {
       });
       URL.revokeObjectURL(audioUrl);
     } catch (e) {
-      console.error('TTS error:', e);
+      console.error('TTS error, falling back to speechSynthesis:', e);
+      // Fallback to browser speechSynthesis
+      try {
+        const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').replace(/\n+/g, '. ').slice(0, 2000);
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'uz-UZ';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        await new Promise<void>((resolve) => {
+          utterance.onend = () => resolve();
+          utterance.onerror = () => resolve();
+          window.speechSynthesis.speak(utterance);
+        });
+      } catch (fallbackErr) {
+        console.error('speechSynthesis fallback also failed:', fallbackErr);
+      }
     }
   };
 
@@ -605,6 +621,7 @@ ${chatMessages.map(m => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-xs text-muted-foreground">
               <Activity className="w-3 h-3" />
               {currentState.label}
@@ -739,39 +756,44 @@ ${chatMessages.map(m => {
             </div>
 
             {/* Text input */}
-            <div className="flex gap-2 w-full max-w-md">
-              <textarea
-                ref={textInputRef}
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
-                    e.preventDefault();
-                    if (!textInput.trim() || state === 'thinking') return;
-                    processQuestion(textInput.trim());
-                    setTextInput('');
-                  } else if (e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) {
-                    // Allow newline
-                  }
-                }}
-                placeholder="Savolingizni yozing... (Enter — yuborish, Ctrl+Enter — yangi qator)"
-                className="flex-1 bg-secondary border border-border text-sm rounded-md px-3 py-2 resize-none min-h-[40px] max-h-[120px] focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground"
-                rows={1}
-                disabled={state === 'thinking'}
-              />
-              <Button
-                type="button"
-                size="icon"
-                disabled={state === 'thinking' || !textInput.trim()}
-                className="h-10 w-10 shrink-0 self-end"
-                onClick={() => {
-                  if (!textInput.trim() || state === 'thinking') return;
-                  processQuestion(textInput.trim());
-                  setTextInput('');
-                }}
-              >
-                <Send className="w-4 h-4" />
-              </Button>
+            <div className="relative w-full max-w-lg group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/40 via-accent/30 to-primary/40 rounded-2xl opacity-0 group-focus-within:opacity-100 blur-sm transition-opacity duration-300" />
+              <div className="relative flex items-end gap-2 bg-card border border-border rounded-2xl p-2 shadow-lg group-focus-within:border-primary/50 transition-colors">
+                <Sparkles className="w-4 h-4 text-muted-foreground/50 ml-2 mb-2.5 shrink-0" />
+                <textarea
+                  ref={textInputRef}
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!textInput.trim() || state === 'thinking') return;
+                      processQuestion(textInput.trim());
+                      setTextInput('');
+                    }
+                  }}
+                  placeholder="Savolingizni yozing..."
+                  className="flex-1 bg-transparent text-sm resize-none min-h-[36px] max-h-[120px] py-2 focus:outline-none text-foreground placeholder:text-muted-foreground/60 leading-snug"
+                  rows={1}
+                  disabled={state === 'thinking'}
+                />
+                <motion.div whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.05 }}>
+                  <Button
+                    type="button"
+                    size="icon"
+                    disabled={state === 'thinking' || !textInput.trim()}
+                    className="h-9 w-9 shrink-0 rounded-xl gradient-primary text-white shadow-md hover:shadow-lg transition-shadow disabled:opacity-30 disabled:shadow-none"
+                    onClick={() => {
+                      if (!textInput.trim() || state === 'thinking') return;
+                      processQuestion(textInput.trim());
+                      setTextInput('');
+                    }}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </motion.div>
+              </div>
+              <p className="text-[10px] text-muted-foreground/40 text-center mt-1.5">Enter — yuborish • Ctrl+Enter — yangi qator</p>
             </div>
           </div>
         </div>
