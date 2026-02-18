@@ -14,6 +14,8 @@ import SharedDashboard from "./pages/SharedDashboard";
 import Install from "./pages/Install";
 import Portfolio from "./pages/Portfolio";
 import CaseStudyDetail from "./pages/CaseStudyDetail";
+import DataCleaning from "./pages/DataCleaning";
+import DashboardStudio from "./pages/DashboardStudio";
 import OfflineBanner from "./components/dashboard/OfflineBanner";
 import AidaAssistant from "./pages/AidaAssistant";
 import NotFound from "./pages/NotFound";
@@ -31,6 +33,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/cleaning" element={<DataCleaning />} />
+              <Route path="/studio" element={<DashboardStudio />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
