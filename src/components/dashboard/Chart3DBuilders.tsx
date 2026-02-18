@@ -12,7 +12,7 @@ export const DEFAULT_COLORS = [
   '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1',
 ];
 
-export type Chart3DType = 'bar' | 'pie' | 'scatter' | 'line';
+export type Chart3DType = 'bar' | 'pie' | 'scatter' | 'line' | 'surface';
 
 interface BuildResult {
   meshes: { mesh: THREE.Mesh; data: DataPoint }[];
@@ -171,5 +171,82 @@ export function buildLineChart(group: THREE.Group, data: DataPoint[], maxValue: 
     const tube = new THREE.Mesh(tubeGeo, tubeMat);
     group.add(tube);
   }
+  return { meshes };
+}
+
+export function buildSurfaceChart(group: THREE.Group, data: DataPoint[], maxValue: number): BuildResult {
+  const meshes: BuildResult['meshes'] = [];
+  const gridSize = Math.max(3, Math.ceil(Math.sqrt(data.length)));
+  const spread = 10;
+  const cellSize = spread / gridSize;
+
+  // Build height grid from data
+  const heights: number[][] = [];
+  for (let z = 0; z < gridSize; z++) {
+    heights[z] = [];
+    for (let x = 0; x < gridSize; x++) {
+      const idx = z * gridSize + x;
+      heights[z][x] = idx < data.length ? (data[idx].value / maxValue) : 0;
+    }
+  }
+
+  // Create surface geometry
+  const geo = new THREE.PlaneGeometry(spread, spread, gridSize - 1, gridSize - 1);
+  const posAttr = geo.attributes.position;
+  const colors: number[] = [];
+
+  for (let i = 0; i < posAttr.count; i++) {
+    const gx = i % gridSize;
+    const gz = Math.floor(i / gridSize);
+    const h = heights[gz]?.[gx] ?? 0;
+    posAttr.setZ(i, h * 5);
+
+    // Color gradient: low=cool blue → high=hot red
+    const t = h;
+    const r = t;
+    const g = Math.max(0, 1 - Math.abs(t - 0.5) * 2);
+    const b = 1 - t;
+    colors.push(r, g, b);
+  }
+
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.4,
+    metalness: 0.3,
+    side: THREE.DoubleSide,
+    flatShading: true,
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+
+  // Add point markers at peaks for interaction
+  data.slice(0, gridSize * gridSize).forEach((d, i) => {
+    const gx = i % gridSize;
+    const gz = Math.floor(i / gridSize);
+    const h = (d.value / maxValue) * 5;
+    const x = (gx / (gridSize - 1)) * spread - spread / 2;
+    const z2 = (gz / (gridSize - 1)) * spread - spread / 2;
+    if (h > maxValue * 0.3 / maxValue * 5) {
+      const dotGeo = new THREE.SphereGeometry(0.12, 8, 8);
+      const color = DEFAULT_COLORS[i % DEFAULT_COLORS.length];
+      const dotMesh = new THREE.Mesh(dotGeo, makeMaterial(color, 0.5));
+      dotMesh.position.set(x, h, z2);
+      group.add(dotMesh);
+      meshes.push({ mesh: dotMesh, data: d });
+    }
+  });
+
+  // Axis labels for corners
+  group.add(createLabel('Low', -spread / 2, -0.5, -spread / 2));
+  group.add(createLabel('High', spread / 2, -0.5, spread / 2));
+
   return { meshes };
 }
