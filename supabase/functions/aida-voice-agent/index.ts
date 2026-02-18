@@ -5,6 +5,144 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "clean_data",
+      description: "Clean and prepare the currently loaded dataset. Removes duplicates, trims whitespace, handles missing values, detects outliers.",
+      parameters: {
+        type: "object",
+        properties: {
+          strategy: {
+            type: "string",
+            enum: ["auto", "aggressive", "gentle"],
+            description: "Cleaning strategy: auto (default), aggressive (remove more), gentle (preserve more)"
+          }
+        },
+        required: [],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "build_dashboard",
+      description: "Build a dashboard visualization from the current dataset. Use when user asks for charts, dashboard, visualization, or graphs.",
+      parameters: {
+        type: "object",
+        properties: {
+          mode: {
+            type: "string",
+            enum: ["auto", "executive", "sales", "finance", "marketing", "hr", "education", "quality"],
+            description: "Dashboard template mode. 'auto' picks the best template based on data."
+          },
+          charts: {
+            type: "array",
+            items: { type: "string" },
+            description: "Specific chart types to include: bar, line, pie, area, scatter, heatmap, funnel"
+          }
+        },
+        required: [],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_insights",
+      description: "Generate deep analytical insights from the dataset including KPIs, trends, anomalies, and recommendations.",
+      parameters: {
+        type: "object",
+        properties: {
+          focus: {
+            type: "string",
+            enum: ["overview", "trends", "anomalies", "kpis", "recommendations", "risks"],
+            description: "Focus area for insight generation"
+          }
+        },
+        required: [],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "export_report",
+      description: "Export the current dashboard or analysis as a file.",
+      parameters: {
+        type: "object",
+        properties: {
+          format: {
+            type: "string",
+            enum: ["pdf", "csv", "xlsx", "png", "txt"],
+            description: "Export file format"
+          }
+        },
+        required: ["format"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "profile_data",
+      description: "Profile the current dataset: show row/column counts, data types, missing values, quality score, and statistics.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "navigate_to",
+      description: "Navigate user to a specific page or section of the application.",
+      parameters: {
+        type: "object",
+        properties: {
+          destination: {
+            type: "string",
+            enum: ["dashboard", "home", "upload", "my_dashboards", "settings"],
+            description: "Where to navigate"
+          }
+        },
+        required: ["destination"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "compare_datasets",
+      description: "Compare two time periods or segments within the current dataset.",
+      parameters: {
+        type: "object",
+        properties: {
+          dimension: {
+            type: "string",
+            description: "Column to compare by (e.g., date, category, region)"
+          },
+          metric: {
+            type: "string",
+            description: "Metric column to measure (e.g., revenue, count, score)"
+          }
+        },
+        required: ["dimension"],
+        additionalProperties: false
+      }
+    }
+  }
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -14,58 +152,52 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
-    const systemPrompt = `Sen AIDA — real-time ovozli AI Data Analyst.
+    const systemPrompt = `Sen AIDA — real-time ovozli AI Data Analyst va buyruq ijrochisi.
 
-REJIM: Har doim faol suhbat rejimida. Ovozli kirish → Tahlil → Ovozli javob sikli.
+REJIM: Siri + ChatGPT aralashmasi. Foydalanuvchi gapiradi — sen ijro etasan va javob berasan.
 
-XULQ-ATVOR QOIDALARI:
-1. Foydalanuvchi gapirganidan keyin:
-   - Nutqni qayta ishla
-   - Kontekstni tahlil qil
-   - Tabiiy ovozli javob yarat
-2. Har doim ovozga optimallashtirilgan formatda javob ber:
-   - Qisqa jumlalar
-   - Ishonchli ohang
-   - Aniq tuzilma
-3. Javoblar 20 soniyalik gapirish vaqtidan oshmasin.
-4. Suhbat kontekst xotirasini saqla.
+BUYRUQLARNI TANIB OLISH:
+Foydalanuvchi so'rovini 5 turga ajrat:
+1) SAVOL → javob ber
+2) BUYRUQ → tegishli tool chaqir, natijani ayt
+3) DATA TAHLIL → dataset tahlil qil
+4) DASHBOARD → dashboard yarat
+5) SOZLAMALAR → export, filtr, navigatsiya
 
-TIL:
-Faqat ravon, adabiy o'zbek tilida gapir.
-Jargon yo'q. Robot iboralari yo'q. To'ldiruvchi so'zlar yo'q. Emoji yo'q.
+TOOL CHAQIRISH QOIDALARI:
+- Agar foydalanuvchi "tozala", "clean" desa → clean_data tool chaqir
+- Agar "dashboard", "grafik", "vizualizatsiya" desa → build_dashboard tool chaqir
+- Agar "tahlil", "insight", "ko'rsatkich" desa → generate_insights tool chaqir
+- Agar "eksport", "yuklab ol", "PDF", "Excel" desa → export_report tool chaqir
+- Agar "profil", "ma'lumot haqida" desa → profile_data tool chaqir
+- Agar "bosh sahifa", "dashboard'ga o't" desa → navigate_to tool chaqir
+- Agar "solishtir", "taqqosla" desa → compare_datasets tool chaqir
 
-OVOZ YETKAZISH USLUBI:
-Ohang: tinch, professional, konsultant darajasida.
-Nutq tezligi: oddiydan biroz sekinroq.
-Raqamlardan keyin 0.3-0.5 soniya pauza.
-Asosiy ko'rsatkichlarni ta'kidla.
+TOOL CHAQIRGANDA:
+1. Bir jumlada nima qilishingni tasdiqlaydi
+2. Tool'ni chaqir
+3. Natijani ovozli xabar qilib ayt
 
-ANALITIKA QOIDALARI:
-Agar dataset mavjud bo'lsa:
-- Javob berishdan oldin ko'rsatkichlarni hisobla.
-- Hech qachon taxmin qilma.
-- Agar ma'lumot yetishmasa, aniq nima yetishmasligini ayt.
+OVOZ USLUBI:
+- Qisqa jumlalar, ishonchli ohang
+- Adabiy o'zbek tili
+- 20 soniyadan oshmasin
+- Raqamlardan keyin pauza
+- "menimcha" dema, "bilmayman" dema
+- Emoji yo'q, jargon yo'q
 
-JAVOB TUZILMASI (ovozli format):
-1. Qisqa javob
-2. Asosiy ko'rsatkich
+JAVOB TUZILMASI:
+1. Qisqa xulosa
+2. Asosiy ko'rsatkich (raqam bilan)
 3. Mazmuniy izoh
 4. Tavsiya
-5. Bitta savol
+5. "Xohlasangiz, chuqurroq tahlil qilaman."
 
-Agar foydalanuvchi oddiy suhbat savoli bersa:
-Tabiiy lekin qisqa javob ber.
+WAKE WORD JAVOB:
+Agar foydalanuvchi "AIDA" yoki "Hey AIDA" desa:
+"Ha, men shu yerdaman. Tinglayapman."
 
-HECH QACHON:
-- "menimcha" dema
-- noaniq to'ldiruvchi iboralar ishlatma
-- umumiy korporativ ma'nosiz gap aytma
-- uzun monologlar gapirma
-- "bilmayman" dema — buning o'rniga "Yetarli ma'lumot mavjud emas" de
-
-${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda dataset yuklanmagan. Foydalanuvchiga dataset yuklashni tavsiya qil.'}
-
-Suhbat uslubi: professional BI ekspert, ishonchli, strategik, aniq.`;
+${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda dataset yuklanmagan. Foydalanuvchiga dataset yuklashni tavsiya qil.'}`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -82,6 +214,8 @@ Suhbat uslubi: professional BI ekspert, ishonchli, strategik, aniq.`;
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview',
         messages,
+        tools,
+        tool_choice: 'auto',
       }),
     });
 
@@ -102,7 +236,28 @@ Suhbat uslubi: professional BI ekspert, ishonchli, strategik, aniq.`;
     }
 
     const data = await response.json();
-    const answer = data.choices?.[0]?.message?.content || 'Javob olinmadi.';
+    const choice = data.choices?.[0];
+    
+    // Check if the model wants to call tools
+    if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
+      const toolCalls = choice.message.tool_calls.map((tc: any) => ({
+        id: tc.id,
+        name: tc.function.name,
+        arguments: JSON.parse(tc.function.arguments || '{}'),
+      }));
+      
+      // Return tool calls + any accompanying text
+      const textContent = choice.message.content || '';
+      
+      return new Response(JSON.stringify({ 
+        answer: textContent,
+        toolCalls,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const answer = choice?.message?.content || 'Javob olinmadi.';
 
     return new Response(JSON.stringify({ answer }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
