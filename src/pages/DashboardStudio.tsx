@@ -192,7 +192,7 @@ export default function DashboardStudioPage() {
       });
       if (error) throw error;
       setAiSummary(data.summary);
-    } catch (e) { console.error('AI summary error:', e); setAiSummary('Failed to generate summary.'); } finally { setAiLoading(false); }
+    } catch (e) { console.error('AI summary error:', e); setAiSummary(t('ai.error')); } finally { setAiLoading(false); }
   };
 
   const handleReset = () => { setAnalysis(null); setFileName(''); setFile(null); setError(''); setAiSummary(''); setCatFilters({}); setNumFilter(null); };
@@ -206,13 +206,13 @@ export default function DashboardStudioPage() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-4 sm:py-8">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-4">
                 <Zap className="w-3 h-3" />
-                Auto-Detect · KPIs · 2D/3D/4D Visualization
+                {t('studio.badge')}
               </div>
               <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
-                Dashboard <span className="text-gradient">Studio</span>
+                {t('studio.title')} <span className="text-gradient">{t('studio.titleHighlight')}</span>
               </h1>
               <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto">
-                Upload your cleaned dataset — we'll auto-detect context and generate a professional dashboard
+                {t('studio.subtitle')}
               </p>
             </motion.div>
 
@@ -220,7 +220,6 @@ export default function DashboardStudioPage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Upload Area */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="lg:col-span-8">
-                {/* Drop zone */}
                 <div
                   className={`relative rounded-2xl p-10 sm:p-16 text-center cursor-pointer transition-all duration-300 border-2 border-dashed ${
                     dragActive ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-border/60 bg-card/30 hover:bg-card/50 hover:border-primary/30'
@@ -242,8 +241,8 @@ export default function DashboardStudioPage() {
                     </div>
                   </motion.div>
 
-                  <p className="text-foreground font-semibold text-lg mb-2">Drop your cleaned dataset here</p>
-                  <p className="text-muted-foreground text-sm mb-4">CSV, Excel, JSON, SQL — up to 25MB</p>
+                  <p className="text-foreground font-semibold text-lg mb-2">{t('studio.dropCleaned')}</p>
+                  <p className="text-muted-foreground text-sm mb-4">{t('studio.formats')}</p>
                   <div className="flex items-center justify-center gap-2 flex-wrap">
                     {['CSV', 'XLSX', 'JSON', 'SQL'].map(fmt => (
                       <span key={fmt} className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-secondary/80 text-muted-foreground border border-border/30">
@@ -272,7 +271,7 @@ export default function DashboardStudioPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-foreground font-semibold truncate">{file.name}</p>
-                          <p className="text-muted-foreground text-xs">{(file.size / 1024).toFixed(1)} KB · Ready to analyze</p>
+                          <p className="text-muted-foreground text-xs">{(file.size / 1024).toFixed(1)} KB · {t('upload.readyToAnalyze')}</p>
                         </div>
                         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setFile(null); }} className="text-muted-foreground h-8 w-8 p-0">
                           <X className="w-4 h-4" />
@@ -280,7 +279,7 @@ export default function DashboardStudioPage() {
                       </div>
                       {sheets.length > 1 && (
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">Sheet:</span>
+                          <span className="text-sm text-muted-foreground">{t('upload.sheet')}:</span>
                           <div className="relative flex-1">
                             <select value={sheetIndex} onChange={(e) => setSheetIndex(Number(e.target.value))} className="w-full bg-secondary text-secondary-foreground text-sm rounded-lg px-3 py-2 pr-8 appearance-none border border-border focus:ring-1 focus:ring-primary outline-none">
                               {sheets.map((s, i) => <option key={i} value={i}>{s}</option>)}
@@ -290,7 +289,7 @@ export default function DashboardStudioPage() {
                         </div>
                       )}
                       <Button onClick={processFile} disabled={isProcessing} className="w-full gradient-primary text-primary-foreground font-semibold h-12 text-base glow-primary hover:opacity-90 transition-all">
-                        {isProcessing ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Analyzing...</> : <><Sparkles className="w-5 h-5 mr-2" /> Generate Dashboard</>}
+                        {isProcessing ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> {t('upload.analyzing')}</> : <><Sparkles className="w-5 h-5 mr-2" /> {t('upload.generateDashboard')}</>}
                       </Button>
                     </motion.div>
                   )}
@@ -300,20 +299,20 @@ export default function DashboardStudioPage() {
               {/* Right sidebar - features */}
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="lg:col-span-4 space-y-4">
                 <div className="glass-card p-5 space-y-4">
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Auto Dashboard Engine</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('studio.engineTitle')}</h3>
                   {[
-                    { icon: Brain, label: 'Context Detection', desc: 'Finance, Product, AI/ML, Growth modes' },
-                    { icon: Target, label: 'Smart KPIs', desc: 'Auto-detect key performance indicators' },
-                    { icon: BarChart3, label: '2D / 3D / 4D Charts', desc: 'Interactive visualizations with toggle' },
-                    { icon: TrendingUp, label: 'Predictive Insights', desc: 'Trends, anomalies & forecasting' },
+                    { icon: Brain, labelKey: 'studio.contextDetection', descKey: 'studio.contextDetectionDesc' },
+                    { icon: Target, labelKey: 'studio.smartKPIs', descKey: 'studio.smartKPIsDesc' },
+                    { icon: BarChart3, labelKey: 'studio.charts', descKey: 'studio.chartsDesc' },
+                    { icon: TrendingUp, labelKey: 'studio.predictiveInsights', descKey: 'studio.predictiveInsightsDesc' },
                   ].map((item, i) => (
-                    <motion.div key={item.label} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + i * 0.08 }} className="flex items-start gap-3">
+                    <motion.div key={item.labelKey} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + i * 0.08 }} className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                         <item.icon className="w-4 h-4 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-foreground">{item.label}</p>
-                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                        <p className="text-sm font-medium text-foreground">{t(item.labelKey)}</p>
+                        <p className="text-xs text-muted-foreground">{t(item.descKey)}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -321,7 +320,7 @@ export default function DashboardStudioPage() {
 
                 {/* Quick link */}
                 <Button variant="outline" size="sm" className="w-full text-xs gap-2 h-10" onClick={() => navigate('/cleaning')}>
-                  <ArrowLeft className="w-3 h-3" /> Go to Data Cleaning Center
+                  <ArrowLeft className="w-3 h-3" /> {t('cleaning.goToCleaning')}
                 </Button>
               </motion.div>
             </div>
@@ -346,7 +345,7 @@ export default function DashboardStudioPage() {
                       <DataSourceBadge fileName={fileName} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {analysis.rows.toLocaleString()} rows · {analysis.columns} columns · Quality {analysis.qualityScore}/100
+                      {analysis.rows.toLocaleString()} {t('common.rows')} · {analysis.columns} {t('common.columns')} · {t('common.quality')} {analysis.qualityScore}/100
                     </p>
                   </div>
                 </div>
@@ -361,7 +360,7 @@ export default function DashboardStudioPage() {
                   </Button>
                   <div className="relative">
                     <Button variant="outline" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="text-[10px] sm:text-xs h-8 px-2.5 gap-1">
-                      <Download className="w-3 h-3" /> Data
+                      <Download className="w-3 h-3" /> {t('studio.data')}
                     </Button>
                     {showExportMenu && (
                       <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
@@ -372,28 +371,28 @@ export default function DashboardStudioPage() {
                     )}
                   </div>
                   <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className={`text-[10px] sm:text-xs h-8 px-2.5 gap-1 ${showFilters ? 'bg-primary/10 border-primary/30 text-primary' : ''}`}>
-                    <Filter className="w-3 h-3" /> Filters
+                    <Filter className="w-3 h-3" /> {t('common.filters')}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground h-8 px-2.5">New</Button>
+                  <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground h-8 px-2.5">{t('header.new')}</Button>
                 </div>
               </div>
 
               {/* Save & Share */}
               {user && (
                 <div className="relative flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3 pt-3 border-t border-border/20">
-                  <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Dashboard name" className="h-8 text-xs w-32 sm:w-44 bg-secondary/50 border-border/30" />
+                  <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder={t('save.name')} className="h-8 text-xs w-32 sm:w-44 bg-secondary/50 border-border/30" />
                   <Button variant="ghost" size="sm" onClick={() => setIsPublic(!isPublic)} className="text-xs gap-1 h-8">
                     {isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                    {isPublic ? 'Public' : 'Private'}
+                    {isPublic ? t('save.public') : t('save.private')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="text-xs h-8 gap-1 gradient-primary text-primary-foreground border-0">
                     {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                    Save
+                    {t('save.dashboard')}
                   </Button>
                   {shareUrl && (
                     <Button variant="ghost" size="sm" onClick={copyLink} className="text-xs gap-1 h-8">
                       {copied ? <Check className="w-3 h-3 text-accent" /> : <Link2 className="w-3 h-3" />}
-                      {copied ? 'Copied!' : 'Copy Link'}
+                      {copied ? t('save.copied') : t('save.copyLink')}
                     </Button>
                   )}
                 </div>
@@ -406,15 +405,15 @@ export default function DashboardStudioPage() {
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="glass-card p-4 mb-6 overflow-hidden space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <Filter className="w-3 h-3" /> Active Filters
+                      <Filter className="w-3 h-3" /> {t('filters.activeFilters')}
                     </h3>
                     <span className="text-[10px] text-muted-foreground data-font bg-secondary px-2 py-0.5 rounded-full">
-                      {filteredData.length.toLocaleString()} / {analysis.rows.toLocaleString()} rows
+                      {filteredData.length.toLocaleString()} / {analysis.rows.toLocaleString()} {t('common.rows')}
                     </span>
                   </div>
                   {dateCol && (
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground font-medium w-20">Date Range:</span>
+                      <span className="text-xs text-muted-foreground font-medium w-20">{t('common.dateRange')}:</span>
                       <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none" />
                       <span className="text-xs text-muted-foreground">→</span>
                       <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none" />
@@ -422,7 +421,7 @@ export default function DashboardStudioPage() {
                   )}
                   {numCols.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground font-medium w-20">Numeric:</span>
+                      <span className="text-xs text-muted-foreground font-medium w-20">{t('filters.numeric')}:</span>
                       <select value={numFilter?.col || ''} onChange={(e) => {
                         const col = numCols.find(c => c.name === e.target.value);
                         if (col?.stats) setNumFilter({ col: col.name, min: col.stats.min, max: col.stats.max });
@@ -444,23 +443,22 @@ export default function DashboardStudioPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       {catCols.slice(0, 5).map(col => (
                         <select key={col.name} value={catFilters[col.name] || ''} onChange={(e) => setCatFilters(prev => ({ ...prev, [col.name]: e.target.value }))} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none">
-                          <option value="">{col.name} (All)</option>
+                          <option value="">{col.name} ({t('filters.all')})</option>
                           {col.topValues!.map(v => <option key={v.value} value={v.value}>{v.value} ({v.count})</option>)}
                         </select>
                       ))}
                     </div>
                   )}
-                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-xs text-muted-foreground">Clear All Filters</Button>
+                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-xs text-muted-foreground">{t('filters.clearAll')}</Button>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Dashboard Content - Reference Layout */}
+            {/* Dashboard Content */}
             <div className="space-y-4 sm:space-y-6">
               {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
               {!isLoading && <IntelligentKPICards analysis={analysis} />}
 
-              {/* === 3-Column: AI Insights | Anomaly Detection | Predictive Forecasting === */}
               {!isLoading && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <InsightsPanel analysis={analysis} />
@@ -491,16 +489,15 @@ export default function DashboardStudioPage() {
                     <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
                       <Sparkles className="w-4 h-4 text-primary-foreground" />
                     </div>
-                    <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">AI Strategic Summary</h2>
+                    <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('ai.strategicSummary')}</h2>
                   </div>
                   <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs gap-1.5">
-                    {aiLoading ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</> : <><Brain className="w-3 h-3" /> Generate</>}
+                    {aiLoading ? <><Loader2 className="w-3 h-3 animate-spin" /> {t('ai.generating')}</> : <><Brain className="w-3 h-3" /> {t('common.generate')}</>}
                   </Button>
                 </div>
-                <p className="text-sm text-foreground/80 leading-relaxed relative">{aiSummary || 'Click Generate to get AI-powered strategic insights about your data.'}</p>
+                <p className="text-sm text-foreground/80 leading-relaxed relative">{aiSummary || t('ai.clickGenerate')}</p>
               </motion.div>
 
-              {/* Natural Language Query - Bottom (like reference) */}
               {!isLoading && <NaturalLanguageQuery analysis={analysis} filteredData={filteredData} />}
               {!isLoading && <ExecutiveReportGenerator analysis={analysis} filteredData={filteredData} fileName={fileName} />}
 
