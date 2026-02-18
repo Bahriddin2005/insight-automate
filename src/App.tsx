@@ -17,6 +17,8 @@ import CaseStudyDetail from "./pages/CaseStudyDetail";
 import OfflineBanner from "./components/dashboard/OfflineBanner";
 import AidaAssistant from "./pages/AidaAssistant";
 import NotFound from "./pages/NotFound";
+import DataCleaningCenter from "./pages/DataCleaningCenter";
+import DashboardStudio from "./pages/DashboardStudio";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/cleaning" element={<DataCleaningCenter />} />
+              <Route path="/studio" element={<DashboardStudio />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
