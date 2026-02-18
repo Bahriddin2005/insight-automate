@@ -35,8 +35,8 @@ const tools = [
         properties: {
           mode: {
             type: "string",
-            enum: ["auto", "executive", "sales", "finance", "marketing", "hr", "education", "quality"],
-            description: "Dashboard template mode. 'auto' picks the best template based on data."
+            enum: ["auto", "executive", "sales", "finance", "marketing", "hr", "education", "quality", "3d"],
+            description: "Dashboard template mode. 'auto' picks the best template based on data. '3d' creates 3D interactive dashboard."
           },
           charts: {
             type: "array",
@@ -147,7 +147,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const { question, datasetContext, conversationHistory } = await req.json();
+    const { question, datasetContext, conversationHistory, stream } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
@@ -167,6 +167,7 @@ Foydalanuvchi so'rovini 5 turga ajrat:
 TOOL CHAQIRISH QOIDALARI:
 - Agar foydalanuvchi "tozala", "clean" desa → clean_data tool chaqir
 - Agar "dashboard", "grafik", "vizualizatsiya" desa → build_dashboard tool chaqir
+- Agar "3D dashboard" desa → build_dashboard(mode="3d") tool chaqir
 - Agar "tahlil", "insight", "ko'rsatkich" desa → generate_insights tool chaqir
 - Agar "eksport", "yuklab ol", "PDF", "Excel" desa → export_report tool chaqir
 - Agar "profil", "ma'lumot haqida" desa → profile_data tool chaqir
@@ -205,6 +206,47 @@ ${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda
       { role: 'user', content: question },
     ];
 
+    // Streaming mode
+    if (stream) {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages,
+          tools,
+          tool_choice: 'auto',
+          stream: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('AI gateway stream error:', response.status, text);
+        
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Tizim band. Iltimos, keyinroq urinib ko'ring." }), {
+            status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        throw new Error(`AI gateway error: ${response.status}`);
+      }
+
+      // Forward the SSE stream directly
+      return new Response(response.body, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
+
+    // Non-streaming mode (fallback)
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -221,12 +263,12 @@ ${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: 'Tizim band. Iltimos, keyinroq urinib ko\'ring.' }), {
+        return new Response(JSON.stringify({ error: "Tizim band. Iltimos, keyinroq urinib ko'ring." }), {
           status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'Kredit tugagan. Iltimos, hisobni to\'ldiring.' }), {
+        return new Response(JSON.stringify({ error: "Kredit tugagan. Iltimos, hisobni to'ldiring." }), {
           status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -238,7 +280,6 @@ ${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda
     const data = await response.json();
     const choice = data.choices?.[0];
     
-    // Check if the model wants to call tools
     if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
       const toolCalls = choice.message.tool_calls.map((tc: any) => ({
         id: tc.id,
@@ -246,11 +287,8 @@ ${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda
         arguments: JSON.parse(tc.function.arguments || '{}'),
       }));
       
-      // Return tool calls + any accompanying text
-      const textContent = choice.message.content || '';
-      
       return new Response(JSON.stringify({ 
-        answer: textContent,
+        answer: choice.message.content || '',
         toolCalls,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
