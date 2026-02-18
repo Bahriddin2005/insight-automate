@@ -333,10 +333,10 @@ export default function AidaAssistant() {
       if (!wakeWordDetectedRef.current) {
         if (combined.includes('aida') || combined.includes('ayda') || combined.includes('hey aida')) {
           wakeWordDetectedRef.current = true;
-          setState('listening');
           accumulatedTranscriptRef.current = '';
-          speakResponse('Ha, tinglayapman.');
           setTranscript('');
+          // Greet and then switch to listening
+          speakGreeting('Salom, men shu yerdaman. Nima qilamiz?');
         }
       } else if (finalTranscript.trim()) {
         accumulatedTranscriptRef.current += ' ' + finalTranscript.trim();
@@ -397,7 +397,7 @@ export default function AidaAssistant() {
         wakeWordDetectedRef.current = false;
         accumulatedTranscriptRef.current = '';
         addSystemMessage('AIDA uxlash rejimiga o\'tdi. Qayta chaqirish uchun "AIDA" deng.');
-      }, 30000);
+      }, 60000);
       return () => clearTimeout(autoSleep);
     }
   }, [state]);
@@ -679,8 +679,10 @@ ${chatMessages.map(m => {
         setConversations(prev => prev.map(c => c.id === convId ? { ...c, title } : c));
       }
 
-      setState('sleeping');
-      addSystemMessage('Qayta chaqirish uchun "AIDA" deng.');
+      setState('listening');
+      wakeWordDetectedRef.current = true;
+      accumulatedTranscriptRef.current = '';
+      addSystemMessage('Yana savol berishingiz mumkin yoki "AIDA" deb qayta chaqiring.');
     } catch (e) {
       console.error('AIDA error:', e);
       setStreamingMsgId(null);
@@ -743,12 +745,63 @@ ${chatMessages.map(m => {
     }
   };
 
+  // Speak greeting then switch to listening mode
+  const speakGreeting = async (text: string) => {
+    setState('speaking');
+    try {
+      const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').slice(0, 500);
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aida-tts`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text: cleanText, voiceId: currentVoice.voiceId, speed: voiceSpeed }),
+        }
+      );
+      if (!response.ok) throw new Error('TTS error');
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const data = await response.json();
+        if (data.fallback) throw new Error('fallback');
+      }
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      await new Promise<void>((resolve) => {
+        audio.onended = () => resolve();
+        audio.onerror = () => resolve();
+        audio.play().catch(() => resolve());
+      });
+      URL.revokeObjectURL(audioUrl);
+    } catch {
+      // Fallback to browser TTS
+      try {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'uz-UZ';
+        utterance.rate = 1.0;
+        await new Promise<void>((resolve) => {
+          utterance.onend = () => resolve();
+          utterance.onerror = () => resolve();
+          window.speechSynthesis.speak(utterance);
+        });
+      } catch {}
+    }
+    // After greeting, switch to listening
+    setState('listening');
+    wakeWordDetectedRef.current = true;
+    accumulatedTranscriptRef.current = '';
+  };
+
   const handleManualActivate = () => {
     if (state === 'sleeping') {
       wakeWordDetectedRef.current = true;
-      setState('listening');
       accumulatedTranscriptRef.current = '';
-      speakResponse('Ha, tinglayapman.');
+      speakGreeting('Salom, men shu yerdaman. Nima qilamiz?');
     } else if (state === 'speaking' && audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
