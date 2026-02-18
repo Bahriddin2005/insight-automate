@@ -1,10 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Mic } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/authContext';
 import { Loader2 } from 'lucide-react';
-import ThemeToggle from '@/components/dashboard/ThemeToggle';
+import PlatformNavbar from '@/components/PlatformNavbar';
 import HeroModules from '@/components/home/HeroModules';
 
 const Index = () => {
@@ -27,17 +25,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-mesh flex flex-col">
-      {/* Minimal header */}
-      <header className="flex items-center justify-end gap-2 p-4">
-        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1" onClick={() => navigate('/dashboards')}>
-          <History className="w-3.5 h-3.5" /> History
-        </Button>
-        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1" onClick={() => navigate('/aida')}>
-          <Mic className="w-3.5 h-3.5" /> AIDA
-        </Button>
-        <ThemeToggle />
-      </header>
-
+      <PlatformNavbar />
       <HeroModules />
     </div>
   );
