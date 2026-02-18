@@ -29,6 +29,7 @@ import TrendComparisonChart from './TrendComparisonChart';
 import WhatIfSimulation from './WhatIfSimulation';
 import AnomalyDetectionPanel from './AnomalyDetectionPanel';
 import PredictiveForecasting from './PredictiveForecasting';
+import ProphetForecastEngine from './ProphetForecastEngine';
 import ChartAnnotations from './ChartAnnotations';
 import NaturalLanguageQuery from './NaturalLanguageQuery';
 import ExecutiveReportGenerator from './ExecutiveReportGenerator';
@@ -340,6 +341,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
                   case 'charts': return isLoading ? <ChartSkeleton /> : <ChartViewToggle analysis={analysis} filteredData={filteredData} />;
                   case 'trend': return !isLoading ? <TrendComparisonChart analysis={analysis} filteredData={filteredData} /> : null;
                   case 'forecasting': return !isLoading ? <PredictiveForecasting analysis={analysis} filteredData={filteredData} /> : null;
+                  case 'prophet': return !isLoading ? <ProphetForecastEngine analysis={analysis} filteredData={filteredData} /> : null;
                   case 'correlation': return !isLoading && numericColNames.length >= 2 ? <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} /> : null;
                   case 'cohort': return !isLoading ? <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} /> : null;
                   case 'churn': return !isLoading ? <ChurnRiskPanel analysis={analysis} filteredData={filteredData} /> : null;
