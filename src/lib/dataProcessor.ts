@@ -103,27 +103,26 @@ function extractDataFromSQL(sql: string): Record<string, unknown>[] {
     }
   }
 
-  // Parse SELECT queries — extract column aliases/names and simulate structured display
-  const selectRegex = /SELECT\s+([\s\S]*?)\s+FROM\s+[`"']?(\w+)[`"']?(?:\s+(?:WHERE|GROUP|ORDER|LIMIT|HAVING|JOIN|LEFT|RIGHT|INNER|CROSS|;|$)[\s\S]*?)?(?:;|$)/gi;
+  // Parse SELECT queries — including JOINs
+  const selectRegex = /SELECT\s+([\s\S]*?)\s+FROM\s+([\s\S]*?)(?:(?:WHERE|GROUP\s+BY|ORDER\s+BY|LIMIT|HAVING)\s+[\s\S]*?)?(?:;|$)/gi;
   let selectMatch;
 
   while ((selectMatch = selectRegex.exec(sql)) !== null) {
     const selectClause = selectMatch[1].trim();
-    const tableName = selectMatch[2];
+    const fromClause = selectMatch[2].trim();
 
-    // Extract column names/aliases from SELECT clause
+    // Extract table names from FROM + JOIN clauses
+    const tables = extractJoinTables(fromClause);
     const selectCols = parseSelectColumns(selectClause);
 
     if (selectCols.length > 0) {
-      // Create a metadata row representing the query structure
       const queryRow: Record<string, unknown> = {};
-      queryRow['_query_type'] = 'SELECT';
-      queryRow['_table'] = tableName;
+      queryRow['_query_type'] = tables.length > 1 ? 'JOIN' : 'SELECT';
+      queryRow['_table'] = tables.join(' ⟕ ');
       selectCols.forEach(col => {
         queryRow[col] = `[${col}]`;
       });
 
-      // Check if this SELECT data already exists from INSERT rows
       const existingCols = rows.length > 0 ? Object.keys(rows[0]) : [];
       const isNewData = selectCols.some(c => !existingCols.includes(c));
 
@@ -133,7 +132,56 @@ function extractDataFromSQL(sql: string): Record<string, unknown>[] {
     }
   }
 
+  // Parse UNION / UNION ALL — combine columns from all sub-selects
+  const unionParts = sql.split(/\bUNION\s+(?:ALL\s+)?/i);
+  if (unionParts.length > 1) {
+    const allCols = new Set<string>();
+    const unionRows: Record<string, unknown>[] = [];
+
+    for (const part of unionParts) {
+      const m = part.match(/SELECT\s+([\s\S]*?)\s+FROM\s+[`"']?(\w+)[`"']?/i);
+      if (!m) continue;
+      const cols = parseSelectColumns(m[1].trim());
+      const tableName = m[2];
+      cols.forEach(c => allCols.add(c));
+
+      const row: Record<string, unknown> = {};
+      row['_query_type'] = 'UNION';
+      row['_table'] = tableName;
+      cols.forEach(col => { row[col] = `[${col}]`; });
+      unionRows.push(row);
+    }
+
+    // Only add union rows if they bring new columns
+    const existingCols = rows.length > 0 ? Object.keys(rows[0]) : [];
+    const hasNew = [...allCols].some(c => !existingCols.includes(c));
+    if (hasNew || rows.length === 0) {
+      rows.push(...unionRows);
+    }
+  }
+
   return rows;
+}
+
+function extractJoinTables(fromClause: string): string[] {
+  const tables: string[] = [];
+  // Remove ON conditions
+  const cleaned = fromClause.replace(/\bON\s+[\s\S]*?(?=(?:LEFT|RIGHT|INNER|OUTER|CROSS|FULL|JOIN|$))/gi, ' ');
+
+  // Match table names: after FROM, JOIN keywords
+  const tableRegex = /(?:^|(?:LEFT|RIGHT|INNER|OUTER|CROSS|FULL)?\s*JOIN)\s+[`"']?(\w+)[`"']?/gi;
+  // First table (after FROM, already trimmed)
+  const firstTable = cleaned.match(/^[`"']?(\w+)[`"']?/i);
+  if (firstTable) tables.push(firstTable[1]);
+
+  let joinMatch;
+  while ((joinMatch = tableRegex.exec(cleaned)) !== null) {
+    if (!tables.includes(joinMatch[1])) {
+      tables.push(joinMatch[1]);
+    }
+  }
+
+  return tables;
 }
 
 function parseSelectColumns(selectClause: string): string[] {
