@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Beaker, BarChart3, History, Mic, LogOut } from 'lucide-react';
+import { Beaker, BarChart3, History, Mic, LogOut, User } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import LanguageToggle from '@/components/dashboard/LanguageToggle';
 import { useAuth } from '@/lib/authContext';
@@ -14,7 +15,10 @@ const NAV_ITEMS = [
 export default function PlatformNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
@@ -53,9 +57,21 @@ export default function PlatformNavbar() {
           </Button>
           <ThemeToggle />
           <LanguageToggle />
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={signOut}>
-            <LogOut className="w-3.5 h-3.5" />
-          </Button>
+
+          {/* User profile */}
+          <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-border/50">
+            <Avatar className="h-7 w-7">
+              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-xs text-foreground font-medium hidden lg:block max-w-[100px] truncate">
+              {displayName}
+            </span>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={signOut}>
+              <LogOut className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
     </header>
