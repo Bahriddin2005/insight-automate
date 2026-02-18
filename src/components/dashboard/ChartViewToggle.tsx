@@ -4,6 +4,7 @@ import { Box, BarChart3, Clock } from 'lucide-react';
 import AutoCharts from './AutoCharts';
 import Dashboard3D from './Dashboard3D';
 import TimeSlider4D from './TimeSlider4D';
+import PaletteSelector, { type PaletteId } from './PaletteSelector';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 
 type ViewMode = '2d' | '3d' | '4d';
@@ -15,6 +16,7 @@ interface ChartViewToggleProps {
 
 export default function ChartViewToggle({ analysis, filteredData }: ChartViewToggleProps) {
   const [mode, setMode] = useState<ViewMode>('2d');
+  const [paletteId, setPaletteId] = useState<PaletteId>('ggplot2');
   const [timeIndex, setTimeIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -103,35 +105,21 @@ export default function ChartViewToggle({ analysis, filteredData }: ChartViewTog
 
   return (
     <div className="space-y-3">
-      {/* Mode toggle buttons */}
-      <div className="flex items-center gap-1.5">
-        <Button
-          variant={mode === '2d' ? 'default' : 'outline'}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={() => setMode('2d')}
-        >
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <Button variant={mode === '2d' ? 'default' : 'outline'} size="sm" className="h-7 text-xs gap-1" onClick={() => setMode('2d')}>
           <BarChart3 className="w-3 h-3" /> 2D
         </Button>
-        <Button
-          variant={mode === '3d' ? 'default' : 'outline'}
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={() => setMode('3d')}
-          disabled={data3D.length === 0}
-        >
+        <Button variant={mode === '3d' ? 'default' : 'outline'} size="sm" className="h-7 text-xs gap-1" onClick={() => setMode('3d')} disabled={data3D.length === 0}>
           <Box className="w-3 h-3" /> 3D
         </Button>
         {dateCol && uniqueDates.length > 1 && (
-          <Button
-            variant={mode === '4d' ? 'default' : 'outline'}
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={() => { setMode('4d'); setTimeIndex(0); }}
-          >
+          <Button variant={mode === '4d' ? 'default' : 'outline'} size="sm" className="h-7 text-xs gap-1" onClick={() => { setMode('4d'); setTimeIndex(0); }}>
             <Clock className="w-3 h-3" /> 4D
           </Button>
         )}
+        <div className="ml-auto">
+          <PaletteSelector selected={paletteId} onChange={setPaletteId} />
+        </div>
       </div>
 
       {/* 4D time slider */}
@@ -146,7 +134,7 @@ export default function ChartViewToggle({ analysis, filteredData }: ChartViewTog
       )}
 
       {/* Render view */}
-      {mode === '2d' && <AutoCharts analysis={analysis} filteredData={filteredData} />}
+      {mode === '2d' && <AutoCharts analysis={analysis} filteredData={filteredData} paletteId={paletteId} />}
       {mode === '3d' && (
         <div className="h-[450px]">
           <Dashboard3D data={data3D} title="3D Dashboard" onToggle2D={() => setMode('2d')} />

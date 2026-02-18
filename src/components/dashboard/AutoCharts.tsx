@@ -11,23 +11,7 @@ import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import { useI18n } from '@/lib/i18nContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ChartGestureWrapper from './ChartGestureWrapper';
-
-// ggplot2-inspired pastel palette
-const COLORS = [
-  'hsl(160, 55%, 55%)', // green/teal
-  'hsl(25, 75%, 65%)',  // salmon/coral
-  'hsl(230, 55%, 65%)', // slate blue
-  'hsl(300, 35%, 65%)', // muted purple
-  'hsl(45, 75%, 60%)',  // golden
-  'hsl(190, 60%, 50%)', // cyan
-];
-
-// Viridis-inspired sequential palette for heatmaps
-const VIRIDIS = [
-  'hsl(280, 70%, 25%)', 'hsl(260, 60%, 35%)', 'hsl(230, 50%, 40%)',
-  'hsl(200, 60%, 40%)', 'hsl(175, 65%, 40%)', 'hsl(140, 60%, 45%)',
-  'hsl(80, 65%, 50%)', 'hsl(55, 80%, 55%)', 'hsl(45, 90%, 60%)',
-];
+import { PALETTES, type PaletteId } from './PaletteSelector';
 
 const tooltipStyle = {
   contentStyle: {
@@ -78,8 +62,8 @@ function ChartCard({ title, children, delay = 0, chartKey, dashboardId, subtitle
 }
 
 // Scatter/Dot Strip Plot — shows individual data points per category (like ggplot2 geom_jitter)
-function DotStripPlot({ data, catCol, numCol }: {
-  data: Record<string, unknown>[]; catCol: string; numCol: string;
+function DotStripPlot({ data, catCol, numCol, COLORS }: {
+  data: Record<string, unknown>[]; catCol: string; numCol: string; COLORS: string[];
 }) {
   const plotData = useMemo(() => {
     const groups: Record<string, number[]> = {};
@@ -133,9 +117,10 @@ function DotStripPlot({ data, catCol, numCol }: {
 }
 
 // Boxplot with IQR boxes + whiskers + data points overlay
-function BoxplotChart({ data, numCols }: {
+function BoxplotChart({ data, numCols, COLORS }: {
   data: Record<string, unknown>[];
   numCols: { name: string; stats: NonNullable<import('@/lib/dataProcessor').ColumnInfo['stats']> }[];
+  COLORS: string[];
 }) {
   const boxData = numCols.slice(0, 6).map((col, i) => {
     const s = col.stats;
@@ -183,8 +168,8 @@ function BoxplotChart({ data, numCols }: {
 }
 
 // Faceted small-multiples for categorical × numeric (like ggplot2 facet_wrap)
-function FacetedBarChart({ data, catCols, numCol }: {
-  data: Record<string, unknown>[]; catCols: string[]; numCol: string;
+function FacetedBarChart({ data, catCols, numCol, COLORS }: {
+  data: Record<string, unknown>[]; catCols: string[]; numCol: string; COLORS: string[];
 }) {
   const facets = useMemo(() => {
     return catCols.slice(0, 4).map(catCol => {
@@ -235,12 +220,101 @@ function FacetedBarChart({ data, catCols, numCol }: {
   );
 }
 
+// Violin Plot — kernel density estimation for distribution shape
+function ViolinPlot({ data, numCols, COLORS }: {
+  data: Record<string, unknown>[];
+  numCols: { name: string; stats: NonNullable<import('@/lib/dataProcessor').ColumnInfo['stats']> }[];
+  COLORS: string[];
+}) {
+  const violinData = useMemo(() => {
+    return numCols.slice(0, 4).map((col, ci) => {
+      const values = data.map(r => Number(r[col.name])).filter(n => !isNaN(n)).sort((a, b) => a - b);
+      if (values.length < 5) return null;
+      const min = values[0];
+      const max = values[values.length - 1];
+      const range = max - min || 1;
+      const bins = 20;
+      const bandwidth = range / bins;
+      // Simple histogram-based density
+      const density: { y: number; density: number }[] = [];
+      for (let i = 0; i <= bins; i++) {
+        const point = min + (i / bins) * range;
+        let count = 0;
+        values.forEach(v => {
+          if (Math.abs(v - point) <= bandwidth) count++;
+        });
+        density.push({ y: point, density: count / values.length });
+      }
+      const maxDensity = Math.max(...density.map(d => d.density)) || 1;
+      return {
+        name: col.name.length > 10 ? col.name.slice(0, 10) + '…' : col.name,
+        fullName: col.name,
+        density: density.map(d => ({ ...d, normalized: d.density / maxDensity })),
+        stats: col.stats,
+        color: COLORS[ci % COLORS.length],
+      };
+    }).filter((v): v is { name: string; fullName: string; density: { y: number; density: number; normalized: number }[]; stats: NonNullable<import('@/lib/dataProcessor').ColumnInfo['stats']>; color: string } => v !== null);
+  }, [data, numCols, COLORS]);
+
+  if (violinData.length === 0) return null;
+
+  const svgWidth = 100;
+  const svgHeight = 100;
+
+  return (
+    <div className="flex items-end justify-around h-full px-2 pb-6 pt-2 gap-1">
+      {violinData.map((violin, vi) => (
+        <div key={vi} className="flex flex-col items-center flex-1 h-full">
+          <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full" preserveAspectRatio="none">
+            {/* Violin shape — mirrored density */}
+            <path
+              d={
+                violin.density.map((d, i) => {
+                  const y = svgHeight - (i / violin.density.length) * svgHeight;
+                  const x = svgWidth / 2 + d.normalized * (svgWidth / 2 - 4);
+                  return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+                }).join(' ') + ' ' +
+                [...violin.density].reverse().map((d, i, arr) => {
+                  const origIdx = arr.length - 1 - i;
+                  const y = svgHeight - (origIdx / arr.length) * svgHeight;
+                  const x = svgWidth / 2 - d.normalized * (svgWidth / 2 - 4);
+                  return `L ${x} ${y}`;
+                }).join(' ') + ' Z'
+              }
+              fill={violin.color}
+              fillOpacity={0.35}
+              stroke={violin.color}
+              strokeWidth={1.5}
+            />
+            {/* Median line */}
+            {(() => {
+              const medianY = svgHeight - ((violin.stats.median - violin.stats.min) / (violin.stats.max - violin.stats.min || 1)) * svgHeight;
+              return <line x1={svgWidth * 0.25} x2={svgWidth * 0.75} y1={medianY} y2={medianY} stroke={violin.color} strokeWidth={2} />;
+            })()}
+            {/* IQR box */}
+            {(() => {
+              const range = violin.stats.max - violin.stats.min || 1;
+              const q1Y = svgHeight - ((violin.stats.q1 - violin.stats.min) / range) * svgHeight;
+              const q3Y = svgHeight - ((violin.stats.q3 - violin.stats.min) / range) * svgHeight;
+              return <rect x={svgWidth * 0.38} width={svgWidth * 0.24} y={q3Y} height={q1Y - q3Y}
+                fill={violin.color} fillOpacity={0.3} stroke={violin.color} strokeWidth={1} rx={2} />;
+            })()}
+          </svg>
+          <span className="text-[9px] text-muted-foreground font-medium mt-1 truncate max-w-full">{violin.name}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 interface AutoChartsProps {
   analysis: DatasetAnalysis;
   filteredData: Record<string, unknown>[];
+  paletteId?: PaletteId;
 }
 
-export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) {
+export default function AutoCharts({ analysis, filteredData, paletteId = 'ggplot2' }: AutoChartsProps) {
+  const COLORS = PALETTES[paletteId].colors;
   const { t } = useI18n();
   const isMobile = useIsMobile();
   const charts: React.ReactNode[] = [];
@@ -254,7 +328,7 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
     charts.push(
       <ChartCard key="dot-strip" title={`${catCols[0].name} × ${numCols[0].name}`}
         subtitle="Scatter dot strip plot · Individual data points" delay={chartIdx++ * 0.1}>
-        <DotStripPlot data={filteredData} catCol={catCols[0].name} numCol={numCols[0].name} />
+        <DotStripPlot data={filteredData} catCol={catCols[0].name} numCol={numCols[0].name} COLORS={COLORS} />
       </ChartCard>
     );
   }
@@ -337,7 +411,16 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
   if (numWithStats.length >= 1) {
     charts.push(
       <ChartCard key="boxplot" title="Boxplot" subtitle="IQR · Whiskers: Min–Max" delay={chartIdx++ * 0.1}>
-        <BoxplotChart data={filteredData} numCols={numWithStats} />
+        <BoxplotChart data={filteredData} numCols={numWithStats} COLORS={COLORS} />
+      </ChartCard>
+    );
+  }
+
+  // 5b. Violin Plot
+  if (numWithStats.length >= 1) {
+    charts.push(
+      <ChartCard key="violin" title="Violin Plot" subtitle="Taqsimot shakli · KDE + IQR" delay={chartIdx++ * 0.1}>
+        <ViolinPlot data={filteredData} numCols={numWithStats} COLORS={COLORS} />
       </ChartCard>
     );
   }
@@ -347,7 +430,7 @@ export default function AutoCharts({ analysis, filteredData }: AutoChartsProps) 
     charts.push(
       <ChartCard key="facets" title="Faceted Comparison"
         subtitle={`${numCols[0].name} by category · Small multiples`} delay={chartIdx++ * 0.1}>
-        <FacetedBarChart data={filteredData} catCols={catCols.map(c => c.name)} numCol={numCols[0].name} />
+        <FacetedBarChart data={filteredData} catCols={catCols.map(c => c.name)} numCol={numCols[0].name} COLORS={COLORS} />
       </ChartCard>
     );
   }
