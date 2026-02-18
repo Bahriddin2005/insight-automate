@@ -170,6 +170,12 @@ export default function AidaAssistant() {
   const accumulatedTranscriptRef = useRef('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [textInput, setTextInput] = useState('');
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-focus text input on mount
+  useEffect(() => {
+    setTimeout(() => textInputRef.current?.focus(), 500);
+  }, []);
 
   // Load conversations
   useEffect(() => {
@@ -733,26 +739,40 @@ ${chatMessages.map(m => {
             </div>
 
             {/* Text input */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!textInput.trim() || state === 'thinking') return;
-                processQuestion(textInput.trim());
-                setTextInput('');
-              }}
-              className="flex gap-2 w-full max-w-md"
-            >
-              <Input
+            <div className="flex gap-2 w-full max-w-md">
+              <textarea
+                ref={textInputRef}
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Savolingizni yozing..."
-                className="flex-1 bg-secondary border-border text-sm h-10"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!textInput.trim() || state === 'thinking') return;
+                    processQuestion(textInput.trim());
+                    setTextInput('');
+                  } else if (e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) {
+                    // Allow newline
+                  }
+                }}
+                placeholder="Savolingizni yozing... (Enter — yuborish, Ctrl+Enter — yangi qator)"
+                className="flex-1 bg-secondary border border-border text-sm rounded-md px-3 py-2 resize-none min-h-[40px] max-h-[120px] focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground"
+                rows={1}
                 disabled={state === 'thinking'}
               />
-              <Button type="submit" size="icon" disabled={state === 'thinking' || !textInput.trim()} className="h-10 w-10 shrink-0">
+              <Button
+                type="button"
+                size="icon"
+                disabled={state === 'thinking' || !textInput.trim()}
+                className="h-10 w-10 shrink-0 self-end"
+                onClick={() => {
+                  if (!textInput.trim() || state === 'thinking') return;
+                  processQuestion(textInput.trim());
+                  setTextInput('');
+                }}
+              >
                 <Send className="w-4 h-4" />
               </Button>
-            </form>
+            </div>
           </div>
         </div>
       </div>
