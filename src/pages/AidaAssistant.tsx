@@ -237,7 +237,7 @@ function AidaMessageChart({ type, data, title }: AidaChartData) {
       {title && <p className="text-xs font-medium text-muted-foreground mb-2">{title}</p>}
       <div className="h-[220px] w-full min-w-[260px]">
         <ResponsiveContainer width="100%" height="100%">
-          {type === 'bar' && (
+          {type === 'bar' ? (
             <BarChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
@@ -245,8 +245,7 @@ function AidaMessageChart({ type, data, title }: AidaChartData) {
               <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
               <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Soni" />
             </BarChart>
-          )}
-          {type === 'line' && (
+          ) : type === 'line' ? (
             <LineChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
@@ -254,8 +253,7 @@ function AidaMessageChart({ type, data, title }: AidaChartData) {
               <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
               <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} name="Qiymat" />
             </LineChart>
-          )}
-          {type === 'pie' && (
+          ) : (
             <PieChart>
               <Pie
                 data={data}
