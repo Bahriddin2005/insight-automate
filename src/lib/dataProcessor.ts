@@ -52,7 +52,7 @@ function parseSQL(file: File): Promise<Record<string, unknown>[]> {
       try {
         const sql = e.target?.result as string;
         const data = extractDataFromSQL(sql);
-        if (!data.length) throw new Error('No INSERT data found in SQL file. Ensure it contains INSERT INTO statements.');
+        if (!data.length) throw new Error('SQL faylda ma\'lumot topilmadi. INSERT INTO yoki SELECT statementlari bo\'lishi kerak.');
         resolve(data);
       } catch (err) { reject(err); }
     };
@@ -85,13 +85,11 @@ function extractDataFromSQL(sql: string): Record<string, unknown>[] {
   let insertMatch;
   
   while ((insertMatch = insertRegex.exec(sql)) !== null) {
-    // Column names from INSERT statement take priority
     const insertCols = insertMatch[2]
       ? insertMatch[2].split(',').map(c => c.trim().replace(/[`"']/g, ''))
       : columnNames;
 
     const valuesStr = insertMatch[3];
-    // Match each (...) group
     const rowRegex = /\(([^)]+)\)/g;
     let rowMatch;
     while ((rowMatch = rowRegex.exec(valuesStr)) !== null) {
@@ -105,7 +103,76 @@ function extractDataFromSQL(sql: string): Record<string, unknown>[] {
     }
   }
 
+  // Parse SELECT queries — extract column aliases/names and simulate structured display
+  const selectRegex = /SELECT\s+([\s\S]*?)\s+FROM\s+[`"']?(\w+)[`"']?(?:\s+(?:WHERE|GROUP|ORDER|LIMIT|HAVING|JOIN|LEFT|RIGHT|INNER|CROSS|;|$)[\s\S]*?)?(?:;|$)/gi;
+  let selectMatch;
+
+  while ((selectMatch = selectRegex.exec(sql)) !== null) {
+    const selectClause = selectMatch[1].trim();
+    const tableName = selectMatch[2];
+
+    // Extract column names/aliases from SELECT clause
+    const selectCols = parseSelectColumns(selectClause);
+
+    if (selectCols.length > 0) {
+      // Create a metadata row representing the query structure
+      const queryRow: Record<string, unknown> = {};
+      queryRow['_query_type'] = 'SELECT';
+      queryRow['_table'] = tableName;
+      selectCols.forEach(col => {
+        queryRow[col] = `[${col}]`;
+      });
+
+      // Check if this SELECT data already exists from INSERT rows
+      const existingCols = rows.length > 0 ? Object.keys(rows[0]) : [];
+      const isNewData = selectCols.some(c => !existingCols.includes(c));
+
+      if (rows.length === 0 || isNewData) {
+        rows.push(queryRow);
+      }
+    }
+  }
+
   return rows;
+}
+
+function parseSelectColumns(selectClause: string): string[] {
+  if (selectClause.trim() === '*') return ['all_columns'];
+
+  const cols: string[] = [];
+  // Split by comma, but respect parentheses (for functions like COUNT(...))
+  let depth = 0;
+  let current = '';
+
+  for (const ch of selectClause) {
+    if (ch === '(') { depth++; current += ch; }
+    else if (ch === ')') { depth--; current += ch; }
+    else if (ch === ',' && depth === 0) {
+      cols.push(extractColName(current.trim()));
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) cols.push(extractColName(current.trim()));
+
+  return cols.filter(Boolean);
+}
+
+function extractColName(expr: string): string {
+  // Check for AS alias: "expr AS alias"
+  const asMatch = expr.match(/\bAS\s+[`"']?(\w+)[`"']?\s*$/i);
+  if (asMatch) return asMatch[1];
+
+  // If it's a simple column: "col" or "table.col"
+  const dotMatch = expr.match(/^[`"']?(?:\w+\.)?(\w+)[`"']?$/);
+  if (dotMatch) return dotMatch[1];
+
+  // Function like COUNT(col) — use full expression cleaned up
+  const funcMatch = expr.match(/^(\w+)\s*\(/i);
+  if (funcMatch) return `${funcMatch[1].toLowerCase()}_result`;
+
+  return expr.replace(/[`"']/g, '').trim().replace(/\s+/g, '_');
 }
 
 function parseInsertValues(valuesStr: string): unknown[] {
