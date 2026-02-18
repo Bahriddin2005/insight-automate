@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2 } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User } from 'lucide-react';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -174,6 +174,9 @@ export default function AidaAssistant() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [textInput, setTextInput] = useState('');
   const textInputRef = useRef<HTMLTextAreaElement>(null);
+  // Voice selection: 'male' = Daniel, 'female' = Laura
+  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>('male');
+  const voiceMap = { male: 'onwK4e9ZLuTAKqWW03F9', female: 'FGY2WhTYpPnrIDTdsKH5' };
 
   // Auto-focus text input on mount
   useEffect(() => {
@@ -677,7 +680,7 @@ ${chatMessages.map(m => {
             'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ text: cleanText }),
+          body: JSON.stringify({ text: cleanText, voiceId: voiceMap[voiceGender], speed: 1.15 }),
         }
       );
       if (!response.ok) throw new Error('TTS xatolik');
@@ -846,6 +849,22 @@ ${chatMessages.map(m => {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5 text-xs">
+                  <User className="w-3.5 h-3.5" />
+                  {voiceGender === 'male' ? 'Erkak ovozi' : 'Ayol ovozi'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setVoiceGender('male')}>
+                  🎙️ Daniel (Erkak)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setVoiceGender('female')}>
+                  🎙️ Laura (Ayol)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground">
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </Button>
