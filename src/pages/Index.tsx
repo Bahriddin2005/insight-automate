@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '@/lib/i18nContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3, Sparkles, ShieldCheck, Brain, Zap, ArrowRight, Upload,
@@ -37,6 +38,7 @@ const steps = [
   { num: '03', title: 'Analyze', desc: 'Generate dashboards with AI insights', icon: TrendingUp },
   { num: '04', title: 'Export', desc: 'Download or share your results', icon: Target },
 ];
+
 
 const testimonials = [
   { name: 'Aziza Karimova', role: 'Data Analyst, FinTech Solutions', text: "Intelligence Studio bizning ish jarayonimizni tubdan o'zgartirdi. Ma'lumotlarni tozalash va tahlil qilish endi bir necha daqiqada amalga oshadi.", avatar: 'AK', rating: 5 },
@@ -164,6 +166,7 @@ const DemoCarousel = () => {
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!loading && user) {
@@ -202,10 +205,10 @@ const Index = () => {
             <ThemeToggle />
             <LanguageToggle />
             <Button variant="ghost" size="sm" onClick={() => navigate('/auth')} className="text-sm text-muted-foreground hidden sm:inline-flex">
-              Kirish
+              {t('landing.signin')}
             </Button>
             <Button size="sm" onClick={() => navigate('/auth')} className="gradient-primary text-primary-foreground text-sm font-semibold px-5 glow-primary">
-              Boshlash <ArrowRight className="w-4 h-4 ml-1" />
+              {t('landing.cta.start')} <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         </div>
@@ -218,20 +221,20 @@ const Index = () => {
         <div className="max-w-5xl mx-auto text-center relative">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-8">
-              <Zap className="w-3.5 h-3.5" /> Professional Data Analytics Platform <Star className="w-3 h-3" />
+              <Zap className="w-3.5 h-3.5" /> {t('landing.badge')} <Star className="w-3 h-3" />
             </div>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6">
-              Ma'lumotlaringizni{' '}<span className="text-gradient">aqlli</span>{' '}tahlil qiling
+              {t('landing.hero.title1')}{' '}<span className="text-gradient">{t('landing.hero.title2')}</span>{' '}{t('landing.hero.title3')}
             </h1>
             <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-              CSV, Excel va JSON fayllarni yuklang — biz avtomatik tozalash, profiling va professional dashboardlar yaratamiz
+              {t('landing.hero.subtitle')}
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <Button size="lg" onClick={() => navigate('/auth')} className="gradient-primary text-primary-foreground font-semibold h-13 px-8 text-base glow-primary hover:opacity-90 transition-all">
-                <Sparkles className="w-5 h-5 mr-2" /> Bepul boshlash
+                <Sparkles className="w-5 h-5 mr-2" /> {t('landing.cta.start')}
               </Button>
               <Button variant="outline" size="lg" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="h-13 px-8 text-base border-border/50">
-                <Eye className="w-5 h-5 mr-2" /> Batafsil ko'rish
+                <Eye className="w-5 h-5 mr-2" /> {t('landing.cta.details')}
               </Button>
             </div>
           </motion.div>
@@ -255,8 +258,8 @@ const Index = () => {
       <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
         <div className="max-w-5xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">Qanday <span className="text-gradient">ishlaydi?</span></h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">4 oddiy qadamda ma'lumotlaringizni professional dashboardga aylantiring</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">{t('howItWorks.title1')} <span className="text-gradient">{t('howItWorks.title2')}</span></h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">{t('howItWorks.subtitle')}</p>
           </motion.div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {steps.map((step, i) => (
