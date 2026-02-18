@@ -323,6 +323,82 @@ export default function AutoCharts({ analysis, filteredData, paletteId = 'ggplot
   const catCols = analysis.columnInfo.filter(c => c.type === 'categorical' && c.topValues?.length);
   const numCols = analysis.columnInfo.filter(c => c.type === 'numeric' && c.stats);
 
+  // Pre-compute memoized data for charts (hooks must be at top level)
+  const stackedData = useMemo(() => {
+    if (catCols.length < 2) return { data: [], keys: [] as string[] };
+    const groupCol = catCols[0];
+    const stackCol = catCols[1];
+    const groups: Record<string, Record<string, number>> = {};
+    const allStacks = new Set<string>();
+    filteredData.forEach(row => {
+      const g = String(row[groupCol.name] ?? '');
+      const s = String(row[stackCol.name] ?? '');
+      if (!g || !s) return;
+      allStacks.add(s);
+      if (!groups[g]) groups[g] = {};
+      groups[g][s] = (groups[g][s] || 0) + 1;
+    });
+    const stackKeys = Array.from(allStacks).slice(0, 6);
+    const result = Object.entries(groups).slice(0, 12).map(([name, counts]) => {
+      const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+      const entry: Record<string, unknown> = { name: name.length > 10 ? name.slice(0, 10) + '…' : name };
+      stackKeys.forEach(sk => { entry[sk] = +((counts[sk] || 0) / total * 100).toFixed(1); });
+      return entry;
+    });
+    return { data: result, keys: stackKeys };
+  }, [filteredData, catCols]);
+
+  const heatmapContent = useMemo(() => {
+    if (numCols.length < 2) return { cols: [] as string[], rows: [] as { label: string; values: number[] }[] };
+    const cols = numCols.slice(0, 8);
+    const sampleRows = filteredData.slice(0, 30);
+    const colStats = cols.map(col => {
+      const vals = sampleRows.map(r => Number(r[col.name])).filter(n => !isNaN(n));
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length || 0;
+      const std = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length) || 1;
+      return { name: col.name, mean, std };
+    });
+    const sortedCols = [...colStats].sort((a, b) => b.std - a.std);
+    const rows = sampleRows.map((row, ri) => ({
+      label: String(row[analysis.columnInfo[0]?.name] || `#${ri + 1}`).slice(0, 8),
+      values: sortedCols.map(cs => {
+        const raw = Number(row[cs.name]);
+        if (isNaN(raw)) return 0;
+        return (raw - cs.mean) / cs.std;
+      }),
+    })).sort((a, b) => (b.values[0] || 0) - (a.values[0] || 0));
+    return { cols: sortedCols.map(c => c.name), rows };
+  }, [filteredData, numCols, analysis]);
+
+  const networkContent = useMemo(() => {
+    if (numCols.length < 3) return { nodes: [] as { name: string; x: number; y: number; color: string }[], edges: [] as { from: number; to: number; strength: number }[] };
+    const cols = numCols.slice(0, 10);
+    const nodes = cols.map((col, i) => {
+      const angle = (2 * Math.PI * i) / cols.length;
+      const r = 38;
+      return { name: col.name, x: 50 + r * Math.cos(angle), y: 50 + r * Math.sin(angle), color: COLORS[i % COLORS.length] };
+    });
+    const edges: { from: number; to: number; strength: number }[] = [];
+    for (let i = 0; i < cols.length; i++) {
+      for (let j = i + 1; j < cols.length; j++) {
+        const valsI = filteredData.map(r => Number(r[cols[i].name])).filter(n => !isNaN(n));
+        const valsJ = filteredData.map(r => Number(r[cols[j].name])).filter(n => !isNaN(n));
+        const len = Math.min(valsI.length, valsJ.length, 200);
+        if (len < 5) continue;
+        const meanI = valsI.slice(0, len).reduce((a, b) => a + b, 0) / len;
+        const meanJ = valsJ.slice(0, len).reduce((a, b) => a + b, 0) / len;
+        let num = 0, denI = 0, denJ = 0;
+        for (let k = 0; k < len; k++) {
+          const di = valsI[k] - meanI, dj = valsJ[k] - meanJ;
+          num += di * dj; denI += di * di; denJ += dj * dj;
+        }
+        const corr = denI && denJ ? num / Math.sqrt(denI * denJ) : 0;
+        if (Math.abs(corr) > 0.2) edges.push({ from: i, to: j, strength: corr });
+      }
+    }
+    return { nodes, edges };
+  }, [filteredData, numCols, COLORS]);
+
   // 1. Scatter Dot Strip Plot — categorical × numeric (ggplot2 geom_jitter style)
   if (catCols.length > 0 && numCols.length > 0) {
     charts.push(
@@ -466,7 +542,27 @@ export default function AutoCharts({ analysis, filteredData, paletteId = 'ggplot
     }
   }
 
-  // 8. Donut chart
+  // 8. Stacked Percentage Bar
+  if (catCols.length >= 2 && numCols.length > 0 && stackedData.data.length > 0) {
+    charts.push(
+      <ChartCard key="stacked-bar" title={`${catCols[0].name} × ${catCols[1].name}`}
+        subtitle="100% Stacked bar · Guruhlarni solishtirish" delay={chartIdx++ * 0.1}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={stackedData.data} margin={{ left: 10, right: 20, bottom: 40, top: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 10 }} angle={-35} textAnchor="end" axisLine={{ stroke: gridStroke }} />
+            <YAxis tick={axisStyle} axisLine={{ stroke: gridStroke }} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+            <Tooltip {...tooltipStyle} formatter={(val: number) => `${val}%`} />
+            {stackedData.keys.map((key, ki) => (
+              <Bar key={key} dataKey={key} stackId="stack" fill={COLORS[ki % COLORS.length]} fillOpacity={0.8} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+    );
+  }
+
+  // 9. Donut chart (kept for single categorical)
   if (catCols.length > 0 && catCols[0].topValues) {
     const pieData = catCols[0].topValues.slice(0, 6).map(v => ({ name: v.value, value: v.count }));
     charts.push(
@@ -482,6 +578,93 @@ export default function AutoCharts({ analysis, filteredData, paletteId = 'ggplot
             <Tooltip {...tooltipStyle} />
           </PieChart>
         </ResponsiveContainer>
+      </ChartCard>
+    );
+  }
+
+  // 10. Data Heatmap
+  const getHeatColor = (z: number) => {
+    const clamped = Math.max(-3, Math.min(3, z));
+    const ht = (clamped + 3) / 6;
+    if (ht < 0.2) return 'hsl(55, 80%, 75%)';
+    if (ht < 0.4) return 'hsl(170, 40%, 80%)';
+    if (ht < 0.6) return 'hsl(190, 50%, 75%)';
+    if (ht < 0.8) return 'hsl(200, 60%, 60%)';
+    return 'hsl(210, 70%, 35%)';
+  };
+
+  if (numCols.length >= 2 && heatmapContent.rows.length > 0) {
+    charts.push(
+      <ChartCard key="data-heatmap" title="Data Heatmap"
+        subtitle="Z-score · Rows/columns reordered by variance" delay={chartIdx++ * 0.1}>
+        <div className="overflow-auto h-full scrollbar-thin">
+          <div className="inline-block min-w-full">
+            <div className="flex">
+              <div className="w-16 shrink-0" />
+              {heatmapContent.cols.map(col => (
+                <div key={col} className="w-10 h-6 flex items-center justify-center">
+                  <span className="text-[8px] text-muted-foreground font-medium -rotate-45 origin-center truncate max-w-[36px]">
+                    {col.length > 6 ? col.slice(0, 6) + '…' : col}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {heatmapContent.rows.map((row, ri) => (
+              <div key={ri} className="flex">
+                <div className="w-16 shrink-0 flex items-center pr-1">
+                  <span className="text-[8px] text-muted-foreground truncate">{row.label}</span>
+                </div>
+                {row.values.map((z, ci) => (
+                  <div key={ci} className="w-10 h-5 m-px rounded-sm cursor-default transition-transform hover:scale-125 hover:z-10"
+                    style={{ backgroundColor: getHeatColor(z) }}
+                    title={`z = ${z.toFixed(2)}`}
+                  />
+                ))}
+              </div>
+            ))}
+            <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/30">
+              <span className="text-[9px] text-muted-foreground">Low</span>
+              <div className="flex gap-0">
+                {[-3, -1.5, 0, 1.5, 3].map((z, i) => (
+                  <div key={i} className="w-5 h-2.5 first:rounded-l-sm last:rounded-r-sm" style={{ backgroundColor: getHeatColor(z) }} />
+                ))}
+              </div>
+              <span className="text-[9px] text-muted-foreground">High</span>
+            </div>
+          </div>
+        </div>
+      </ChartCard>
+    );
+  }
+
+  // 11. Correlation Network Graph
+  if (numCols.length >= 3 && networkContent.nodes.length > 0) {
+    charts.push(
+      <ChartCard key="network" title="Correlation Network"
+        subtitle="Ustunlar orasidagi bog'lanishlar · |r| > 0.2" delay={chartIdx++ * 0.1}>
+        <svg viewBox="0 0 100 100" className="w-full h-full" style={{ maxHeight: '100%' }}>
+          {networkContent.edges.map((edge, i) => {
+            const from = networkContent.nodes[edge.from];
+            const to = networkContent.nodes[edge.to];
+            const opacity = Math.abs(edge.strength) * 0.8;
+            const width = 0.3 + Math.abs(edge.strength) * 1.5;
+            return (
+              <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                stroke={edge.strength > 0 ? 'hsl(var(--primary))' : 'hsl(var(--destructive))'}
+                strokeOpacity={opacity} strokeWidth={width}
+              />
+            );
+          })}
+          {networkContent.nodes.map((node, i) => (
+            <g key={i}>
+              <circle cx={node.x} cy={node.y} r={3} fill={node.color} stroke="hsl(var(--card))" strokeWidth={0.5} />
+              <text x={node.x} y={node.y - 4} textAnchor="middle" fill="hsl(var(--foreground))"
+                fontSize={2.8} fontFamily='"Space Grotesk", sans-serif'>
+                {node.name.length > 8 ? node.name.slice(0, 8) + '…' : node.name}
+              </text>
+            </g>
+          ))}
+        </svg>
       </ChartCard>
     );
   }
