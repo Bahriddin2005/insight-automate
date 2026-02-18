@@ -131,7 +131,7 @@ export default function MyDashboards() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{d.name}</h3>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{tmpl ? tmpl.name : 'Full Dashboard'}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{tmpl ? tmpl.name : t('dashboards.fullDashboard')}</p>
                       </div>
                       <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
                         {d.is_public ? <Globe className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
