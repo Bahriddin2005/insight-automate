@@ -593,6 +593,12 @@ ${chatMessages.map(m => {
         }
       );
       if (!response.ok) throw new Error('TTS xatolik');
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        // Server returned JSON = fallback signal
+        const data = await response.json();
+        if (data.fallback) throw new Error(data.reason || 'ElevenLabs fallback');
+      }
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);

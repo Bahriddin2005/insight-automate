@@ -40,7 +40,10 @@ serve(async (req) => {
     if (!response.ok) {
       const errText = await response.text();
       console.error('ElevenLabs TTS error:', response.status, errText);
-      throw new Error(`TTS error: ${response.status}`);
+      // Return 200 with fallback flag so client uses browser speechSynthesis
+      return new Response(JSON.stringify({ fallback: true, reason: `ElevenLabs error: ${response.status}` }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const audioBuffer = await response.arrayBuffer();
@@ -50,8 +53,8 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error('aida-tts error:', e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ fallback: true, reason: e instanceof Error ? e.message : 'Unknown error' }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
