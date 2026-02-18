@@ -20,6 +20,3 @@ verify_jwt = false
 
 [functions.aida-voice-agent]
 verify_jwt = false
-
-[functions.telegram-webhook]
-verify_jwt = false
