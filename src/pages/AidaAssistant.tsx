@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -467,6 +468,47 @@ export default function AidaAssistant() {
     }
   };
 
+  const exportConversation = (format: 'txt' | 'pdf') => {
+    const chatMessages = messages.filter(m => m.role !== 'system');
+    if (chatMessages.length === 0) return;
+    const title = conversations.find(c => c.id === activeConversationId)?.title || 'AIDA Suhbat';
+    const date = new Date().toLocaleDateString('uz-UZ');
+    if (format === 'txt') {
+      let content = `AIDA Suhbat — ${title}\nSana: ${date}\n${'='.repeat(50)}\n\n`;
+      chatMessages.forEach(m => {
+        const role = m.role === 'user' ? 'Siz' : 'AIDA';
+        const time = m.timestamp.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+        content += `[${time}] ${role}:\n${m.content}\n\n`;
+      });
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `aida-suhbat-${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>AIDA Suhbat</title>
+<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:40px auto;padding:20px;color:#1a1a1a}
+h1{font-size:20px;border-bottom:2px solid #0ea5e9;padding-bottom:8px}
+.meta{color:#666;font-size:13px;margin-bottom:24px}
+.msg{margin-bottom:16px;padding:12px 16px;border-radius:12px}
+.user{background:#0ea5e9;color:white;margin-left:20%}
+.assistant{background:#f1f5f9;margin-right:20%}
+.role{font-weight:600;font-size:12px;margin-bottom:4px;opacity:0.7}
+.time{font-size:11px;opacity:0.5;margin-top:6px}</style></head><body>
+<h1>AIDA — AI Data Analyst</h1>
+<div class="meta">${title} • ${date}</div>
+${chatMessages.map(m => {
+        const role = m.role === 'user' ? 'Siz' : 'AIDA';
+        const time = m.timestamp.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+        return `<div class="msg ${m.role}"><div class="role">${role}</div>${m.content.replace(/\n/g, '<br>')}<div class="time">${time}</div></div>`;
+      }).join('')}</body></html>`;
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500); }
+    }
+  };
+
   const stateConfig = {
     sleeping: { color: 'bg-muted', pulse: false, icon: MicOff, label: 'Uxlash rejimi' },
     listening: { color: 'bg-emerald-500', pulse: true, icon: Mic, label: 'Tinglayapman...' },
@@ -561,6 +603,23 @@ export default function AidaAssistant() {
               <Activity className="w-3 h-3" />
               {currentState.label}
             </div>
+            {messages.filter(m => m.role !== 'system').length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-muted-foreground">
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => exportConversation('txt')}>
+                    Matn fayl (.txt)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportConversation('pdf')}>
+                    PDF fayl (.pdf)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground">
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </Button>
