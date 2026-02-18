@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Box, BarChart3, PieChart, ScatterChart, TrendingUp, Grid3x3, ToggleLeft, ToggleRight } from 'lucide-react';
+import { RotateCcw, Box, BarChart3, PieChart, ScatterChart, TrendingUp, Grid3x3, ToggleLeft, ToggleRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { type DataPoint, type Chart3DType, buildBarChart, buildPieChart, buildScatterChart, buildLineChart, buildSurfaceChart } from './Chart3DBuilders';
 
 interface Dashboard3DProps {
@@ -246,6 +246,15 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
     if (cameraRef.current) { cameraRef.current.position.set(0, 5, 12); cameraRef.current.lookAt(0, 0, 0); }
   };
 
+  const handleZoomButton = (delta: number) => {
+    zoomRef.current = Math.max(4, Math.min(30, zoomRef.current + delta));
+    if (cameraRef.current) {
+      cameraRef.current.position.set(0, zoomRef.current * 0.42, zoomRef.current);
+      cameraRef.current.lookAt(0, 0, 0);
+    }
+    setZoomPercent(Math.round((12 / zoomRef.current) * 100));
+  };
+
   return (
     <div className="relative w-full h-full min-h-[400px] rounded-xl overflow-hidden bg-gradient-to-b from-background to-muted/30 border border-border">
       {/* Header */}
@@ -322,14 +331,30 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
         </div>
       )}
 
-      {/* 3D Badge + Zoom indicator */}
+      {/* 3D Badge + Zoom indicator + Zoom buttons */}
       <div className="absolute bottom-3 left-4 flex items-center gap-2">
         <div className="flex items-center gap-1.5 bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-full">
           <Box className="w-3 h-3" />
           3D {chartType.charAt(0).toUpperCase() + chartType.slice(1)}
         </div>
-        <div className="bg-muted/60 backdrop-blur-sm text-muted-foreground text-[10px] font-mono px-2 py-1 rounded-full border border-border/50">
-          {zoomPercent}%
+        <div className="flex items-center gap-0.5 bg-muted/60 backdrop-blur-sm rounded-full border border-border/50">
+          <button
+            onClick={() => handleZoomButton(2)}
+            className="p-1 hover:bg-muted rounded-l-full text-muted-foreground hover:text-foreground transition-colors"
+            title="Zoom out"
+          >
+            <ZoomOut className="w-3 h-3" />
+          </button>
+          <span className="text-[10px] font-mono text-muted-foreground px-1 min-w-[36px] text-center">
+            {zoomPercent}%
+          </span>
+          <button
+            onClick={() => handleZoomButton(-2)}
+            className="p-1 hover:bg-muted rounded-r-full text-muted-foreground hover:text-foreground transition-colors"
+            title="Zoom in"
+          >
+            <ZoomIn className="w-3 h-3" />
+          </button>
         </div>
       </div>
     </div>
