@@ -40,7 +40,7 @@ export default function PlatformNavbar() {
         </button>
 
         {/* Nav links */}
-        <nav className="flex items-center gap-1 flex-1">
+        <nav className="flex items-center gap-1 flex-1 justify-center">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
