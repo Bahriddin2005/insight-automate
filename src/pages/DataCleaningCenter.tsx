@@ -232,7 +232,7 @@ export default function DataCleaningCenter() {
             </motion.div>
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto">
               {/* Upload Area - Takes more space */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
