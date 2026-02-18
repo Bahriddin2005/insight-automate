@@ -523,41 +523,125 @@ ${chatMessages.map(m => {
     try {
       const history = messages.filter(m => m.role !== 'system').slice(-10).map(m => ({ role: m.role, content: m.content }));
 
-      const { data, error: fnError } = await supabase.functions.invoke('aida-voice-agent', {
-        body: { question, datasetContext, conversationHistory: history },
-      });
+      // Try streaming first
+      const streamingMsgId = (Date.now() + 1).toString();
+      let streamedContent = '';
+      let toolCalls: any[] = [];
+      let toolCallChunks: Record<number, { name: string; arguments: string }> = {};
 
-      if (fnError) throw fnError;
-      if (data?.error) throw new Error(data.error);
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aida-voice-agent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ question, datasetContext, conversationHistory: history, stream: true }),
+        }
+      );
 
-      // Handle tool calls
-      if (data?.toolCalls && data.toolCalls.length > 0) {
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Xatolik: ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.includes('text/event-stream') && response.body) {
+        // Add placeholder message for streaming
+        const placeholderMsg: Message = { id: streamingMsgId, role: 'assistant', content: '', timestamp: new Date() };
+        setMessages(prev => [...prev, placeholderMsg]);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta;
+              if (!delta) continue;
+
+              // Handle text content
+              if (delta.content) {
+                streamedContent += delta.content;
+                setMessages(prev => prev.map(m => 
+                  m.id === streamingMsgId ? { ...m, content: streamedContent } : m
+                ));
+              }
+
+              // Handle tool calls
+              if (delta.tool_calls) {
+                for (const tc of delta.tool_calls) {
+                  const idx = tc.index ?? 0;
+                  if (!toolCallChunks[idx]) {
+                    toolCallChunks[idx] = { name: '', arguments: '' };
+                  }
+                  if (tc.function?.name) toolCallChunks[idx].name = tc.function.name;
+                  if (tc.function?.arguments) toolCallChunks[idx].arguments += tc.function.arguments;
+                }
+              }
+            } catch {
+              // skip unparseable chunks
+            }
+          }
+        }
+
+        // Process tool calls from stream
+        toolCalls = Object.values(toolCallChunks)
+          .filter(tc => tc.name)
+          .map(tc => ({
+            name: tc.name,
+            arguments: (() => { try { return JSON.parse(tc.arguments || '{}'); } catch { return {}; } })(),
+          }));
+
+      } else {
+        // Non-streaming JSON response
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        streamedContent = data.answer || '';
+        toolCalls = data.toolCalls || [];
+        
+        const assistantMsg: Message = { id: streamingMsgId, role: 'assistant', content: streamedContent, timestamp: new Date() };
+        setMessages(prev => [...prev, assistantMsg]);
+      }
+
+      // Execute tool calls
+      if (toolCalls.length > 0) {
         const toolResults: string[] = [];
-        for (const tc of data.toolCalls) {
+        for (const tc of toolCalls) {
           const result = executeToolCall(tc);
           toolResults.push(result);
         }
-        
-        // Build response combining AI text + tool results
-        const aiText = data.answer || '';
         const toolSummary = toolResults.join('\n');
-        const fullAnswer = aiText 
-          ? `${aiText}\n\n${toolSummary}` 
+        const fullAnswer = streamedContent
+          ? `${streamedContent}\n\n${toolSummary}`
           : `Buyruq bajarildi.\n\n${toolSummary}`;
         
-        const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: fullAnswer, timestamp: new Date() };
-        setMessages(prev => [...prev, assistantMsg]);
-        await saveMessage(convId, 'assistant', fullAnswer);
-
-        if (!isMuted) await speakResponse(aiText || 'Buyruq muvaffaqiyatli bajarildi.');
-      } else {
-        const answer = data?.answer || 'Javob olinmadi.';
-        const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: answer, timestamp: new Date() };
-        setMessages(prev => [...prev, assistantMsg]);
-        await saveMessage(convId, 'assistant', answer);
-
-        if (!isMuted) await speakResponse(answer);
+        setMessages(prev => prev.map(m => 
+          m.id === streamingMsgId ? { ...m, content: fullAnswer } : m
+        ));
+        streamedContent = fullAnswer;
       }
+
+      if (!streamedContent) streamedContent = 'Javob olinmadi.';
+
+      await saveMessage(convId, 'assistant', streamedContent);
+      if (!isMuted) await speakResponse(streamedContent);
 
       // Update conversation title from first question
       if (messages.filter(m => m.role === 'user').length === 0) {
