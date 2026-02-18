@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ChartAnnotations from './ChartAnnotations';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -12,7 +12,7 @@ import { useI18n } from '@/lib/i18nContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ChartGestureWrapper from './ChartGestureWrapper';
 import { PALETTES, type PaletteId } from './PaletteSelector';
-import { Download, Image, FileCode, ZoomIn, ZoomOut, Maximize2, Move } from 'lucide-react';
+import { Download, Image, FileCode, ZoomIn, ZoomOut, Maximize2, Minimize2, Move, X, Info } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const tooltipStyle = {
@@ -71,9 +71,28 @@ function exportAsSVG(el: HTMLElement, title: string) {
   URL.revokeObjectURL(link.href);
 }
 
-function ChartCard({ title, children, delay = 0, chartKey, dashboardId, subtitle }: {
+// Stats info component for numeric columns
+function StatsTooltipContent({ stats }: { stats: { mean: number; median: number; min: number; max: number; q1: number; q3: number; iqr: number; outliers: number } }) {
+  const s = stats;
+  const std = Math.sqrt(s.iqr); // approximate from IQR
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
+      <span className="text-muted-foreground">Mean:</span><span className="text-foreground">{s.mean.toFixed(2)}</span>
+      <span className="text-muted-foreground">Median:</span><span className="text-foreground">{s.median.toFixed(2)}</span>
+      <span className="text-muted-foreground">IQR:</span><span className="text-foreground">{s.iqr.toFixed(2)}</span>
+      <span className="text-muted-foreground">Min:</span><span className="text-foreground">{s.min.toFixed(2)}</span>
+      <span className="text-muted-foreground">Max:</span><span className="text-foreground">{s.max.toFixed(2)}</span>
+      <span className="text-muted-foreground">Q1:</span><span className="text-foreground">{s.q1.toFixed(2)}</span>
+      <span className="text-muted-foreground">Q3:</span><span className="text-foreground">{s.q3.toFixed(2)}</span>
+      <span className="text-muted-foreground">Outliers:</span><span className="text-foreground">{s.outliers}</span>
+    </div>
+  );
+}
+
+function ChartCard({ title, children, delay = 0, chartKey, dashboardId, subtitle, stats }: {
   title: string; children: React.ReactNode; delay?: number;
   chartKey?: string; dashboardId?: string; subtitle?: string;
+  stats?: { mean: number; median: number; min: number; max: number; q1: number; q3: number; iqr: number; outliers: number } | null;
 }) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -81,10 +100,30 @@ function ChartCard({ title, children, delay = 0, chartKey, dashboardId, subtitle
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const [showExport, setShowExport] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   const handleZoomIn = () => setScale(s => Math.min(s + 0.3, 4));
   const handleZoomOut = () => setScale(s => Math.max(s - 0.3, 0.5));
   const handleReset = () => { setScale(1); setPan({ x: 0, y: 0 }); };
+
+  // Close fullscreen on Escape
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsFullscreen(false); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isFullscreen]);
+
+  // Prevent body scroll in fullscreen
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isFullscreen]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -112,75 +151,158 @@ function ChartCard({ title, children, delay = 0, chartKey, dashboardId, subtitle
 
   const handleMouseUp = useCallback(() => setIsPanning(false), []);
 
-  return (
-    <motion.div ref={chartRef} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-      className="glass-card p-4 sm:p-5 relative group"
-      onMouseLeave={() => { setIsPanning(false); setShowExport(false); }}
-    >
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-xs sm:text-sm font-semibold text-foreground/90 tracking-wide">{title}</h3>
-          {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>}
+  const controls = (
+    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      {stats && (
+        <div className="relative">
+          <button onClick={() => setShowStats(!showStats)}
+            className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Statistics">
+            <Info className="w-3.5 h-3.5" />
+          </button>
+          {showStats && (
+            <div className="absolute right-0 top-7 z-50 bg-card border border-border rounded-lg shadow-lg p-3 min-w-[180px]">
+              <p className="text-[10px] font-semibold text-foreground mb-2">Statistika</p>
+              <StatsTooltipContent stats={stats} />
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={handleZoomIn} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Zoom in (Ctrl+scroll)">
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={handleZoomOut} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Zoom out">
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          {scale !== 1 && (
-            <button onClick={handleReset} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Reset">
-              <Maximize2 className="w-3.5 h-3.5" />
+      )}
+      <button onClick={handleZoomIn} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Zoom in (Ctrl+scroll)">
+        <ZoomIn className="w-3.5 h-3.5" />
+      </button>
+      <button onClick={handleZoomOut} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Zoom out">
+        <ZoomOut className="w-3.5 h-3.5" />
+      </button>
+      {scale !== 1 && (
+        <button onClick={handleReset} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Reset">
+          <Minimize2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+      {scale > 1 && (
+        <span className="text-[9px] text-muted-foreground font-mono mx-0.5">{scale.toFixed(1)}×</span>
+      )}
+      <button onClick={() => setIsFullscreen(!isFullscreen)}
+        className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Fullscreen (Esc to close)">
+        <Maximize2 className="w-3.5 h-3.5" />
+      </button>
+      <div className="relative">
+        <button onClick={() => setShowExport(!showExport)}
+          className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Export">
+          <Download className="w-3.5 h-3.5" />
+        </button>
+        {showExport && (
+          <div className="absolute right-0 top-7 z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[120px]">
+            <button
+              onClick={() => { if (chartRef.current) exportAsPNG(chartRef.current, title); setShowExport(false); }}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              <Image className="w-3.5 h-3.5" /> PNG
             </button>
-          )}
-          {scale > 1 && (
-            <span className="text-[9px] text-muted-foreground font-mono mx-0.5">{scale.toFixed(1)}×</span>
-          )}
-          <div className="relative">
-            <button onClick={() => setShowExport(!showExport)}
-              className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Export">
-              <Download className="w-3.5 h-3.5" />
+            <button
+              onClick={() => { if (chartRef.current) exportAsSVG(chartRef.current, title); setShowExport(false); }}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors"
+            >
+              <FileCode className="w-3.5 h-3.5" /> SVG
             </button>
-            {showExport && (
-              <div className="absolute right-0 top-7 z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[120px]">
-                <button
-                  onClick={() => { if (chartRef.current) exportAsPNG(chartRef.current, title); setShowExport(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors"
-                >
-                  <Image className="w-3.5 h-3.5" /> PNG
+          </div>
+        )}
+      </div>
+      {chartKey && dashboardId && <ChartAnnotations dashboardId={dashboardId} chartKey={chartKey} />}
+    </div>
+  );
+
+  const chartContent = (heightClass: string) => (
+    <div
+      className={`${heightClass} overflow-hidden`}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      style={{ cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+    >
+      <div style={{
+        transform: `scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`,
+        transformOrigin: 'center center',
+        transition: isPanning ? 'none' : 'transform 0.15s ease',
+        width: '100%', height: '100%',
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <motion.div ref={chartRef} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay }}
+        className="glass-card p-4 sm:p-5 relative group"
+        onMouseLeave={() => { setIsPanning(false); setShowExport(false); setShowStats(false); }}
+      >
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground/90 tracking-wide">{title}</h3>
+            {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>}
+          </div>
+          {controls}
+        </div>
+        {chartContent("h-52 sm:h-72")}
+      </motion.div>
+
+      {/* Fullscreen overlay */}
+      <AnimatePresence>
+        {isFullscreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[9999] bg-background/95 backdrop-blur-xl flex flex-col"
+            onClick={(e) => { if (e.target === e.currentTarget) setIsFullscreen(false); }}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">{title}</h2>
+                {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                {stats && (
+                  <div className="hidden sm:flex items-center gap-3 mr-4 text-[11px] font-mono text-muted-foreground">
+                    <span>Mean: <span className="text-foreground">{stats.mean.toFixed(2)}</span></span>
+                    <span>Median: <span className="text-foreground">{stats.median.toFixed(2)}</span></span>
+                    <span>IQR: <span className="text-foreground">{stats.iqr.toFixed(2)}</span></span>
+                    <span>Range: <span className="text-foreground">{stats.min.toFixed(1)}–{stats.max.toFixed(1)}</span></span>
+                  </div>
+                )}
+                <button onClick={() => { if (chartRef.current) exportAsPNG(chartRef.current, title); }}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Export PNG">
+                  <Download className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => { if (chartRef.current) exportAsSVG(chartRef.current, title); setShowExport(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors"
-                >
-                  <FileCode className="w-3.5 h-3.5" /> SVG
+                <button onClick={() => setIsFullscreen(false)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Close (Esc)">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            )}
-          </div>
-          {chartKey && dashboardId && <ChartAnnotations dashboardId={dashboardId} chartKey={chartKey} />}
-        </div>
-      </div>
-      <div
-        className="h-52 sm:h-72 overflow-hidden"
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        style={{ cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
-      >
-        <div style={{
-          transform: `scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`,
-          transformOrigin: 'center center',
-          transition: isPanning ? 'none' : 'transform 0.15s ease',
-          width: '100%', height: '100%',
-        }}>
-          {children}
-        </div>
-      </div>
-    </motion.div>
+            </div>
+            <div className="flex-1 p-6 group"
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={() => setIsPanning(false)}
+              style={{ cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+            >
+              <div className="w-full h-full" style={{
+                transform: `scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`,
+                transformOrigin: 'center center',
+                transition: isPanning ? 'none' : 'transform 0.15s ease',
+              }}>
+                {children}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -589,7 +711,7 @@ export default function AutoCharts({ analysis, filteredData, paletteId = 'ggplot
     charts.push(
       <ChartCard key={`num-${col.name}`} title={`${col.name}`}
         subtitle={`${t('chart.distribution')} · n = ${values.length}, μ = ${col.stats?.mean.toFixed(1)}`}
-        delay={chartIdx++ * 0.1}>
+        delay={chartIdx++ * 0.1} stats={col.stats || null}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ left: 10, right: 20, bottom: 5, top: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -609,7 +731,7 @@ export default function AutoCharts({ analysis, filteredData, paletteId = 'ggplot
   const numWithStats = numCols.filter(c => c.stats).map(c => ({ name: c.name, stats: c.stats! }));
   if (numWithStats.length >= 1) {
     charts.push(
-      <ChartCard key="boxplot" title="Boxplot" subtitle="IQR · Whiskers: Min–Max" delay={chartIdx++ * 0.1}>
+      <ChartCard key="boxplot" title="Boxplot" subtitle="IQR · Whiskers: Min–Max" delay={chartIdx++ * 0.1} stats={numWithStats[0]?.stats || null}>
         <BoxplotChart data={filteredData} numCols={numWithStats} COLORS={COLORS} />
       </ChartCard>
     );
