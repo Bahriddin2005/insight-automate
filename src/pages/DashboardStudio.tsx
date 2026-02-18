@@ -455,32 +455,33 @@ export default function DashboardStudioPage() {
               )}
             </AnimatePresence>
 
-            {/* Dashboard Content */}
+            {/* Dashboard Content - Reference Layout */}
             <div className="space-y-4 sm:space-y-6">
               {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
               {!isLoading && <IntelligentKPICards analysis={analysis} />}
+
+              {/* === 3-Column: AI Insights | Anomaly Detection | Predictive Forecasting === */}
+              {!isLoading && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <InsightsPanel analysis={analysis} />
+                  <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} />
+                  <PredictiveForecasting analysis={analysis} filteredData={filteredData} />
+                </div>
+              )}
 
               {isLoading ? <ChartSkeleton /> : <ChartViewToggle analysis={analysis} filteredData={filteredData} />}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {!isLoading && <TrendComparisonChart analysis={analysis} filteredData={filteredData} />}
-                {!isLoading && <PredictiveForecasting analysis={analysis} filteredData={filteredData} />}
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {!isLoading && <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} />}
-                <InsightsPanel analysis={analysis} />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {!isLoading && numericColNames.length >= 2 && <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />}
-                {!isLoading && <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {!isLoading && <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />}
                 {!isLoading && <ChurnRiskPanel analysis={analysis} filteredData={filteredData} />}
-                {!isLoading && <WhatIfSimulation analysis={analysis} filteredData={filteredData} />}
               </div>
+
+              {!isLoading && <WhatIfSimulation analysis={analysis} filteredData={filteredData} />}
 
               {/* AI Summary */}
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5 relative overflow-hidden">
@@ -499,6 +500,7 @@ export default function DashboardStudioPage() {
                 <p className="text-sm text-foreground/80 leading-relaxed relative">{aiSummary || 'Click Generate to get AI-powered strategic insights about your data.'}</p>
               </motion.div>
 
+              {/* Natural Language Query - Bottom (like reference) */}
               {!isLoading && <NaturalLanguageQuery analysis={analysis} filteredData={filteredData} />}
               {!isLoading && <ExecutiveReportGenerator analysis={analysis} filteredData={filteredData} fileName={fileName} />}
 
