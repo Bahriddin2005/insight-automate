@@ -10,13 +10,35 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/authContext';
 import { parseFile, analyzeDataset } from '@/lib/dataProcessor';
+import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import ReactMarkdown from 'react-markdown';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
+
+export type AidaChartData = {
+  type: 'bar' | 'line' | 'pie';
+  data: { name: string; value: number }[];
+  title?: string;
+};
 
 type Message = {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  chartData?: AidaChartData;
 };
 
 type AidaState = 'sleeping' | 'listening' | 'thinking' | 'speaking';
@@ -150,6 +172,111 @@ function WaveformVisualizer({ state, audioRef }: { state: AidaState; audioRef: R
   );
 }
 
+// Build chart payload from dataset analysis for AIDA chat visualization
+function buildChartFromAnalysis(analysis: DatasetAnalysis): AidaChartData | null {
+  const { columnInfo, cleanedData } = analysis;
+  const catCol = columnInfo.find(c => c.type === 'categorical' && c.topValues && c.topValues.length > 0);
+  const numCol = columnInfo.find(c => c.type === 'numeric' && c.stats);
+  const dateCol = columnInfo.find(c => c.type === 'datetime');
+
+  // 1) Categorical: bar/pie from topValues
+  if (catCol?.topValues && catCol.topValues.length > 0) {
+    const data = catCol.topValues.slice(0, 10).map(t => ({ name: t.value, value: t.count }));
+    return { type: 'bar', data, title: `${catCol.name} — eng ko'p qiymatlar` };
+  }
+
+  // 2) Time series: date + numeric → line
+  if (dateCol && numCol && cleanedData.length > 0) {
+    const byDate: Record<string, number> = {};
+    cleanedData.forEach(row => {
+      const d = new Date(String(row[dateCol.name]));
+      if (isNaN(d.getTime())) return;
+      const key = d.toISOString().split('T')[0];
+      const val = Number(row[numCol.name]);
+      if (!isNaN(val)) byDate[key] = (byDate[key] || 0) + val;
+    });
+    const sorted = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).slice(-30);
+    const data = sorted.map(([name, value]) => ({ name: name.slice(5), value }));
+    if (data.length > 0) return { type: 'line', data, title: `${numCol.name} — vaqt bo'yicha` };
+  }
+
+  // 3) Numeric: simple distribution buckets
+  if (numCol && cleanedData.length > 0) {
+    const vals = cleanedData.map(r => Number(r[numCol.name])).filter(n => !isNaN(n));
+    if (vals.length === 0) return null;
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const step = (max - min) / 6 || 1;
+    const buckets: Record<string, number> = {};
+    vals.forEach(v => {
+      const bucket = step <= 0 ? String(v) : `${(Math.floor((v - min) / step) * step + min).toFixed(0)}`;
+      buckets[bucket] = (buckets[bucket] || 0) + 1;
+    });
+    const data = Object.entries(buckets)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([n, v]) => ({ name: n, value: v }));
+    if (data.length > 0) return { type: 'bar', data, title: `${numCol.name} — taqsimot` };
+  }
+
+  return null;
+}
+
+function isAnalysisRequest(question: string): boolean {
+  const q = question.toLowerCase().trim();
+  const triggers = ['analiz', 'tahlil', 'buni analiz', 'grafik', 'chart', 'ko\'rsat', 'korsat', 'vizual', 'qanday', 'summary', 'xulosa', 'tahlil qil', 'analiz qil'];
+  return triggers.some(t => q.includes(t));
+}
+
+// Inline chart for AIDA assistant messages
+const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+function AidaMessageChart({ type, data, title }: AidaChartData) {
+  if (!data?.length) return null;
+  return (
+    <div className="mt-3 rounded-xl border border-border/50 bg-muted/30 p-3">
+      {title && <p className="text-xs font-medium text-muted-foreground mb-2">{title}</p>}
+      <div className="h-[220px] w-full min-w-[260px]">
+        <ResponsiveContainer width="100%" height="100%">
+          {type === 'bar' && (
+            <BarChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Soni" />
+            </BarChart>
+          )}
+          {type === 'line' && (
+            <LineChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+              <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} name="Qiymat" />
+            </LineChart>
+          )}
+          {type === 'pie' && (
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={70}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} formatter={(v: number) => [v, 'Soni']} />
+            </PieChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 export default function AidaAssistant() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -160,6 +287,7 @@ export default function AidaAssistant() {
   const [error, setError] = useState('');
   const [datasetContext, setDatasetContext] = useState('');
   const [datasetName, setDatasetName] = useState('');
+  const [aidaStoredAnalysis, setAidaStoredAnalysis] = useState<DatasetAnalysis | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
@@ -295,6 +423,7 @@ export default function AidaAssistant() {
       const ctx = `Dataset: ${file.name}\nRows: ${result.rows}\nColumns: ${result.columns}\nColumn info: ${JSON.stringify(result.columnInfo).slice(0, 3000)}\nQuality Score: ${result.qualityScore}%\nMissing: ${result.missingPercent}%\nDuplicates removed: ${result.duplicatesRemoved}\nSample data: ${JSON.stringify(result.cleanedData.slice(0, 5)).slice(0, 2000)}`;
       setDatasetContext(ctx);
       setDatasetName(file.name);
+      setAidaStoredAnalysis(result);
       sessionStorage.setItem('aida_dataset_context', ctx);
       addSystemMessage(`✓ Dataset yuklandi: ${file.name} (${result.rows} qator, ${result.columns} ustun, sifat: ${result.qualityScore}%)`);
     } catch (err) {
@@ -668,6 +797,9 @@ ${chatMessages.map(m => {
 
       if (!streamedContent) streamedContent = 'Javob olinmadi.';
 
+      const chartData = aidaStoredAnalysis && isAnalysisRequest(question) ? buildChartFromAnalysis(aidaStoredAnalysis) : undefined;
+      setMessages(prev => prev.map(m => m.id === streamingMsgId ? { ...m, content: streamedContent, chartData } : m));
+
       setStreamingMsgId(null);
       await saveMessage(convId, 'assistant', streamedContent);
       if (!isMuted) await speakResponse(streamedContent);
@@ -1033,6 +1165,7 @@ ${chatMessages.map(m => {
                     {msg.role === 'assistant' ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        {msg.chartData && <AidaMessageChart type={msg.chartData.type} data={msg.chartData.data} title={msg.chartData.title} />}
                         {streamingMsgId === msg.id && (
                           <span className="inline-block w-2 h-4 bg-primary/80 ml-0.5 animate-pulse rounded-sm" />
                         )}
