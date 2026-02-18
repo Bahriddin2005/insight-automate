@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import ChartAnnotations from './ChartAnnotations';
 import {
@@ -12,6 +12,8 @@ import { useI18n } from '@/lib/i18nContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ChartGestureWrapper from './ChartGestureWrapper';
 import { PALETTES, type PaletteId } from './PaletteSelector';
+import { Download, Image, FileCode, ZoomIn, ZoomOut, Maximize2, Move } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 const tooltipStyle = {
   contentStyle: {
@@ -40,23 +42,144 @@ function createHistogram(values: number[], buckets = 12) {
   return result;
 }
 
+function exportAsPNG(el: HTMLElement, title: string) {
+  html2canvas(el, { backgroundColor: null, scale: 2, useCORS: true, logging: false }).then(canvas => {
+    const link = document.createElement('a');
+    link.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+
+function exportAsSVG(el: HTMLElement, title: string) {
+  const svgEl = el.querySelector('svg');
+  if (!svgEl) {
+    exportAsPNG(el, title);
+    return;
+  }
+  const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  if (!clone.getAttribute('width')) {
+    clone.setAttribute('width', String(svgEl.clientWidth || 600));
+    clone.setAttribute('height', String(svgEl.clientHeight || 400));
+  }
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}.svg`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 function ChartCard({ title, children, delay = 0, chartKey, dashboardId, subtitle }: {
   title: string; children: React.ReactNode; delay?: number;
   chartKey?: string; dashboardId?: string; subtitle?: string;
 }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const [showExport, setShowExport] = useState(false);
+
+  const handleZoomIn = () => setScale(s => Math.min(s + 0.3, 4));
+  const handleZoomOut = () => setScale(s => Math.max(s - 0.3, 0.5));
+  const handleReset = () => { setScale(1); setPan({ x: 0, y: 0 }); };
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.15 : 0.15;
+      setScale(s => Math.min(Math.max(s + delta, 0.5), 4));
+    } else if (scale > 1) {
+      setPan(p => ({ x: p.x - e.deltaX * 0.5, y: p.y - e.deltaY * 0.5 }));
+    }
+  }, [scale]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (scale <= 1) return;
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+  }, [scale, pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning) return;
+    setPan({
+      x: panStart.current.panX + (e.clientX - panStart.current.x),
+      y: panStart.current.panY + (e.clientY - panStart.current.y),
+    });
+  }, [isPanning]);
+
+  const handleMouseUp = useCallback(() => setIsPanning(false), []);
+
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+    <motion.div ref={chartRef} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="glass-card p-4 sm:p-5 relative"
+      className="glass-card p-4 sm:p-5 relative group"
+      onMouseLeave={() => { setIsPanning(false); setShowExport(false); }}
     >
       <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div>
+        <div className="flex-1 min-w-0">
           <h3 className="text-xs sm:text-sm font-semibold text-foreground/90 tracking-wide">{title}</h3>
           {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
-        {chartKey && dashboardId && <ChartAnnotations dashboardId={dashboardId} chartKey={chartKey} />}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={handleZoomIn} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Zoom in (Ctrl+scroll)">
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={handleZoomOut} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Zoom out">
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+          {scale !== 1 && (
+            <button onClick={handleReset} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Reset">
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {scale > 1 && (
+            <span className="text-[9px] text-muted-foreground font-mono mx-0.5">{scale.toFixed(1)}×</span>
+          )}
+          <div className="relative">
+            <button onClick={() => setShowExport(!showExport)}
+              className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Export">
+              <Download className="w-3.5 h-3.5" />
+            </button>
+            {showExport && (
+              <div className="absolute right-0 top-7 z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[120px]">
+                <button
+                  onClick={() => { if (chartRef.current) exportAsPNG(chartRef.current, title); setShowExport(false); }}
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors"
+                >
+                  <Image className="w-3.5 h-3.5" /> PNG
+                </button>
+                <button
+                  onClick={() => { if (chartRef.current) exportAsSVG(chartRef.current, title); setShowExport(false); }}
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors"
+                >
+                  <FileCode className="w-3.5 h-3.5" /> SVG
+                </button>
+              </div>
+            )}
+          </div>
+          {chartKey && dashboardId && <ChartAnnotations dashboardId={dashboardId} chartKey={chartKey} />}
+        </div>
       </div>
-      <div className="h-52 sm:h-72">{children}</div>
+      <div
+        className="h-52 sm:h-72 overflow-hidden"
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        style={{ cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+      >
+        <div style={{
+          transform: `scale(${scale}) translate(${pan.x / scale}px, ${pan.y / scale}px)`,
+          transformOrigin: 'center center',
+          transition: isPanning ? 'none' : 'transform 0.15s ease',
+          width: '100%', height: '100%',
+        }}>
+          {children}
+        </div>
+      </div>
     </motion.div>
   );
 }
