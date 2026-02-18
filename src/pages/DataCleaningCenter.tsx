@@ -416,7 +416,7 @@ export default function DataCleaningCenter() {
           /* ============ ANALYSIS RESULTS VIEW ============ */
           <>
             {/* Results Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
                   <FileSpreadsheet className="w-5 h-5 text-primary" />
@@ -431,135 +431,148 @@ export default function DataCleaningCenter() {
                   <Trash2 className="w-3 h-3" /> Reset
                 </Button>
                 <Button size="sm" onClick={goToStudio} className="text-xs gap-1.5 h-9 gradient-primary text-primary-foreground glow-primary hover:opacity-90 transition-all">
-                  <BarChart3 className="w-3.5 h-3.5" /> Open in Studio
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <BarChart3 className="w-3.5 h-3.5" /> Open in Studio <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
 
-            {/* Quality Score Hero Card */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className={`glass-card p-6 relative overflow-hidden ${scoreGlow}`}
-            >
-              <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-gradient-to-br from-primary/10 to-transparent -translate-y-1/2 translate-x-1/2" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 relative">
-                {[
-                  { label: 'Total Rows', value: analysis.rows.toLocaleString(), icon: Database, color: 'text-primary' },
-                  { label: 'Columns', value: analysis.columns.toString(), icon: Columns3, color: 'text-accent' },
-                  { label: 'Missing %', value: `${analysis.missingPercent}%`, icon: AlertTriangle, color: 'text-chart-3' },
-                  { label: 'Duplicates Removed', value: analysis.duplicatesRemoved.toString(), icon: CopyMinus, color: 'text-chart-4' },
-                  { label: 'Quality Score', value: `${analysis.qualityScore}/100`, icon: ShieldCheck, color: scoreColor },
-                  ...(analysis.dateRange ? [{ label: 'Date Range', value: `${analysis.dateRange.min} → ${analysis.dateRange.max}`, icon: Calendar, color: 'text-chart-5' }] : []),
-                ].map((stat, i) => (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.06 }}
-                    className="text-center sm:text-left"
-                  >
-                    <div className="flex items-center gap-1.5 justify-center sm:justify-start mb-1">
-                      <stat.icon className={`w-3.5 h-3.5 ${stat.color}`} />
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{stat.label}</span>
-                    </div>
-                    <p className={`data-font text-xl font-bold ${stat.label === 'Quality Score' ? stat.color : 'text-foreground'}`}>
-                      {stat.value}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Two Panel Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left: Cleaning Actions Summary */}
-              <div className="space-y-4">
-                <CleaningReport analysis={analysis} fileName={fileName} />
-                <InsightsPanel analysis={analysis} />
-                <SchemaViewer analysis={analysis} />
-              </div>
-
-              {/* Right: Before vs After Preview */}
-              <div className="space-y-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="glass-card p-4"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-accent" />
-                      Cleaned Data Preview
-                    </h3>
-                    <span className="text-[10px] text-muted-foreground data-font bg-secondary px-2 py-0.5 rounded-full">
-                      {analysis.rows.toLocaleString()} rows × {analysis.columns} cols
-                    </span>
+            {/* === 3-Column Top Panel (reference layout) === */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* File Upload Info */}
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+                <h3 className="text-sm font-semibold text-foreground mb-4 relative">File Upload</h3>
+                <div className="relative flex flex-col items-center text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-3">
+                    <FileSpreadsheet className="w-8 h-8 text-primary" />
                   </div>
-                  <div className="max-h-[500px] overflow-auto scrollbar-thin rounded-lg border border-border/30">
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10">
-                        <tr>
-                          {analysis.columnInfo.slice(0, 8).map(col => (
-                            <th key={col.name} className="px-3 py-2.5 text-left text-muted-foreground font-medium truncate max-w-[140px] border-b border-border/30">
-                              <span className="block truncate">{col.name}</span>
-                              <span className={`text-[9px] font-normal ${
-                                col.type === 'numeric' ? 'text-primary' :
-                                col.type === 'categorical' ? 'text-accent' :
-                                col.type === 'datetime' ? 'text-chart-3' : 'text-muted-foreground/50'
-                              }`}>
-                                {col.type} · {col.missingPercent.toFixed(0)}% missing
-                              </span>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {analysis.cleanedData.slice(0, 50).map((row, i) => (
-                          <tr key={i} className="border-t border-border/10 hover:bg-primary/5 transition-colors">
-                            {analysis.columnInfo.slice(0, 8).map(col => (
-                              <td key={col.name} className="px-3 py-1.5 text-foreground/80 truncate max-w-[140px] data-font text-[11px]">
-                                {row[col.name] != null ? String(row[col.name]) : <span className="text-muted-foreground/30 italic">null</span>}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </motion.div>
-              </div>
-            </div>
-
-            {/* Export Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="glass-card p-5"
-            >
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                    <Download className="w-4 h-4 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-foreground">Download Cleaned Dataset</h3>
-                    <p className="text-[10px] text-muted-foreground">Export in your preferred format</p>
+                  <p className="text-xs text-muted-foreground mb-4 truncate max-w-full">{fileName}</p>
+                  <div className="grid grid-cols-2 gap-3 w-full text-left">
+                    {[
+                      { label: 'Rows', val: analysis.rows.toLocaleString() },
+                      { label: 'Columns', val: analysis.columns },
+                      { label: 'Duplicates', val: analysis.duplicatesRemoved },
+                      { label: 'Missing', val: `${analysis.missingPercent}%` },
+                    ].map(s => (
+                      <div key={s.label} className="bg-secondary/50 rounded-lg p-2.5">
+                        <p className="text-[10px] text-muted-foreground uppercase">{s.label}</p>
+                        <p className="text-sm font-bold text-foreground data-font">{s.val}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              </motion.div>
+
+              {/* Data Quality Score - Circular */}
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={`glass-card p-6 flex flex-col items-center justify-center ${scoreGlow}`}>
+                <h3 className="text-sm font-semibold text-foreground mb-4">Data Quality Score Card</h3>
+                <div className="relative w-36 h-36 mb-4">
+                  <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--border))" strokeWidth="8" opacity="0.2" />
+                    <circle cx="60" cy="60" r="50" fill="none"
+                      stroke={analysis.qualityScore >= 85 ? 'hsl(var(--accent))' : analysis.qualityScore >= 60 ? 'hsl(var(--warning))' : 'hsl(var(--destructive))'}
+                      strokeWidth="8" strokeLinecap="round" strokeDasharray={`${analysis.qualityScore * 3.14} 314`} />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className={`text-3xl font-bold data-font ${scoreColor}`}>{analysis.qualityScore}%</span>
+                    <span className="text-[10px] text-muted-foreground">quality</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-center">
+                  <div><p className="text-lg font-bold text-foreground data-font">{analysis.columns}</p><p className="text-[10px] text-muted-foreground">Columns</p></div>
+                  <div><p className="text-lg font-bold text-foreground data-font">{analysis.duplicatesRemoved}</p><p className="text-[10px] text-muted-foreground">Duplicates</p></div>
+                </div>
+              </motion.div>
+
+              {/* Column Profiling */}
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-6">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Column Profiling</h3>
+                <div className="space-y-2.5 max-h-[300px] overflow-auto scrollbar-thin">
+                  {analysis.columnInfo.map(col => (
+                    <div key={col.name} className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground truncate">{col.name}</p>
+                        <p className={`text-[10px] ${col.type === 'numeric' ? 'text-primary' : col.type === 'categorical' ? 'text-accent' : col.type === 'datetime' ? 'text-chart-3' : 'text-muted-foreground/50'}`}>{col.type}</p>
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        <p className="text-xs font-bold text-foreground data-font">{col.stats ? col.stats.mean?.toFixed(1) ?? col.uniqueCount : col.uniqueCount}</p>
+                        <p className="text-[10px] text-muted-foreground">{col.missingPercent.toFixed(0)}% missing</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* === Before / After Tables === */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card p-4">
+                <h3 className="text-lg font-bold text-foreground mb-3">Before</h3>
+                <div className="max-h-[350px] overflow-auto scrollbar-thin rounded-lg border border-border/30">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10">
+                      <tr>{analysis.columnInfo.slice(0, 6).map(col => (
+                        <th key={col.name} className="px-2.5 py-2 text-left text-muted-foreground font-medium truncate max-w-[100px] border-b border-border/30 text-[10px]">{col.name}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody>
+                      {analysis.cleanedData.slice(0, 20).map((row, i) => (
+                        <tr key={i} className="border-t border-border/10">
+                          {analysis.columnInfo.slice(0, 6).map(col => (
+                            <td key={col.name} className="px-2.5 py-1.5 text-foreground/60 truncate max-w-[100px] data-font text-[11px]">
+                              {row[col.name] != null ? String(row[col.name]) : <span className="text-muted-foreground/30 italic">null</span>}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-4">
+                <h3 className="text-lg font-bold text-foreground mb-3">After</h3>
+                <div className="max-h-[350px] overflow-auto scrollbar-thin rounded-lg border border-border/30">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10">
+                      <tr>{analysis.columnInfo.slice(0, 6).map(col => (
+                        <th key={col.name} className="px-2.5 py-2 text-left text-muted-foreground font-medium truncate max-w-[100px] border-b border-border/30 text-[10px]">{col.name}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody>
+                      {analysis.cleanedData.slice(0, 20).map((row, i) => (
+                        <tr key={i} className="border-t border-border/10">
+                          {analysis.columnInfo.slice(0, 6).map(col => (
+                            <td key={col.name} className={`px-2.5 py-1.5 truncate max-w-[100px] data-font text-[11px] ${row[col.name] != null ? 'text-primary bg-primary/5 rounded' : 'text-muted-foreground/30 italic'}`}>
+                              {row[col.name] != null ? String(row[col.name]) : 'null'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Cleaning Report & Insights */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <CleaningReport analysis={analysis} fileName={fileName} />
+              <InsightsPanel analysis={analysis} />
+            </div>
+            <SchemaViewer analysis={analysis} />
+
+            {/* Export */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-card p-5">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-9" onClick={downloadCleanedCSV}>
-                    <Download className="w-3 h-3" /> CSV
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-9" onClick={downloadCleanedExcel}>
-                    <Download className="w-3 h-3" /> Excel
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-9" onClick={downloadCleanedJSON}>
-                    <Download className="w-3 h-3" /> JSON
-                  </Button>
+                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center"><Download className="w-4 h-4 text-accent" /></div>
+                  <div><h3 className="text-sm font-medium text-foreground">Download Cleaned Dataset</h3><p className="text-[10px] text-muted-foreground">Export in your preferred format</p></div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-9" onClick={downloadCleanedCSV}><Download className="w-3 h-3" /> CSV</Button>
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-9" onClick={downloadCleanedExcel}><Download className="w-3 h-3" /> Excel</Button>
+                  <Button variant="outline" size="sm" className="text-xs gap-1.5 h-9" onClick={downloadCleanedJSON}><Download className="w-3 h-3" /> JSON</Button>
                 </div>
               </div>
             </motion.div>
