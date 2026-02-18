@@ -26,6 +26,7 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
   const isDraggingRef = useRef(false);
   const previousMouseRef = useRef({ x: 0, y: 0 });
   const rotationRef = useRef({ x: -0.3, y: 0.5 });
+  const zoomRef = useRef(12);
   const groupRef = useRef<THREE.Group | null>(null);
   const [hoveredBar, setHoveredBar] = useState<DataPoint | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -51,7 +52,8 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-    camera.position.set(0, 5, 12);
+    const z = zoomRef.current;
+    camera.position.set(0, z * 0.42, z);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
@@ -158,23 +160,61 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
       }
     };
     const handleMouseUp = () => { isDraggingRef.current = false; container.style.cursor = 'grab'; };
-    const handleTouchStart = (e: TouchEvent) => { isDraggingRef.current = true; previousMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+
+    // Zoom: scroll wheel
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      zoomRef.current = Math.max(4, Math.min(30, zoomRef.current + e.deltaY * 0.01));
+      if (cameraRef.current) {
+        cameraRef.current.position.set(0, zoomRef.current * 0.42, zoomRef.current);
+        cameraRef.current.lookAt(0, 0, 0);
+      }
+    };
+
+    // Zoom: pinch
+    let lastPinchDist = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastPinchDist = Math.sqrt(dx * dx + dy * dy);
+      } else {
+        isDraggingRef.current = true;
+        previousMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
     const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (lastPinchDist > 0) {
+          const delta = (lastPinchDist - dist) * 0.05;
+          zoomRef.current = Math.max(4, Math.min(30, zoomRef.current + delta));
+          if (cameraRef.current) {
+            cameraRef.current.position.set(0, zoomRef.current * 0.42, zoomRef.current);
+            cameraRef.current.lookAt(0, 0, 0);
+          }
+        }
+        lastPinchDist = dist;
+        return;
+      }
       if (!isDraggingRef.current) return;
-      const dx = e.touches[0].clientX - previousMouseRef.current.x;
-      const dy = e.touches[0].clientY - previousMouseRef.current.y;
-      rotationRef.current.y += dx * 0.005;
-      rotationRef.current.x += dy * 0.005;
+      const dx2 = e.touches[0].clientX - previousMouseRef.current.x;
+      const dy2 = e.touches[0].clientY - previousMouseRef.current.y;
+      rotationRef.current.y += dx2 * 0.005;
+      rotationRef.current.x += dy2 * 0.005;
       rotationRef.current.x = Math.max(-1, Math.min(0.5, rotationRef.current.x));
       if (groupRef.current) { groupRef.current.rotation.y = rotationRef.current.y; groupRef.current.rotation.x = rotationRef.current.x; }
       previousMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
-    const handleTouchEnd = () => { isDraggingRef.current = false; };
+    const handleTouchEnd = () => { isDraggingRef.current = false; lastPinchDist = 0; };
 
     container.addEventListener('mousedown', handleMouseDown);
     container.addEventListener('mousemove', handleMouseMove);
     container.addEventListener('mouseup', handleMouseUp);
     container.addEventListener('mouseleave', handleMouseUp);
+    container.addEventListener('wheel', handleWheel, { passive: false });
     container.addEventListener('touchstart', handleTouchStart, { passive: true });
     container.addEventListener('touchmove', handleTouchMove, { passive: true });
     container.addEventListener('touchend', handleTouchEnd);
@@ -183,6 +223,7 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
       container.removeEventListener('mousemove', handleMouseMove);
       container.removeEventListener('mouseup', handleMouseUp);
       container.removeEventListener('mouseleave', handleMouseUp);
+      container.removeEventListener('wheel', handleWheel);
       container.removeEventListener('touchstart', handleTouchStart);
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
@@ -191,7 +232,9 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
 
   const resetRotation = () => {
     rotationRef.current = { x: -0.3, y: 0.5 };
+    zoomRef.current = 12;
     if (groupRef.current) { groupRef.current.rotation.x = -0.3; groupRef.current.rotation.y = 0.5; }
+    if (cameraRef.current) { cameraRef.current.position.set(0, 5, 12); cameraRef.current.lookAt(0, 0, 0); }
   };
 
   return (
