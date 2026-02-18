@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, BarChart3,
   Calendar, Activity, Target, ChevronDown, ChevronUp, RefreshCw, Zap,
+  Download, FileSpreadsheet, FileText,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
   ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis,
   Tooltip, CartesianGrid, Legend, ReferenceLine, Scatter,
@@ -97,6 +99,76 @@ export default function ProphetForecastEngine({ analysis, filteredData }: Props)
       setLoading(false);
     }
   }, [timeSeries, forecastDays, numCol]);
+
+  // Export to Excel
+  const exportExcel = useCallback(() => {
+    if (!forecast || !timeSeries) return;
+    const wb = XLSX.utils.book_new();
+    const histData = timeSeries.map(p => ({ Sana: p.ds, [numCol?.name || 'Qiymat']: p.y }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(histData), 'Tarixiy');
+    const fcData = forecast.forecast.map(f => ({
+      Sana: f.ds, Prognoz: +f.yhat.toFixed(2), Pastki_chegara: +f.yhat_lower.toFixed(2), Yuqori_chegara: +f.yhat_upper.toFixed(2),
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fcData), 'Prognoz');
+    const summaryData = [
+      { Korsatkich: 'Trend', Qiymat: `${forecast.trend.direction} (${forecast.trend.growth_rate_percent.toFixed(1)}%)` },
+      { Korsatkich: 'Model aniqligi', Qiymat: `${(forecast.model_confidence * 100).toFixed(0)}%` },
+      { Korsatkich: 'MAPE', Qiymat: `${forecast.mape.toFixed(1)}%` },
+      { Korsatkich: 'Risk', Qiymat: forecast.summary.risk_level },
+      { Korsatkich: 'Mavsumiylik', Qiymat: forecast.seasonality.dominant_period },
+      ...forecast.summary.insights.map((ins, i) => ({ Korsatkich: `Insight ${i + 1}`, Qiymat: ins })),
+      { Korsatkich: 'Tavsiya', Qiymat: forecast.summary.recommendation },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Xulosa');
+    if (forecast.anomalies.length > 0) {
+      const anomData = forecast.anomalies.map(a => ({ Sana: a.date, Qiymat: a.value, Kutilgan: a.expected, Darajasi: a.severity }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anomData), 'Anomaliyalar');
+    }
+    XLSX.writeFile(wb, `prophet-forecast-${forecastDays}d.xlsx`);
+  }, [forecast, timeSeries, forecastDays, numCol]);
+
+  // Export to PDF (HTML print)
+  const exportPDF = useCallback(() => {
+    if (!forecast || !timeSeries) return;
+    const date = new Date().toLocaleDateString('uz-UZ');
+    const metric = numCol?.name || 'metric';
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Prophet Forecast Report</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;color:#1a1a2e;background:#fff;padding:40px 48px;max-width:900px;margin:0 auto}
+.header{display:flex;justify-content:space-between;border-bottom:3px solid #6c5ce7;padding-bottom:16px;margin-bottom:24px}
+.logo{font-size:22px;font-weight:800;color:#6c5ce7}.subtitle{font-size:11px;color:#666;margin-top:2px}.date{font-size:11px;color:#999;text-align:right}
+.section{margin-bottom:20px}.section-title{font-size:13px;font-weight:700;color:#2d3436;border-left:4px solid #6c5ce7;padding-left:10px;margin-bottom:10px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.kpi{background:#f8f9fa;border-radius:10px;padding:14px;text-align:center;border:1px solid #e9ecef}
+.kpi-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#868e96}.kpi-value{font-size:20px;font-weight:800;margin-top:4px}
+.up{color:#00b894}.down{color:#d63031}.neutral{color:#636e72}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+th{background:#6c5ce7;color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.5px}
+td{padding:7px 10px;border-bottom:1px solid #e9ecef}tr:nth-child(even){background:#f8f9fa}
+.insight{padding:8px 12px;background:#f0f0ff;border-radius:8px;margin-bottom:6px;font-size:11px;border-left:3px solid #6c5ce7}
+.risk-low{background:#d4edda;color:#155724;display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700}
+.risk-medium{background:#fff3cd;color:#856404;display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700}
+.risk-high{background:#f8d7da;color:#721c24;display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700}
+.recommendation{background:linear-gradient(135deg,#f0f0ff,#e8f5e9);padding:14px;border-radius:10px;font-size:12px;line-height:1.6;margin-top:8px}
+.footer{margin-top:30px;padding-top:12px;border-top:1px solid #e9ecef;font-size:9px;color:#aaa;text-align:center}
+</style></head><body>
+<div class="header"><div><div class="logo">⚡ Prophet Forecast Report</div><div class="subtitle">${metric} — ${forecastDays} kunlik prognoz</div></div><div class="date">${date}<br>Intelligence Studio</div></div>
+<div class="kpi-grid">
+<div class="kpi"><div class="kpi-label">Trend</div><div class="kpi-value ${forecast.trend.direction === 'up' ? 'up' : forecast.trend.direction === 'down' ? 'down' : 'neutral'}">${forecast.trend.growth_rate_percent >= 0 ? '+' : ''}${forecast.trend.growth_rate_percent.toFixed(1)}%</div></div>
+<div class="kpi"><div class="kpi-label">Model aniqligi</div><div class="kpi-value">${(forecast.model_confidence * 100).toFixed(0)}%</div></div>
+<div class="kpi"><div class="kpi-label">MAPE</div><div class="kpi-value">${forecast.mape.toFixed(1)}%</div></div>
+<div class="kpi"><div class="kpi-label">Risk</div><div class="risk-${forecast.summary.risk_level}">${forecast.summary.risk_level.toUpperCase()}</div></div>
+</div>
+<div class="section"><div class="section-title">Mavsumiylik</div><p style="font-size:12px;color:#555">${forecast.seasonality.has_weekly ? '📅 Haftalik | ' : ''}${forecast.seasonality.has_monthly ? '📆 Oylik | ' : ''}${forecast.seasonality.has_yearly ? '🗓 Yillik | ' : ''}${forecast.seasonality.peak_day_of_week ? 'Peak: ' + forecast.seasonality.peak_day_of_week : ''}</p></div>
+<div class="section"><div class="section-title">Asosiy tushunchalar</div>${forecast.summary.insights.map(ins => '<div class="insight">' + ins + '</div>').join('')}</div>
+${forecast.summary.risk_reason ? '<div class="section"><div class="section-title">Risk tahlili</div><p style="font-size:12px;color:#d63031">⚠ ' + forecast.summary.risk_reason + '</p></div>' : ''}
+<div class="section"><div class="section-title">Strategik tavsiya</div><div class="recommendation">📊 ${forecast.summary.recommendation}</div></div>
+<div class="section"><div class="section-title">Prognoz jadvali</div><table><thead><tr><th>Sana</th><th>Prognoz</th><th>Pastki chegara</th><th>Yuqori chegara</th></tr></thead><tbody>${forecast.forecast.map(f => '<tr><td>' + f.ds + '</td><td>' + f.yhat.toFixed(2) + '</td><td>' + f.yhat_lower.toFixed(2) + '</td><td>' + f.yhat_upper.toFixed(2) + '</td></tr>').join('')}</tbody></table></div>
+${forecast.changepoints.length > 0 ? '<div class="section"><div class="section-title">O\'zgarish nuqtalari</div><table><thead><tr><th>Sana</th><th>Turi</th><th>Hajmi</th></tr></thead><tbody>' + forecast.changepoints.map(cp => '<tr><td>' + cp.date + '</td><td>' + (cp.type === 'increase' ? '↑ Oshish' : '↓ Pasayish') + '</td><td>' + cp.magnitude.toFixed(1) + '%</td></tr>').join('') + '</tbody></table></div>' : ''}
+<div class="footer">Prophet Forecast Engine — Intelligence Studio © ${new Date().getFullYear()}</div>
+</body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 600); }
+  }, [forecast, timeSeries, forecastDays, numCol]);
 
   // Build chart data
   const chartData = useMemo(() => {
@@ -203,6 +275,16 @@ export default function ProphetForecastEngine({ analysis, filteredData }: Props)
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             {loading ? 'Hisoblash...' : forecast ? 'Qayta hisoblash' : 'Prognoz qilish'}
           </Button>
+          {forecast && (
+            <>
+              <Button size="sm" variant="outline" onClick={exportExcel} className="text-xs gap-1.5 h-8">
+                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+              </Button>
+              <Button size="sm" variant="outline" onClick={exportPDF} className="text-xs gap-1.5 h-8">
+                <FileText className="w-3.5 h-3.5" /> PDF
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
