@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Box, BarChart3, PieChart, ScatterChart, TrendingUp } from 'lucide-react';
-import { type DataPoint, type Chart3DType, buildBarChart, buildPieChart, buildScatterChart, buildLineChart } from './Chart3DBuilders';
+import { RotateCcw, Box, BarChart3, PieChart, ScatterChart, TrendingUp, Grid3x3 } from 'lucide-react';
+import { type DataPoint, type Chart3DType, buildBarChart, buildPieChart, buildScatterChart, buildLineChart, buildSurfaceChart } from './Chart3DBuilders';
 
 interface Dashboard3DProps {
   data: DataPoint[];
@@ -15,6 +15,7 @@ const CHART_TYPES: { type: Chart3DType; icon: typeof BarChart3; label: string }[
   { type: 'pie', icon: PieChart, label: 'Pie' },
   { type: 'scatter', icon: ScatterChart, label: 'Scatter' },
   { type: 'line', icon: TrendingUp, label: 'Line' },
+  { type: 'surface', icon: Grid3x3, label: 'Surface' },
 ];
 
 export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }: Dashboard3DProps) {
@@ -84,7 +85,7 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
     group.add(new THREE.GridHelper(16, 16, 0x333366, 0x222244));
 
     // Build chart based on type
-    const builders = { bar: buildBarChart, pie: buildPieChart, scatter: buildScatterChart, line: buildLineChart };
+    const builders = { bar: buildBarChart, pie: buildPieChart, scatter: buildScatterChart, line: buildLineChart, surface: buildSurfaceChart };
     const result = builders[chartType](group, data, maxValue);
     barMeshesRef.current = result.meshes;
 
