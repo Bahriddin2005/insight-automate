@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Box, BarChart3, PieChart, ScatterChart, TrendingUp, Grid3x3 } from 'lucide-react';
+import { RotateCcw, Box, BarChart3, PieChart, ScatterChart, TrendingUp, Grid3x3, ToggleLeft, ToggleRight } from 'lucide-react';
 import { type DataPoint, type Chart3DType, buildBarChart, buildPieChart, buildScatterChart, buildLineChart, buildSurfaceChart } from './Chart3DBuilders';
 
 interface Dashboard3DProps {
@@ -34,6 +34,8 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
   const barMeshesRef = useRef<{ mesh: THREE.Mesh; data: DataPoint }[]>([]);
   const animFrameRef = useRef(0);
   const [chartType, setChartType] = useState<Chart3DType>('bar');
+  const [wireframe, setWireframe] = useState(false);
+  const surfaceMeshRef = useRef<THREE.Mesh | null>(null);
 
   const maxValue = useMemo(() => Math.max(...data.map(d => d.value), 1), [data]);
 
@@ -88,6 +90,12 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
     const builders = { bar: buildBarChart, pie: buildPieChart, scatter: buildScatterChart, line: buildLineChart, surface: buildSurfaceChart };
     const result = builders[chartType](group, data, maxValue);
     barMeshesRef.current = result.meshes;
+    if (chartType === 'surface' && result.surfaceMesh) {
+      surfaceMeshRef.current = result.surfaceMesh;
+      (result.surfaceMesh.material as THREE.MeshStandardMaterial).wireframe = wireframe;
+    } else {
+      surfaceMeshRef.current = null;
+    }
 
     group.rotation.x = rotationRef.current.x;
     group.rotation.y = rotationRef.current.y;
@@ -118,7 +126,7 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
       if (container && renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
       renderer.dispose();
     };
-  }, [data, maxValue, chartType]);
+  }, [data, maxValue, chartType, wireframe]);
 
   // Mouse/touch handlers
   useEffect(() => {
@@ -218,6 +226,21 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
         ))}
       </div>
 
+      {/* Wireframe toggle for surface */}
+      {chartType === 'surface' && (
+        <div className="absolute top-12 right-4 z-10">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[10px] gap-1 px-2"
+            onClick={() => setWireframe(w => !w)}
+          >
+            {wireframe ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
+            {wireframe ? 'Solid' : 'Wire'}
+          </Button>
+        </div>
+      )}
+
       {/* 3D Viewport */}
       <div ref={mountRef} className="w-full h-full" style={{ cursor: 'grab' }} />
 
@@ -229,6 +252,21 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
         >
           <div className="font-medium text-foreground">{hoveredBar.label}</div>
           <div className="text-primary font-bold">{hoveredBar.value.toLocaleString()}</div>
+        </div>
+      )}
+
+      {/* Color legend for surface */}
+      {chartType === 'surface' && (
+        <div className="absolute bottom-3 right-4 z-10 flex flex-col items-end gap-1">
+          <div className="text-[10px] text-muted-foreground font-medium">Value Scale</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-muted-foreground">Low</span>
+            <div
+              className="w-24 h-3 rounded-sm border border-border/50"
+              style={{ background: 'linear-gradient(to right, rgb(0,0,255), rgb(0,255,0), rgb(255,255,0), rgb(255,0,0))' }}
+            />
+            <span className="text-[9px] text-muted-foreground">High</span>
+          </div>
         </div>
       )}
 

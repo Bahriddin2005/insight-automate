@@ -16,6 +16,7 @@ export type Chart3DType = 'bar' | 'pie' | 'scatter' | 'line' | 'surface';
 
 interface BuildResult {
   meshes: { mesh: THREE.Mesh; data: DataPoint }[];
+  surfaceMesh?: THREE.Mesh;
 }
 
 function createLabel(text: string, x: number, y: number, z: number): THREE.Sprite {
@@ -248,5 +249,5 @@ export function buildSurfaceChart(group: THREE.Group, data: DataPoint[], maxValu
   group.add(createLabel('Low', -spread / 2, -0.5, -spread / 2));
   group.add(createLabel('High', spread / 2, -0.5, spread / 2));
 
-  return { meshes };
+  return { meshes, surfaceMesh: mesh };
 }
