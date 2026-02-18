@@ -1,7 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, Filter, Image, FileText, Download, Save, Link2, Check, Globe, Lock, Sparkles } from 'lucide-react';
+import {
+  Upload, FileSpreadsheet, AlertCircle, Loader2, ChevronDown, Filter, Image, FileText,
+  Download, Save, Link2, Check, Globe, Lock, Sparkles, Zap, BarChart3, TrendingUp,
+  Brain, Target, Layers3, ArrowLeft, X
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PlatformLayout from '@/components/layout/PlatformLayout';
@@ -36,6 +40,14 @@ import type { DatasetAnalysis } from '@/lib/dataProcessor';
 const ACCEPTED = ['.csv', '.xlsx', '.xls', '.json', '.sql'];
 const MAX_SIZE = 25 * 1024 * 1024;
 
+const MODE_CONFIG: Record<string, { icon: React.ElementType; color: string; gradient: string }> = {
+  Finance: { icon: TrendingUp, color: 'text-accent', gradient: 'from-accent/20 to-accent/5' },
+  Product: { icon: Target, color: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
+  'AI / ML': { icon: Brain, color: 'text-chart-3', gradient: 'from-chart-3/20 to-chart-3/5' },
+  Growth: { icon: Layers3, color: 'text-chart-4', gradient: 'from-chart-4/20 to-chart-4/5' },
+  Explorer: { icon: BarChart3, color: 'text-chart-5', gradient: 'from-chart-5/20 to-chart-5/5' },
+};
+
 function detectBusinessMode(analysis: DatasetAnalysis): string {
   const colNames = analysis.columnInfo.map(c => c.name.toLowerCase());
   if (colNames.some(n => n.includes('revenue') || n.includes('income')) && colNames.some(n => n.includes('cost') || n.includes('expense')))
@@ -55,14 +67,10 @@ export default function DashboardStudioPage() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Check for data passed from Cleaning Center
   const studioData = (() => {
     try {
       const raw = sessionStorage.getItem('studio_analysis');
-      if (raw) {
-        sessionStorage.removeItem('studio_analysis');
-        return JSON.parse(raw);
-      }
+      if (raw) { sessionStorage.removeItem('studio_analysis'); return JSON.parse(raw); }
     } catch {}
     return null;
   })();
@@ -77,14 +85,12 @@ export default function DashboardStudioPage() {
   const [dragActive, setDragActive] = useState(false);
   const [isLoading, setIsLoading] = useState(!!studioData?.analysis);
 
-  // Filters
   const [showFilters, setShowFilters] = useState(false);
   const [catFilters, setCatFilters] = useState<Record<string, string>>({});
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [numFilter, setNumFilter] = useState<{ col: string; min: number; max: number } | null>(null);
 
-  // Save
   const [saveName, setSaveName] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -92,26 +98,19 @@ export default function DashboardStudioPage() {
   const [copied, setCopied] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // AI
   const [aiSummary, setAiSummary] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    if (isLoading) {
-      const timer = setTimeout(() => setIsLoading(false), 800);
-      return () => clearTimeout(timer);
-    }
+    if (isLoading) { const timer = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(timer); }
   }, [isLoading]);
 
   useEffect(() => {
-    if (analysis) {
-      setDateFrom(analysis.dateRange?.min || '');
-      setDateTo(analysis.dateRange?.max || '');
-      setSaveName(fileName);
-    }
+    if (analysis) { setDateFrom(analysis.dateRange?.min || ''); setDateTo(analysis.dateRange?.max || ''); setSaveName(fileName); }
   }, [analysis, fileName]);
 
   const businessMode = analysis ? detectBusinessMode(analysis) : '';
+  const modeConfig = MODE_CONFIG[businessMode] || MODE_CONFIG.Explorer;
 
   const dateCol = analysis?.columnInfo.find(c => c.type === 'datetime');
   const numCols = analysis?.columnInfo.filter(c => c.type === 'numeric' && c.stats) ?? [];
@@ -141,8 +140,7 @@ export default function DashboardStudioPage() {
     const ext = '.' + f.name.split('.').pop()?.toLowerCase();
     if (!ACCEPTED.includes(ext)) { setError(t('upload.error.type')); return; }
     if (f.size > MAX_SIZE) { setError(t('upload.error.size')); return; }
-    setFile(f);
-    setSheetIndex(0);
+    setFile(f); setSheetIndex(0);
     if (ext === '.xlsx' || ext === '.xls') {
       try { const names = await getSheetNames(f); setSheets(names); } catch { setSheets([]); }
     } else { setSheets([]); }
@@ -155,26 +153,18 @@ export default function DashboardStudioPage() {
 
   const processFile = async () => {
     if (!file) return;
-    setIsProcessing(true);
-    setError('');
+    setIsProcessing(true); setError('');
     try {
       const rawData = await parseFile(file, sheetIndex);
       const result = analyzeDataset(rawData);
-      setAnalysis(result);
-      setFileName(file.name);
-      setIsLoading(true);
+      setAnalysis(result); setFileName(file.name); setIsLoading(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to process file.');
-    } finally {
-      setIsProcessing(false);
-    }
+    } finally { setIsProcessing(false); }
   };
 
   const clearAllFilters = () => {
-    setCatFilters({});
-    setDateFrom(analysis?.dateRange?.min || '');
-    setDateTo(analysis?.dateRange?.max || '');
-    setNumFilter(null);
+    setCatFilters({}); setDateFrom(analysis?.dateRange?.min || ''); setDateTo(analysis?.dateRange?.max || ''); setNumFilter(null);
   };
 
   const handleSave = async () => {
@@ -182,301 +172,346 @@ export default function DashboardStudioPage() {
     setSaving(true);
     try {
       const { data, error } = await supabase.from('dashboard_configs').insert([{
-        user_id: user.id,
-        name: saveName || fileName,
-        is_public: isPublic,
+        user_id: user.id, name: saveName || fileName, is_public: isPublic,
         config: JSON.parse(JSON.stringify({ catFilters })),
-        file_name: fileName,
-        analysis_data: JSON.parse(JSON.stringify(analysis)),
+        file_name: fileName, analysis_data: JSON.parse(JSON.stringify(analysis)),
       }]).select('share_token').single();
       if (error) throw error;
       setShareUrl(`${window.location.origin}/shared/${data.share_token}`);
     } catch (e) { console.error('Save error:', e); } finally { setSaving(false); }
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const copyLink = () => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   const generateAiSummary = async () => {
     if (!analysis) return;
     setAiLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-summary', {
-        body: {
-          columnInfo: analysis.columnInfo,
-          rows: analysis.rows,
-          columns: analysis.columns,
-          qualityScore: analysis.qualityScore,
-          missingPercent: analysis.missingPercent,
-          duplicatesRemoved: analysis.duplicatesRemoved,
-          dateRange: analysis.dateRange,
-        },
+        body: { columnInfo: analysis.columnInfo, rows: analysis.rows, columns: analysis.columns, qualityScore: analysis.qualityScore, missingPercent: analysis.missingPercent, duplicatesRemoved: analysis.duplicatesRemoved, dateRange: analysis.dateRange },
       });
       if (error) throw error;
       setAiSummary(data.summary);
-    } catch (e) {
-      console.error('AI summary error:', e);
-      setAiSummary('Failed to generate summary.');
-    } finally { setAiLoading(false); }
+    } catch (e) { console.error('AI summary error:', e); setAiSummary('Failed to generate summary.'); } finally { setAiLoading(false); }
   };
 
-  const handleReset = () => {
-    setAnalysis(null);
-    setFileName('');
-    setFile(null);
-    setError('');
-    setAiSummary('');
-    setCatFilters({});
-    setNumFilter(null);
-  };
+  const handleReset = () => { setAnalysis(null); setFileName(''); setFile(null); setError(''); setAiSummary(''); setCatFilters({}); setNumFilter(null); };
 
   return (
     <PlatformLayout>
-      {!analysis ? (
-        /* Upload area for Dashboard Studio */
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-6">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
-              Dashboard <span className="text-gradient">Studio</span>
-            </h1>
-            <p className="text-muted-foreground mt-2">Upload a cleaned dataset or use one from Cleaning Center</p>
-          </div>
-
-          <div
-            className={`upload-border rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 ${dragActive ? 'bg-primary/5 scale-[1.02]' : 'bg-card/40 hover:bg-card/60'}`}
-            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={handleDrop}
-            onClick={() => inputRef.current?.click()}
-          >
-            <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,.json,.sql" className="hidden" onChange={(e) => e.target.files?.[0] && validateFile(e.target.files[0])} />
-            <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-4">
-              <Upload className="w-8 h-8 text-primary-foreground" />
-            </div>
-            <p className="text-foreground font-medium text-lg mb-1">Drop your cleaned dataset here</p>
-            <p className="text-muted-foreground text-sm">CSV, Excel, JSON, SQL — up to 25MB</p>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 text-destructive text-sm">
-              <AlertCircle className="w-4 h-4 shrink-0" /> {error}
-            </div>
-          )}
-
-          {file && !error && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FileSpreadsheet className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-foreground font-medium truncate">{file.name}</p>
-                  <p className="text-muted-foreground text-xs">{(file.size / 1024).toFixed(1)} KB</p>
-                </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {!analysis ? (
+          <>
+            {/* Hero Header */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-4 sm:py-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-4">
+                <Zap className="w-3 h-3" />
+                Auto-Detect · KPIs · 2D/3D/4D Visualization
               </div>
-              {sheets.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Sheet:</span>
-                  <select value={sheetIndex} onChange={(e) => setSheetIndex(Number(e.target.value))} className="bg-secondary text-secondary-foreground text-sm rounded-lg px-3 py-2 border border-border outline-none">
-                    {sheets.map((s, i) => <option key={i} value={i}>{s}</option>)}
-                  </select>
-                </div>
-              )}
-              <Button onClick={processFile} disabled={isProcessing} className="w-full gradient-primary text-primary-foreground font-semibold h-11 glow-primary">
-                {isProcessing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing...</> : 'Generate Dashboard'}
-              </Button>
+              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
+                Dashboard <span className="text-gradient">Studio</span>
+              </h1>
+              <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto">
+                Upload your cleaned dataset — we'll auto-detect context and generate a professional dashboard
+              </p>
             </motion.div>
-          )}
 
-          {/* Quick action: go to cleaning center */}
-          <div className="text-center">
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => navigate('/cleaning')}>
-              ← Go to Data Cleaning Center first
-            </Button>
-          </div>
-        </div>
-      ) : (
-        /* Full Dashboard View */
-        <div id="studio-dashboard-export">
-          {/* Dashboard Header */}
-          <div className="sticky top-14 z-20 bg-background/80 backdrop-blur-xl border-b border-border/50">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 flex items-center gap-2 sm:gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">{fileName}</h1>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">{businessMode}</span>
-                  <DataSourceBadge fileName={fileName} />
-                </div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">
-                  {analysis.rows.toLocaleString()} rows · {analysis.columns} cols · Quality: {analysis.qualityScore}/100
-                </p>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Button variant="outline" size="sm" onClick={() => exportDashboardAsPNG('studio-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-8 px-2">
-                  <Image className="w-3 h-3" /> <span className="hidden sm:inline ml-1">PNG</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => exportDashboardAsPDF('studio-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-7 sm:h-8 px-2">
-                  <FileText className="w-3 h-3" /> <span className="hidden sm:inline ml-1">PDF</span>
-                </Button>
-                <div className="relative">
-                  <Button variant="outline" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="text-[10px] sm:text-xs h-7 sm:h-8 px-2">
-                    <Download className="w-3 h-3" /> <span className="hidden sm:inline ml-1">Data</span>
-                  </Button>
-                  {showExportMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
-                      <button onClick={() => { exportAsCSV(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">CSV</button>
-                      <button onClick={() => { exportAsJSON(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">JSON</button>
-                      <button onClick={() => { exportAsExcel(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors">Excel</button>
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Upload Area */}
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="lg:col-span-8">
+                {/* Drop zone */}
+                <div
+                  className={`relative rounded-2xl p-10 sm:p-16 text-center cursor-pointer transition-all duration-300 border-2 border-dashed ${
+                    dragActive ? 'border-primary bg-primary/5 scale-[1.01]' : 'border-border/60 bg-card/30 hover:bg-card/50 hover:border-primary/30'
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={handleDrop}
+                  onClick={() => inputRef.current?.click()}
+                >
+                  <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,.json,.sql" className="hidden" onChange={(e) => e.target.files?.[0] && validateFile(e.target.files[0])} />
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+
+                  <motion.div animate={dragActive ? { scale: 1.1, y: -4 } : { scale: 1, y: 0 }} className="mb-6 inline-block relative">
+                    <div className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center mx-auto shadow-lg">
+                      <Upload className="w-9 h-9 text-primary-foreground" />
                     </div>
+                    <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent flex items-center justify-center">
+                      <BarChart3 className="w-3.5 h-3.5 text-accent-foreground" />
+                    </div>
+                  </motion.div>
+
+                  <p className="text-foreground font-semibold text-lg mb-2">Drop your cleaned dataset here</p>
+                  <p className="text-muted-foreground text-sm mb-4">CSV, Excel, JSON, SQL — up to 25MB</p>
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    {['CSV', 'XLSX', 'JSON', 'SQL'].map(fmt => (
+                      <span key={fmt} className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-secondary/80 text-muted-foreground border border-border/30">
+                        .{fmt.toLowerCase()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Error */}
+                <AnimatePresence>
+                  {error && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center gap-2 text-destructive mt-4 text-sm bg-destructive/10 px-4 py-3 rounded-lg border border-destructive/20">
+                      <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Selected file card */}
+                <AnimatePresence>
+                  {file && !error && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6 glass-card p-5 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <FileSpreadsheet className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground font-semibold truncate">{file.name}</p>
+                          <p className="text-muted-foreground text-xs">{(file.size / 1024).toFixed(1)} KB · Ready to analyze</p>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setFile(null); }} className="text-muted-foreground h-8 w-8 p-0">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {sheets.length > 1 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Sheet:</span>
+                          <div className="relative flex-1">
+                            <select value={sheetIndex} onChange={(e) => setSheetIndex(Number(e.target.value))} className="w-full bg-secondary text-secondary-foreground text-sm rounded-lg px-3 py-2 pr-8 appearance-none border border-border focus:ring-1 focus:ring-primary outline-none">
+                              {sheets.map((s, i) => <option key={i} value={i}>{s}</option>)}
+                            </select>
+                            <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                          </div>
+                        </div>
+                      )}
+                      <Button onClick={processFile} disabled={isProcessing} className="w-full gradient-primary text-primary-foreground font-semibold h-12 text-base glow-primary hover:opacity-90 transition-all">
+                        {isProcessing ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Analyzing...</> : <><Sparkles className="w-5 h-5 mr-2" /> Generate Dashboard</>}
+                      </Button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+
+              {/* Right sidebar - features */}
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="lg:col-span-4 space-y-4">
+                <div className="glass-card p-5 space-y-4">
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Auto Dashboard Engine</h3>
+                  {[
+                    { icon: Brain, label: 'Context Detection', desc: 'Finance, Product, AI/ML, Growth modes' },
+                    { icon: Target, label: 'Smart KPIs', desc: 'Auto-detect key performance indicators' },
+                    { icon: BarChart3, label: '2D / 3D / 4D Charts', desc: 'Interactive visualizations with toggle' },
+                    { icon: TrendingUp, label: 'Predictive Insights', desc: 'Trends, anomalies & forecasting' },
+                  ].map((item, i) => (
+                    <motion.div key={item.label} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + i * 0.08 }} className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <item.icon className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{item.label}</p>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Quick link */}
+                <Button variant="outline" size="sm" className="w-full text-xs gap-2 h-10" onClick={() => navigate('/cleaning')}>
+                  <ArrowLeft className="w-3 h-3" /> Go to Data Cleaning Center
+                </Button>
+              </motion.div>
+            </div>
+          </>
+        ) : (
+          /* ============ FULL DASHBOARD VIEW ============ */
+          <div id="studio-dashboard-export">
+            {/* Dashboard Header */}
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 sm:p-5 mb-6 relative overflow-hidden">
+              <div className={`absolute inset-0 bg-gradient-to-r ${modeConfig.gradient} pointer-events-none`} />
+              <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <modeConfig.icon className={`w-6 h-6 ${modeConfig.color}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">{fileName}</h1>
+                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full border font-semibold ${modeConfig.color} bg-background/50 border-current/20`}>
+                        {businessMode}
+                      </span>
+                      <DataSourceBadge fileName={fileName} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {analysis.rows.toLocaleString()} rows · {analysis.columns} columns · Quality {analysis.qualityScore}/100
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={() => exportDashboardAsPNG('studio-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-8 px-2.5 gap-1">
+                    <Image className="w-3 h-3" /> PNG
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => exportDashboardAsPDF('studio-dashboard-export', fileName)} className="text-[10px] sm:text-xs h-8 px-2.5 gap-1">
+                    <FileText className="w-3 h-3" /> PDF
+                  </Button>
+                  <div className="relative">
+                    <Button variant="outline" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="text-[10px] sm:text-xs h-8 px-2.5 gap-1">
+                      <Download className="w-3 h-3" /> Data
+                    </Button>
+                    {showExportMenu && (
+                      <div className="absolute right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 min-w-[120px]">
+                        <button onClick={() => { exportAsCSV(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent/10 transition-colors">CSV</button>
+                        <button onClick={() => { exportAsJSON(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent/10 transition-colors">JSON</button>
+                        <button onClick={() => { exportAsExcel(filteredData, fileName); setShowExportMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent/10 transition-colors">Excel</button>
+                      </div>
+                    )}
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className={`text-[10px] sm:text-xs h-8 px-2.5 gap-1 ${showFilters ? 'bg-primary/10 border-primary/30 text-primary' : ''}`}>
+                    <Filter className="w-3 h-3" /> Filters
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground h-8 px-2.5">New</Button>
+                </div>
+              </div>
+
+              {/* Save & Share */}
+              {user && (
+                <div className="relative flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3 pt-3 border-t border-border/20">
+                  <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Dashboard name" className="h-8 text-xs w-32 sm:w-44 bg-secondary/50 border-border/30" />
+                  <Button variant="ghost" size="sm" onClick={() => setIsPublic(!isPublic)} className="text-xs gap-1 h-8">
+                    {isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                    {isPublic ? 'Public' : 'Private'}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="text-xs h-8 gap-1 gradient-primary text-primary-foreground border-0">
+                    {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    Save
+                  </Button>
+                  {shareUrl && (
+                    <Button variant="ghost" size="sm" onClick={copyLink} className="text-xs gap-1 h-8">
+                      {copied ? <Check className="w-3 h-3 text-accent" /> : <Link2 className="w-3 h-3" />}
+                      {copied ? 'Copied!' : 'Copy Link'}
+                    </Button>
                   )}
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="text-[10px] sm:text-xs h-7 sm:h-8 px-2">
-                  <Filter className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">Filters</span>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground h-7 sm:h-8 px-2">New</Button>
-              </div>
-            </div>
-
-            {/* Save & Share */}
-            {user && (
-              <div className="max-w-7xl mx-auto px-3 sm:px-6 pb-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Dashboard name" className="h-7 text-xs w-28 sm:w-40 bg-secondary border-border" />
-                <Button variant="ghost" size="sm" onClick={() => setIsPublic(!isPublic)} className="text-xs gap-1 h-7">
-                  {isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                  {isPublic ? 'Public' : 'Private'}
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="text-xs h-7">
-                  {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
-                  Save
-                </Button>
-                {shareUrl && (
-                  <Button variant="ghost" size="sm" onClick={copyLink} className="text-xs gap-1 h-7">
-                    {copied ? <Check className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
-                    {copied ? 'Copied!' : 'Copy Link'}
-                  </Button>
-                )}
-              </div>
-            )}
+              )}
+            </motion.div>
 
             {/* Filters Panel */}
             <AnimatePresence>
               {showFilters && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-border/30 overflow-hidden">
-                  <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 space-y-3">
-                    {dateCol && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-muted-foreground font-medium w-20">Date Range:</span>
-                        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none" />
-                        <span className="text-xs text-muted-foreground">→</span>
-                        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none" />
-                      </div>
-                    )}
-                    {numCols.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-muted-foreground font-medium w-20">Numeric:</span>
-                        <select value={numFilter?.col || ''} onChange={(e) => {
-                          const col = numCols.find(c => c.name === e.target.value);
-                          if (col?.stats) setNumFilter({ col: col.name, min: col.stats.min, max: col.stats.max });
-                          else setNumFilter(null);
-                        }} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none">
-                          <option value="">—</option>
-                          {numCols.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                        </select>
-                        {numFilter && (
-                          <>
-                            <input type="number" value={numFilter.min} onChange={(e) => setNumFilter({ ...numFilter, min: Number(e.target.value) })} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none w-24 data-font" />
-                            <span className="text-xs text-muted-foreground">→</span>
-                            <input type="number" value={numFilter.max} onChange={(e) => setNumFilter({ ...numFilter, max: Number(e.target.value) })} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none w-24 data-font" />
-                          </>
-                        )}
-                      </div>
-                    )}
-                    {catCols.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {catCols.slice(0, 5).map(col => (
-                          <select key={col.name} value={catFilters[col.name] || ''} onChange={(e) => setCatFilters(prev => ({ ...prev, [col.name]: e.target.value }))} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none">
-                            <option value="">{col.name} (All)</option>
-                            {col.topValues!.map(v => <option key={v.value} value={v.value}>{v.value} ({v.count})</option>)}
-                          </select>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-xs text-muted-foreground">Clear</Button>
-                      <span className="text-xs text-muted-foreground data-font">{filteredData.length.toLocaleString()} / {analysis.rows.toLocaleString()} rows</span>
-                    </div>
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="glass-card p-4 mb-6 overflow-hidden space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                      <Filter className="w-3 h-3" /> Active Filters
+                    </h3>
+                    <span className="text-[10px] text-muted-foreground data-font bg-secondary px-2 py-0.5 rounded-full">
+                      {filteredData.length.toLocaleString()} / {analysis.rows.toLocaleString()} rows
+                    </span>
                   </div>
+                  {dateCol && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground font-medium w-20">Date Range:</span>
+                      <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none" />
+                      <span className="text-xs text-muted-foreground">→</span>
+                      <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none" />
+                    </div>
+                  )}
+                  {numCols.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground font-medium w-20">Numeric:</span>
+                      <select value={numFilter?.col || ''} onChange={(e) => {
+                        const col = numCols.find(c => c.name === e.target.value);
+                        if (col?.stats) setNumFilter({ col: col.name, min: col.stats.min, max: col.stats.max });
+                        else setNumFilter(null);
+                      }} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none">
+                        <option value="">—</option>
+                        {numCols.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                      </select>
+                      {numFilter && (
+                        <>
+                          <input type="number" value={numFilter.min} onChange={(e) => setNumFilter({ ...numFilter, min: Number(e.target.value) })} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none w-24 data-font" />
+                          <span className="text-xs text-muted-foreground">→</span>
+                          <input type="number" value={numFilter.max} onChange={(e) => setNumFilter({ ...numFilter, max: Number(e.target.value) })} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none w-24 data-font" />
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {catCols.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {catCols.slice(0, 5).map(col => (
+                        <select key={col.name} value={catFilters[col.name] || ''} onChange={(e) => setCatFilters(prev => ({ ...prev, [col.name]: e.target.value }))} className="bg-secondary text-secondary-foreground text-xs rounded-lg px-3 py-1.5 border border-border outline-none">
+                          <option value="">{col.name} (All)</option>
+                          {col.topValues!.map(v => <option key={v.value} value={v.value}>{v.value} ({v.count})</option>)}
+                        </select>
+                      ))}
+                    </div>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="text-xs text-muted-foreground">Clear All Filters</Button>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
 
-          {/* Dashboard Content */}
-          <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-            {/* KPI Cards */}
-            {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
-            {!isLoading && <IntelligentKPICards analysis={analysis} />}
+            {/* Dashboard Content */}
+            <div className="space-y-4 sm:space-y-6">
+              {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
+              {!isLoading && <IntelligentKPICards analysis={analysis} />}
 
-            {/* Charts - 2D/3D/4D toggle */}
-            {isLoading ? <ChartSkeleton /> : <ChartViewToggle analysis={analysis} filteredData={filteredData} />}
+              {isLoading ? <ChartSkeleton /> : <ChartViewToggle analysis={analysis} filteredData={filteredData} />}
 
-            {/* Trend + Forecasting */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {!isLoading && <TrendComparisonChart analysis={analysis} filteredData={filteredData} />}
-              {!isLoading && <PredictiveForecasting analysis={analysis} filteredData={filteredData} />}
-            </div>
-
-            {/* Anomaly + Insights */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {!isLoading && <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} />}
-              <InsightsPanel analysis={analysis} />
-            </div>
-
-            {/* Correlation + Cohort */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {!isLoading && numericColNames.length >= 2 && <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />}
-              {!isLoading && <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />}
-            </div>
-
-            {/* Risk + What-If */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {!isLoading && <ChurnRiskPanel analysis={analysis} filteredData={filteredData} />}
-              {!isLoading && <WhatIfSimulation analysis={analysis} filteredData={filteredData} />}
-            </div>
-
-            {/* AI Summary */}
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg gradient-warm flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-foreground" />
-                  </div>
-                  <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">AI Summary</h2>
-                </div>
-                <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs">
-                  {aiLoading ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Generating...</> : 'Generate'}
-                </Button>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {!isLoading && <TrendComparisonChart analysis={analysis} filteredData={filteredData} />}
+                {!isLoading && <PredictiveForecasting analysis={analysis} filteredData={filteredData} />}
               </div>
-              <p className="text-sm text-foreground/80 leading-relaxed">{aiSummary || 'Click Generate to get AI-powered insights about your data.'}</p>
-            </motion.div>
 
-            {/* NL Query + Report */}
-            {!isLoading && <NaturalLanguageQuery analysis={analysis} filteredData={filteredData} />}
-            {!isLoading && <ExecutiveReportGenerator analysis={analysis} filteredData={filteredData} fileName={fileName} />}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {!isLoading && <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} />}
+                <InsightsPanel analysis={analysis} />
+              </div>
 
-            {/* Code View + Data Table */}
-            <CodeView analysis={analysis} fileName={fileName} />
-            <DataTable data={filteredData} columns={analysis.columnInfo} />
-          </main>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {!isLoading && numericColNames.length >= 2 && <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />}
+                {!isLoading && <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />}
+              </div>
 
-          {/* Floating panels */}
-          <AiAgentChat analysis={analysis} fileName={fileName} />
-          <ExecutiveSummaryPanel analysis={analysis} fileName={fileName} />
-        </div>
-      )}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {!isLoading && <ChurnRiskPanel analysis={analysis} filteredData={filteredData} />}
+                {!isLoading && <WhatIfSimulation analysis={analysis} filteredData={filteredData} />}
+              </div>
+
+              {/* AI Summary */}
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-gradient-to-br from-primary/10 to-transparent -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                <div className="relative flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-primary-foreground" />
+                    </div>
+                    <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">AI Strategic Summary</h2>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={generateAiSummary} disabled={aiLoading} className="text-xs gap-1.5">
+                    {aiLoading ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</> : <><Brain className="w-3 h-3" /> Generate</>}
+                  </Button>
+                </div>
+                <p className="text-sm text-foreground/80 leading-relaxed relative">{aiSummary || 'Click Generate to get AI-powered strategic insights about your data.'}</p>
+              </motion.div>
+
+              {!isLoading && <NaturalLanguageQuery analysis={analysis} filteredData={filteredData} />}
+              {!isLoading && <ExecutiveReportGenerator analysis={analysis} filteredData={filteredData} fileName={fileName} />}
+
+              <CodeView analysis={analysis} fileName={fileName} />
+              <DataTable data={filteredData} columns={analysis.columnInfo} />
+            </div>
+
+            {/* Floating panels */}
+            <AiAgentChat analysis={analysis} fileName={fileName} />
+            <ExecutiveSummaryPanel analysis={analysis} fileName={fileName} />
+          </div>
+        )}
+      </div>
     </PlatformLayout>
   );
 }
