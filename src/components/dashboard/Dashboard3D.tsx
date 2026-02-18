@@ -37,6 +37,7 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
   const [chartType, setChartType] = useState<Chart3DType>('bar');
   const [wireframe, setWireframe] = useState(false);
   const surfaceMeshRef = useRef<THREE.Mesh | null>(null);
+  const [zoomPercent, setZoomPercent] = useState(100);
 
   const maxValue = useMemo(() => Math.max(...data.map(d => d.value), 1), [data]);
 
@@ -162,6 +163,11 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
     const handleMouseUp = () => { isDraggingRef.current = false; container.style.cursor = 'grab'; };
 
     // Zoom: scroll wheel
+    const updateZoomPercent = () => {
+      // 12 = default (100%), 4 = max zoom in (300%), 30 = max zoom out (40%)
+      const pct = Math.round((12 / zoomRef.current) * 100);
+      setZoomPercent(pct);
+    };
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       zoomRef.current = Math.max(4, Math.min(30, zoomRef.current + e.deltaY * 0.01));
@@ -169,6 +175,7 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
         cameraRef.current.position.set(0, zoomRef.current * 0.42, zoomRef.current);
         cameraRef.current.lookAt(0, 0, 0);
       }
+      updateZoomPercent();
     };
 
     // Zoom: pinch
@@ -197,6 +204,7 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
           }
         }
         lastPinchDist = dist;
+        updateZoomPercent();
         return;
       }
       if (!isDraggingRef.current) return;
@@ -233,6 +241,7 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
   const resetRotation = () => {
     rotationRef.current = { x: -0.3, y: 0.5 };
     zoomRef.current = 12;
+    setZoomPercent(100);
     if (groupRef.current) { groupRef.current.rotation.x = -0.3; groupRef.current.rotation.y = 0.5; }
     if (cameraRef.current) { cameraRef.current.position.set(0, 5, 12); cameraRef.current.lookAt(0, 0, 0); }
   };
@@ -313,10 +322,15 @@ export default function Dashboard3D({ data, title = '3D Dashboard', onToggle2D }
         </div>
       )}
 
-      {/* 3D Badge */}
-      <div className="absolute bottom-3 left-4 flex items-center gap-1.5 bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-full">
-        <Box className="w-3 h-3" />
-        3D {chartType.charAt(0).toUpperCase() + chartType.slice(1)}
+      {/* 3D Badge + Zoom indicator */}
+      <div className="absolute bottom-3 left-4 flex items-center gap-2">
+        <div className="flex items-center gap-1.5 bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-full">
+          <Box className="w-3 h-3" />
+          3D {chartType.charAt(0).toUpperCase() + chartType.slice(1)}
+        </div>
+        <div className="bg-muted/60 backdrop-blur-sm text-muted-foreground text-[10px] font-mono px-2 py-1 rounded-full border border-border/50">
+          {zoomPercent}%
+        </div>
       </div>
     </div>
   );
