@@ -455,54 +455,35 @@ export default function DashboardStudioPage() {
               )}
             </AnimatePresence>
 
-            {/* Dashboard Content - Reference Image Layout */}
-            <div className="space-y-4">
-              {/* Row 1: KPI Cards — horizontal strip */}
+            {/* Dashboard Content - Reference Layout */}
+            <div className="space-y-4 sm:space-y-6">
               {isLoading ? <KPICardsSkeleton /> : <KPICards analysis={analysis} />}
               {!isLoading && <IntelligentKPICards analysis={analysis} />}
 
-              {/* Row 2: Main charts — large left (8 cols) + medium center + pie right */}
-              {isLoading ? <ChartSkeleton /> : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  <div className="lg:col-span-7">
-                    <ChartViewToggle analysis={analysis} filteredData={filteredData} />
-                  </div>
-                  <div className="lg:col-span-3">
-                    {!isLoading && <TrendComparisonChart analysis={analysis} filteredData={filteredData} />}
-                  </div>
-                  <div className="lg:col-span-2">
-                    {!isLoading && numericColNames.length >= 2
-                      ? <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />
-                      : <InsightsPanel analysis={analysis} />
-                    }
-                  </div>
-                </div>
-              )}
-
-              {/* Row 3: Forecasting chart left + Data Table right */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {!isLoading && <PredictiveForecasting analysis={analysis} filteredData={filteredData} />}
-                <DataTable data={filteredData} columns={analysis.columnInfo} />
-              </div>
-
-              {/* Row 4: AI Insights | Anomaly Detection | What-If */}
+              {/* === 3-Column: AI Insights | Anomaly Detection | Predictive Forecasting === */}
               {!isLoading && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <InsightsPanel analysis={analysis} />
                   <AnomalyDetectionPanel analysis={analysis} filteredData={filteredData} />
-                  <WhatIfSimulation analysis={analysis} filteredData={filteredData} />
+                  <PredictiveForecasting analysis={analysis} filteredData={filteredData} />
                 </div>
               )}
 
-              {/* Row 5: Cohort + Churn side by side */}
-              {!isLoading && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />
-                  <ChurnRiskPanel analysis={analysis} filteredData={filteredData} />
-                </div>
-              )}
+              {isLoading ? <ChartSkeleton /> : <ChartViewToggle analysis={analysis} filteredData={filteredData} />}
 
-              {/* AI Summary Card */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {!isLoading && <TrendComparisonChart analysis={analysis} filteredData={filteredData} />}
+                {!isLoading && numericColNames.length >= 2 && <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} />}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {!isLoading && <CohortFunnelAnalysis analysis={analysis} filteredData={filteredData} />}
+                {!isLoading && <ChurnRiskPanel analysis={analysis} filteredData={filteredData} />}
+              </div>
+
+              {!isLoading && <WhatIfSimulation analysis={analysis} filteredData={filteredData} />}
+
+              {/* AI Summary */}
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-5 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-gradient-to-br from-primary/10 to-transparent -translate-y-1/2 translate-x-1/2 pointer-events-none" />
                 <div className="relative flex items-center justify-between mb-4">
@@ -519,10 +500,12 @@ export default function DashboardStudioPage() {
                 <p className="text-sm text-foreground/80 leading-relaxed relative">{aiSummary || 'Click Generate to get AI-powered strategic insights about your data.'}</p>
               </motion.div>
 
-              {/* Bottom: NLQ + Report + Code */}
+              {/* Natural Language Query - Bottom (like reference) */}
               {!isLoading && <NaturalLanguageQuery analysis={analysis} filteredData={filteredData} />}
               {!isLoading && <ExecutiveReportGenerator analysis={analysis} filteredData={filteredData} fileName={fileName} />}
+
               <CodeView analysis={analysis} fileName={fileName} />
+              <DataTable data={filteredData} columns={analysis.columnInfo} />
             </div>
 
             {/* Floating panels */}

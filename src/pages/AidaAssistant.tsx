@@ -667,15 +667,7 @@ ${chatMessages.map(m => {
     if (isMuted) return;
     setState('speaking');
     try {
-      // Clean text for natural speech: remove markdown, emojis, tool messages, keep it conversational
-      const cleanText = text
-        .replace(/[#*_`~\[\]()>|]/g, '')
-        .replace(/🔧.*?\n/g, '')
-        .replace(/[✓⚠📊•]/g, '')
-        .replace(/\n+/g, ' ')
-        .replace(/\s{2,}/g, ' ')
-        .trim()
-        .slice(0, 1500);
+      const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').replace(/\n+/g, '. ').slice(0, 2000);
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aida-tts`,
         {
@@ -709,10 +701,10 @@ ${chatMessages.map(m => {
       console.error('TTS error, falling back to speechSynthesis:', e);
       // Fallback to browser speechSynthesis
       try {
-        const cleanText = text.replace(/[#*_`~\[\]()>|🔧✓⚠📊•]/g, '').replace(/\n+/g, ' ').trim().slice(0, 1500);
+        const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').replace(/\n+/g, '. ').slice(0, 2000);
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = 'uz-UZ';
-        utterance.rate = 1.2;
+        utterance.rate = 1.0;
         utterance.pitch = 1.0;
         await new Promise<void>((resolve) => {
           utterance.onend = () => resolve();
