@@ -199,7 +199,6 @@ export default function DataCleaningCenter() {
     downloadFile(JSON.stringify(analysis.cleanedData, null, 2), `cleaned_${fileName.replace(/\.\w+$/, '')}_v1.json`, 'application/json');
   };
 
-  // Computed stats for the results view
   const scoreColor = analysis
     ? analysis.qualityScore >= 85 ? 'text-accent' : analysis.qualityScore >= 60 ? 'text-warning' : 'text-destructive'
     : '';
@@ -221,19 +220,19 @@ export default function DataCleaningCenter() {
             >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-4">
                 <Zap className="w-3 h-3" />
-                Automated Data Profiling & Cleaning
+                {t('cleaning.badge')}
               </div>
               <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
-                Data <span className="text-gradient">Cleaning</span> Center
+                {t('cleaning.title1')} <span className="text-gradient">{t('cleaning.title2')}</span> {t('cleaning.title3')}
               </h1>
               <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto">
-                Upload your raw dataset — we'll profile, clean, and prepare it for analysis
+                {t('cleaning.subtitle')}
               </p>
             </motion.div>
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-6xl mx-auto">
-              {/* Upload Area - Takes more space */}
+              {/* Upload Area */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -243,10 +242,10 @@ export default function DataCleaningCenter() {
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className="w-full mb-4 grid grid-cols-2 h-11">
                     <TabsTrigger value="file" className="flex items-center gap-2 text-sm">
-                      <Upload className="w-4 h-4" /> File Upload
+                      <Upload className="w-4 h-4" /> {t('cleaning.fileUpload')}
                     </TabsTrigger>
                     <TabsTrigger value="api" className="flex items-center gap-2 text-sm">
-                      <Globe className="w-4 h-4" /> API Connection
+                      <Globe className="w-4 h-4" /> {t('cleaning.apiConnection')}
                     </TabsTrigger>
                   </TabsList>
 
@@ -264,8 +263,6 @@ export default function DataCleaningCenter() {
                       onClick={() => inputRef.current?.click()}
                     >
                       <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,.json,.sql" className="hidden" onChange={(e) => e.target.files?.[0] && validateFile(e.target.files[0])} />
-
-                      {/* Decorative glow */}
                       <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
 
                       <motion.div animate={dragActive ? { scale: 1.1, y: -4 } : { scale: 1, y: 0 }} className="mb-6 inline-block relative">
@@ -278,9 +275,8 @@ export default function DataCleaningCenter() {
                       </motion.div>
 
                       <p className="text-foreground font-semibold text-lg mb-2">{t('upload.drop')}</p>
-                      <p className="text-muted-foreground text-sm mb-4">CSV, Excel (.xlsx/.xls), JSON, SQL — up to 25MB</p>
+                      <p className="text-muted-foreground text-sm mb-4">{t('upload.formatsLong')}</p>
 
-                      {/* Supported format badges */}
                       <div className="flex items-center justify-center gap-2 flex-wrap">
                         {['CSV', 'XLSX', 'JSON', 'SQL'].map(fmt => (
                           <span key={fmt} className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-secondary/80 text-muted-foreground border border-border/30">
@@ -309,7 +305,7 @@ export default function DataCleaningCenter() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-foreground font-semibold truncate">{file.name}</p>
-                              <p className="text-muted-foreground text-xs">{(file.size / 1024).toFixed(1)} KB · Ready to analyze</p>
+                              <p className="text-muted-foreground text-xs">{(file.size / 1024).toFixed(1)} KB · {t('upload.readyToAnalyze')}</p>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => { setFile(null); setPreviewData([]); }} className="text-muted-foreground h-8 w-8 p-0">
                               <Trash2 className="w-4 h-4" />
@@ -347,7 +343,7 @@ export default function DataCleaningCenter() {
                     </AnimatePresence>
                     {loadingPreview && (
                       <div className="mt-4 flex items-center justify-center gap-2 text-muted-foreground text-sm">
-                        <Loader2 className="w-4 h-4 animate-spin" /> Loading preview...
+                        <Loader2 className="w-4 h-4 animate-spin" /> {t('upload.loadingPreview')}
                       </div>
                     )}
                   </TabsContent>
@@ -359,8 +355,8 @@ export default function DataCleaningCenter() {
                           <Globe className="w-5 h-5 text-primary-foreground" />
                         </div>
                         <div>
-                          <h3 className="text-foreground font-semibold">REST API Connector</h3>
-                          <p className="text-muted-foreground text-xs">Connect to any REST API with authentication, pagination & scheduling</p>
+                          <h3 className="text-foreground font-semibold">{t('cleaning.apiConnectorTitle')}</h3>
+                          <p className="text-muted-foreground text-xs">{t('cleaning.apiConnectorDesc')}</p>
                         </div>
                       </div>
                       <ApiConnector onDataReady={handleApiDataReady} />
@@ -382,15 +378,15 @@ export default function DataCleaningCenter() {
               >
                 {/* Feature highlights */}
                 <div className="glass-card p-5 space-y-4">
-                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Auto Cleaning Pipeline</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{t('cleaning.pipelineTitle')}</h3>
                   {[
-                    { icon: Database, label: 'Data Profiling', desc: 'Type detection, missing %, outliers' },
-                    { icon: Sparkles, label: 'Smart Cleaning', desc: 'Median/mode imputation, dedup' },
-                    { icon: ShieldCheck, label: 'Quality Score', desc: '0-100 comprehensive rating' },
-                    { icon: BarChart3, label: 'Visual Report', desc: 'Before vs After comparison' },
+                    { icon: Database, labelKey: 'cleaning.dataProfiling', descKey: 'cleaning.dataProfilingDesc' },
+                    { icon: Sparkles, labelKey: 'cleaning.smartCleaning', descKey: 'cleaning.smartCleaningDesc' },
+                    { icon: ShieldCheck, labelKey: 'cleaning.qualityScore', descKey: 'cleaning.qualityScoreDesc' },
+                    { icon: BarChart3, labelKey: 'cleaning.visualReport', descKey: 'cleaning.visualReportDesc' },
                   ].map((item, i) => (
                     <motion.div
-                      key={item.label}
+                      key={item.labelKey}
                       initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 + i * 0.08 }}
@@ -400,8 +396,8 @@ export default function DataCleaningCenter() {
                         <item.icon className="w-4 h-4 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-foreground">{item.label}</p>
-                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                        <p className="text-sm font-medium text-foreground">{t(item.labelKey)}</p>
+                        <p className="text-xs text-muted-foreground">{t(item.descKey)}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -423,25 +419,25 @@ export default function DataCleaningCenter() {
                   {fileName}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Cleaning complete · {analysis.rows.toLocaleString()} rows × {analysis.columns} columns
+                  {t('cleaning.complete')} · {analysis.rows.toLocaleString()} {t('common.rows')} × {analysis.columns} {t('common.columns')}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handleReset} className="text-xs gap-1 h-9">
-                  <Trash2 className="w-3 h-3" /> Reset
+                  <Trash2 className="w-3 h-3" /> {t('cleaning.reset')}
                 </Button>
                 <Button size="sm" onClick={goToStudio} className="text-xs gap-1.5 h-9 gradient-primary text-primary-foreground glow-primary hover:opacity-90 transition-all">
-                  <BarChart3 className="w-3.5 h-3.5" /> Open in Studio <ArrowRight className="w-3.5 h-3.5" />
+                  <BarChart3 className="w-3.5 h-3.5" /> {t('cleaning.openInStudio')} <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
 
-            {/* === 3-Column Top Panel (reference layout) === */}
+            {/* === 3-Column Top Panel === */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* File Upload Info */}
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-                <h3 className="text-sm font-semibold text-foreground mb-4 relative">File Upload</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-4 relative">{t('cleaning.fileUploadInfo')}</h3>
                 <div className="relative flex flex-col items-center text-center">
                   <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-3">
                     <FileSpreadsheet className="w-8 h-8 text-primary" />
@@ -449,10 +445,10 @@ export default function DataCleaningCenter() {
                   <p className="text-xs text-muted-foreground mb-4 truncate max-w-full">{fileName}</p>
                   <div className="grid grid-cols-2 gap-3 w-full text-left">
                     {[
-                      { label: 'Rows', val: analysis.rows.toLocaleString() },
-                      { label: 'Columns', val: analysis.columns },
-                      { label: 'Duplicates', val: analysis.duplicatesRemoved },
-                      { label: 'Missing', val: `${analysis.missingPercent}%` },
+                      { label: t('cleaning.rows'), val: analysis.rows.toLocaleString() },
+                      { label: t('cleaning.columns'), val: analysis.columns },
+                      { label: t('cleaning.duplicates'), val: analysis.duplicatesRemoved },
+                      { label: t('cleaning.missingLabel'), val: `${analysis.missingPercent}%` },
                     ].map(s => (
                       <div key={s.label} className="bg-secondary/50 rounded-lg p-2.5">
                         <p className="text-[10px] text-muted-foreground uppercase">{s.label}</p>
@@ -463,9 +459,9 @@ export default function DataCleaningCenter() {
                 </div>
               </motion.div>
 
-              {/* Data Quality Score - Circular */}
+              {/* Data Quality Score */}
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={`glass-card p-6 flex flex-col items-center justify-center ${scoreGlow}`}>
-                <h3 className="text-sm font-semibold text-foreground mb-4">Data Quality Score Card</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-4">{t('cleaning.qualityScoreCard')}</h3>
                 <div className="relative w-36 h-36 mb-4">
                   <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
                     <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--border))" strokeWidth="8" opacity="0.2" />
@@ -475,18 +471,18 @@ export default function DataCleaningCenter() {
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className={`text-3xl font-bold data-font ${scoreColor}`}>{analysis.qualityScore}%</span>
-                    <span className="text-[10px] text-muted-foreground">quality</span>
+                    <span className="text-[10px] text-muted-foreground">{t('cleaning.quality')}</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-center">
-                  <div><p className="text-lg font-bold text-foreground data-font">{analysis.columns}</p><p className="text-[10px] text-muted-foreground">Columns</p></div>
-                  <div><p className="text-lg font-bold text-foreground data-font">{analysis.duplicatesRemoved}</p><p className="text-[10px] text-muted-foreground">Duplicates</p></div>
+                  <div><p className="text-lg font-bold text-foreground data-font">{analysis.columns}</p><p className="text-[10px] text-muted-foreground">{t('cleaning.columns')}</p></div>
+                  <div><p className="text-lg font-bold text-foreground data-font">{analysis.duplicatesRemoved}</p><p className="text-[10px] text-muted-foreground">{t('cleaning.duplicates')}</p></div>
                 </div>
               </motion.div>
 
               {/* Column Profiling */}
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-4">Column Profiling</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-4">{t('cleaning.columnProfiling')}</h3>
                 <div className="space-y-2.5 max-h-[300px] overflow-auto scrollbar-thin">
                   {analysis.columnInfo.map(col => (
                     <div key={col.name} className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0">
@@ -496,7 +492,7 @@ export default function DataCleaningCenter() {
                       </div>
                       <div className="text-right shrink-0 ml-3">
                         <p className="text-xs font-bold text-foreground data-font">{col.stats ? col.stats.mean?.toFixed(1) ?? col.uniqueCount : col.uniqueCount}</p>
-                        <p className="text-[10px] text-muted-foreground">{col.missingPercent.toFixed(0)}% missing</p>
+                        <p className="text-[10px] text-muted-foreground">{col.missingPercent.toFixed(0)}% {t('cleaning.missing')}</p>
                       </div>
                     </div>
                   ))}
@@ -507,7 +503,7 @@ export default function DataCleaningCenter() {
             {/* === Before / After Tables === */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card p-4">
-                <h3 className="text-lg font-bold text-foreground mb-3">Before</h3>
+                <h3 className="text-lg font-bold text-foreground mb-3">{t('cleaning.before')}</h3>
                 <div className="max-h-[350px] overflow-auto scrollbar-thin rounded-lg border border-border/30">
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10">
@@ -531,7 +527,7 @@ export default function DataCleaningCenter() {
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-4">
-                <h3 className="text-lg font-bold text-foreground mb-3">After</h3>
+                <h3 className="text-lg font-bold text-foreground mb-3">{t('cleaning.after')}</h3>
                 <div className="max-h-[350px] overflow-auto scrollbar-thin rounded-lg border border-border/30">
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 bg-secondary/95 backdrop-blur-sm z-10">
@@ -567,7 +563,7 @@ export default function DataCleaningCenter() {
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center"><Download className="w-4 h-4 text-accent" /></div>
-                  <div><h3 className="text-sm font-medium text-foreground">Download Cleaned Dataset</h3><p className="text-[10px] text-muted-foreground">Export in your preferred format</p></div>
+                  <div><h3 className="text-sm font-medium text-foreground">{t('cleaning.downloadCleaned')}</h3><p className="text-[10px] text-muted-foreground">{t('cleaning.downloadCleanedDesc')}</p></div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" className="text-xs gap-1.5 h-9" onClick={downloadCleanedCSV}><Download className="w-3 h-3" /> CSV</Button>
