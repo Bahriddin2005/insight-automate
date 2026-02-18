@@ -174,9 +174,18 @@ export default function AidaAssistant() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [textInput, setTextInput] = useState('');
   const textInputRef = useRef<HTMLTextAreaElement>(null);
-  // Voice selection: 'male' = Daniel, 'female' = Laura
-  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>('male');
-  const voiceMap = { male: 'onwK4e9ZLuTAKqWW03F9', female: 'FGY2WhTYpPnrIDTdsKH5' };
+  // Voice selection
+  const [selectedVoice, setSelectedVoice] = useState('daniel');
+  const [voiceSpeed, setVoiceSpeed] = useState(1.15);
+  const voiceOptions = [
+    { id: 'daniel', name: 'Daniel', label: '🎙️ Daniel (Erkak)', voiceId: 'onwK4e9ZLuTAKqWW03F9' },
+    { id: 'laura', name: 'Laura', label: '🎙️ Laura (Ayol)', voiceId: 'FGY2WhTYpPnrIDTdsKH5' },
+    { id: 'alice', name: 'Alice', label: '🎙️ Alice (Ayol)', voiceId: 'Xb7hH8MSUJpSbSDYk0k2' },
+    { id: 'matilda', name: 'Matilda', label: '🎙️ Matilda (Ayol)', voiceId: 'XrExE9yKIg1WjnnlVkGX' },
+    { id: 'santa', name: 'Santa', label: '🎅 Santa', voiceId: 'MDLAMJ0jxkpYkjXbmG4t' },
+    { id: 'sarah', name: 'Sarah', label: '🎙️ Sarah (Ayol)', voiceId: 'EXAVITQu4vr4xnSDxMaL' },
+  ];
+  const currentVoice = voiceOptions.find(v => v.id === selectedVoice) || voiceOptions[0];
 
   // Auto-focus text input on mount
   useEffect(() => {
@@ -694,7 +703,7 @@ ${chatMessages.map(m => {
             'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ text: cleanText, voiceId: voiceMap[voiceGender], speed: 1.15 }),
+          body: JSON.stringify({ text: cleanText, voiceId: currentVoice.voiceId, speed: voiceSpeed }),
         }
       );
       if (!response.ok) throw new Error('TTS xatolik');
@@ -867,18 +876,29 @@ ${chatMessages.map(m => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5 text-xs">
                   <User className="w-3.5 h-3.5" />
-                  {voiceGender === 'male' ? 'Erkak ovozi' : 'Ayol ovozi'}
+                  {currentVoice.name}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setVoiceGender('male')}>
-                  🎙️ Daniel (Erkak)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setVoiceGender('female')}>
-                  🎙️ Laura (Ayol)
-                </DropdownMenuItem>
+                {voiceOptions.map(v => (
+                  <DropdownMenuItem key={v.id} onClick={() => setSelectedVoice(v.id)}>
+                    {v.label} {selectedVoice === v.id && '✓'}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <div className="flex items-center gap-1.5 px-2">
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">{voiceSpeed.toFixed(1)}x</span>
+              <input
+                type="range"
+                min="0.8"
+                max="1.2"
+                step="0.05"
+                value={voiceSpeed}
+                onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+                className="w-16 h-1 accent-primary cursor-pointer"
+              />
+            </div>
             <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground">
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </Button>
