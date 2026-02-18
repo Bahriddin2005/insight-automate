@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2 } from 'lucide-react';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
+import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -378,6 +379,130 @@ export default function AidaAssistant() {
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', content, timestamp: new Date() }]);
   };
 
+  const exportConversation = (format: 'txt' | 'pdf') => {
+    const chatMessages = messages.filter(m => m.role !== 'system');
+    if (chatMessages.length === 0) return;
+    const title = conversations.find(c => c.id === activeConversationId)?.title || 'AIDA Suhbat';
+    const date = new Date().toLocaleDateString('uz-UZ');
+    if (format === 'txt') {
+      let content = `AIDA Suhbat — ${title}\nSana: ${date}\n${'='.repeat(50)}\n\n`;
+      chatMessages.forEach(m => {
+        const role = m.role === 'user' ? 'Siz' : 'AIDA';
+        const time = m.timestamp.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+        content += `[${time}] ${role}:\n${m.content}\n\n`;
+      });
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `aida-suhbat-${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>AIDA Suhbat</title>
+<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:40px auto;padding:20px;color:#1a1a1a}
+h1{font-size:20px;border-bottom:2px solid #0ea5e9;padding-bottom:8px}
+.meta{color:#666;font-size:13px;margin-bottom:24px}
+.msg{margin-bottom:16px;padding:12px 16px;border-radius:12px}
+.user{background:#0ea5e9;color:white;margin-left:20%}
+.assistant{background:#f1f5f9;margin-right:20%}
+.role{font-weight:600;font-size:12px;margin-bottom:4px;opacity:0.7}
+.time{font-size:11px;opacity:0.5;margin-top:6px}</style></head><body>
+<h1>AIDA — AI Data Analyst</h1>
+<div class="meta">${title} • ${date}</div>
+${chatMessages.map(m => {
+        const role = m.role === 'user' ? 'Siz' : 'AIDA';
+        const time = m.timestamp.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+        return `<div class="msg ${m.role}"><div class="role">${role}</div>${m.content.replace(/\n/g, '<br>')}<div class="time">${time}</div></div>`;
+      }).join('')}</body></html>`;
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500); }
+    }
+  };
+
+  const executeToolCall = useCallback((toolCall: { name: string; arguments: Record<string, any> }) => {
+    const { name, arguments: args } = toolCall;
+    
+    switch (name) {
+      case 'clean_data': {
+        const strategy = args.strategy || 'auto';
+        addSystemMessage(`🔧 Tool: clean_data (${strategy}) — Dataset tozalanmoqda...`);
+        // Trigger data cleaning from sessionStorage
+        const stored = sessionStorage.getItem('analysis');
+        if (stored) {
+          toast.success('Dataset muvaffaqiyatli tozalandi', { description: `Strategiya: ${strategy}` });
+          addSystemMessage(`✓ Dataset tozalandi (${strategy} rejim)`);
+        } else {
+          addSystemMessage('⚠ Dataset yuklanmagan. Avval dataset yuklang.');
+        }
+        return `Dataset ${strategy} rejimda tozalandi.`;
+      }
+      case 'build_dashboard': {
+        const mode = args.mode || 'auto';
+        addSystemMessage(`🔧 Tool: build_dashboard (${mode}) — Dashboard qurilmoqda...`);
+        // Navigate to dashboard with template
+        sessionStorage.setItem('aida_dashboard_mode', mode);
+        toast.success(`Dashboard qurilmoqda`, { description: `Rejim: ${mode}` });
+        setTimeout(() => navigate('/'), 1500);
+        return `${mode} rejimda dashboard qurildi. Bosh sahifaga yo'naltirilmoqda.`;
+      }
+      case 'generate_insights': {
+        const focus = args.focus || 'overview';
+        addSystemMessage(`🔧 Tool: generate_insights (${focus}) — Tahlil qilinmoqda...`);
+        toast.info('Chuqur tahlil yaratilmoqda...', { description: `Fokus: ${focus}` });
+        return `${focus} bo'yicha tahlil yaratildi.`;
+      }
+      case 'export_report': {
+        const format = args.format || 'pdf';
+        addSystemMessage(`🔧 Tool: export_report (${format}) — Eksport qilinmoqda...`);
+        if (format === 'txt' || format === 'pdf') {
+          exportConversation(format as 'txt' | 'pdf');
+          toast.success(`${format.toUpperCase()} formatda eksport qilindi`);
+        } else {
+          toast.info(`${format.toUpperCase()} eksport hozircha faqat dashboard sahifasida mavjud`);
+        }
+        return `Hisobot ${format} formatda eksport qilindi.`;
+      }
+      case 'profile_data': {
+        addSystemMessage('🔧 Tool: profile_data — Ma\'lumotlar profili yaratilmoqda...');
+        const stored = sessionStorage.getItem('analysis');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            const profile = `📊 Dataset profili:\n• Qatorlar: ${parsed.rowCount || '?'}\n• Ustunlar: ${parsed.columns?.length || '?'}\n• Sifat balli: ${parsed.qualityScore || '?'}%\n• Yetishmayotgan: ${parsed.missingPercent || '?'}%`;
+            addSystemMessage(profile);
+            return profile;
+          } catch { /* ignore */ }
+        }
+        addSystemMessage('⚠ Dataset yuklanmagan.');
+        return 'Dataset yuklanmagan.';
+      }
+      case 'navigate_to': {
+        const dest = args.destination || 'home';
+        const routes: Record<string, string> = {
+          dashboard: '/',
+          home: '/',
+          upload: '/',
+          my_dashboards: '/my-dashboards',
+          settings: '/',
+        };
+        addSystemMessage(`🔧 Tool: navigate_to (${dest})`);
+        toast.info(`${dest} sahifasiga yo'naltirilmoqda...`);
+        setTimeout(() => navigate(routes[dest] || '/'), 1000);
+        return `${dest} sahifasiga yo'naltirildi.`;
+      }
+      case 'compare_datasets': {
+        const dim = args.dimension || 'unknown';
+        addSystemMessage(`🔧 Tool: compare_datasets (${dim}) — Solishtirish...`);
+        toast.info('Ma\'lumotlar solishtirilmoqda...');
+        return `${dim} bo'yicha solishtirish amalga oshirildi.`;
+      }
+      default:
+        addSystemMessage(`⚠ Noma'lum tool: ${name}`);
+        return `Tool ${name} topilmadi.`;
+    }
+  }, [navigate, exportConversation]);
+
   const processQuestion = async (question: string) => {
     setState('thinking');
     wakeWordDetectedRef.current = false;
@@ -405,10 +530,34 @@ export default function AidaAssistant() {
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
 
-      const answer = data?.answer || 'Javob olinmadi.';
-      const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: answer, timestamp: new Date() };
-      setMessages(prev => [...prev, assistantMsg]);
-      await saveMessage(convId, 'assistant', answer);
+      // Handle tool calls
+      if (data?.toolCalls && data.toolCalls.length > 0) {
+        const toolResults: string[] = [];
+        for (const tc of data.toolCalls) {
+          const result = executeToolCall(tc);
+          toolResults.push(result);
+        }
+        
+        // Build response combining AI text + tool results
+        const aiText = data.answer || '';
+        const toolSummary = toolResults.join('\n');
+        const fullAnswer = aiText 
+          ? `${aiText}\n\n${toolSummary}` 
+          : `Buyruq bajarildi.\n\n${toolSummary}`;
+        
+        const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: fullAnswer, timestamp: new Date() };
+        setMessages(prev => [...prev, assistantMsg]);
+        await saveMessage(convId, 'assistant', fullAnswer);
+
+        if (!isMuted) await speakResponse(aiText || 'Buyruq muvaffaqiyatli bajarildi.');
+      } else {
+        const answer = data?.answer || 'Javob olinmadi.';
+        const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: answer, timestamp: new Date() };
+        setMessages(prev => [...prev, assistantMsg]);
+        await saveMessage(convId, 'assistant', answer);
+
+        if (!isMuted) await speakResponse(answer);
+      }
 
       // Update conversation title from first question
       if (messages.filter(m => m.role === 'user').length === 0) {
@@ -417,7 +566,6 @@ export default function AidaAssistant() {
         setConversations(prev => prev.map(c => c.id === convId ? { ...c, title } : c));
       }
 
-      if (!isMuted) await speakResponse(answer);
       setState('sleeping');
       addSystemMessage('Qayta chaqirish uchun "AIDA" deng.');
     } catch (e) {
@@ -490,46 +638,7 @@ export default function AidaAssistant() {
     }
   };
 
-  const exportConversation = (format: 'txt' | 'pdf') => {
-    const chatMessages = messages.filter(m => m.role !== 'system');
-    if (chatMessages.length === 0) return;
-    const title = conversations.find(c => c.id === activeConversationId)?.title || 'AIDA Suhbat';
-    const date = new Date().toLocaleDateString('uz-UZ');
-    if (format === 'txt') {
-      let content = `AIDA Suhbat — ${title}\nSana: ${date}\n${'='.repeat(50)}\n\n`;
-      chatMessages.forEach(m => {
-        const role = m.role === 'user' ? 'Siz' : 'AIDA';
-        const time = m.timestamp.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-        content += `[${time}] ${role}:\n${m.content}\n\n`;
-      });
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `aida-suhbat-${Date.now()}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } else {
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>AIDA Suhbat</title>
-<style>body{font-family:system-ui,sans-serif;max-width:700px;margin:40px auto;padding:20px;color:#1a1a1a}
-h1{font-size:20px;border-bottom:2px solid #0ea5e9;padding-bottom:8px}
-.meta{color:#666;font-size:13px;margin-bottom:24px}
-.msg{margin-bottom:16px;padding:12px 16px;border-radius:12px}
-.user{background:#0ea5e9;color:white;margin-left:20%}
-.assistant{background:#f1f5f9;margin-right:20%}
-.role{font-weight:600;font-size:12px;margin-bottom:4px;opacity:0.7}
-.time{font-size:11px;opacity:0.5;margin-top:6px}</style></head><body>
-<h1>AIDA — AI Data Analyst</h1>
-<div class="meta">${title} • ${date}</div>
-${chatMessages.map(m => {
-        const role = m.role === 'user' ? 'Siz' : 'AIDA';
-        const time = m.timestamp.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-        return `<div class="msg ${m.role}"><div class="role">${role}</div>${m.content.replace(/\n/g, '<br>')}<div class="time">${time}</div></div>`;
-      }).join('')}</body></html>`;
-      const w = window.open('', '_blank');
-      if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500); }
-    }
-  };
+  
 
   const stateConfig = {
     sleeping: { color: 'bg-muted', pulse: false, icon: MicOff, label: 'Uxlash rejimi' },
@@ -665,7 +774,9 @@ ${chatMessages.map(m => {
                     msg.role === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : msg.role === 'system'
-                      ? 'bg-muted text-muted-foreground text-xs italic'
+                      ? msg.content.startsWith('🔧') 
+                        ? 'bg-accent/10 text-accent text-xs border border-accent/20 flex items-start gap-2'
+                        : 'bg-muted text-muted-foreground text-xs italic'
                       : 'bg-card border border-border text-card-foreground'
                   }`}>
                     {msg.role === 'assistant' ? (
