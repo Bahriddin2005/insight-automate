@@ -340,12 +340,26 @@ export default function AidaAssistant() {
     };
 
     recognition.onerror = (event: any) => {
-      if (event.error !== 'no-speech') console.error('Speech error:', event.error);
+      if (event.error === 'no-speech') return;
+      console.error('Speech error:', event.error);
+      if (event.error === 'network' || event.error === 'audio-capture' || event.error === 'not-allowed') {
+        // Retry after a short delay for recoverable errors
+        setTimeout(() => {
+          if (recognitionRef.current) {
+            try { recognitionRef.current.stop(); } catch {}
+            try { recognitionRef.current.start(); } catch {}
+          }
+        }, 1500);
+      }
     };
 
     recognition.onend = () => {
       if (recognitionRef.current) {
-        try { recognition.start(); } catch {}
+        setTimeout(() => {
+          if (recognitionRef.current) {
+            try { recognitionRef.current.start(); } catch {}
+          }
+        }, 300);
       }
     };
 
