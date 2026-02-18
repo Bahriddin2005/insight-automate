@@ -164,6 +164,7 @@ export default function AidaAssistant() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -551,6 +552,7 @@ ${chatMessages.map(m => {
       
       if (contentType.includes('text/event-stream') && response.body) {
         // Add placeholder message for streaming
+        setStreamingMsgId(streamingMsgId);
         const placeholderMsg: Message = { id: streamingMsgId, role: 'assistant', content: '', timestamp: new Date() };
         setMessages(prev => [...prev, placeholderMsg]);
 
@@ -640,6 +642,7 @@ ${chatMessages.map(m => {
 
       if (!streamedContent) streamedContent = 'Javob olinmadi.';
 
+      setStreamingMsgId(null);
       await saveMessage(convId, 'assistant', streamedContent);
       if (!isMuted) await speakResponse(streamedContent);
 
@@ -654,6 +657,7 @@ ${chatMessages.map(m => {
       addSystemMessage('Qayta chaqirish uchun "AIDA" deng.');
     } catch (e) {
       console.error('AIDA error:', e);
+      setStreamingMsgId(null);
       setError(e instanceof Error ? e.message : 'Xatolik yuz berdi');
       setState('sleeping');
     }
@@ -872,6 +876,9 @@ ${chatMessages.map(m => {
                     {msg.role === 'assistant' ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        {streamingMsgId === msg.id && (
+                          <span className="inline-block w-2 h-4 bg-primary/80 ml-0.5 animate-pulse rounded-sm" />
+                        )}
                       </div>
                     ) : (
                       <p className="text-sm">{msg.content}</p>
