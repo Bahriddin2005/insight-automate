@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import KPICards from './KPICards';
 import KPICardsSkeleton from './KPICardsSkeleton';
-import AutoCharts from './AutoCharts';
+import ChartViewToggle from './ChartViewToggle';
 import ChartSkeleton from './ChartSkeleton';
 import DataTable from './DataTable';
 import InsightsPanel from './InsightsPanel';
@@ -337,7 +337,7 @@ export default function Dashboard({ analysis, fileName, onReset }: DashboardProp
                   case 'cleaning': return <CleaningReport analysis={analysis} fileName={fileName} />;
                   case 'schema': return <SchemaViewer analysis={analysis} />;
                   case 'insights': return <InsightsPanel analysis={analysis} />;
-                  case 'charts': return isLoading ? <ChartSkeleton /> : <AutoCharts analysis={analysis} filteredData={filteredData} />;
+                  case 'charts': return isLoading ? <ChartSkeleton /> : <ChartViewToggle analysis={analysis} filteredData={filteredData} />;
                   case 'trend': return !isLoading ? <TrendComparisonChart analysis={analysis} filteredData={filteredData} /> : null;
                   case 'forecasting': return !isLoading ? <PredictiveForecasting analysis={analysis} filteredData={filteredData} /> : null;
                   case 'correlation': return !isLoading && numericColNames.length >= 2 ? <CorrelationHeatmap data={filteredData} numericColumns={numericColNames} /> : null;
