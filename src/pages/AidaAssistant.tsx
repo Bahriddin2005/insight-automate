@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -167,6 +168,7 @@ export default function AidaAssistant() {
   const wakeWordDetectedRef = useRef(false);
   const accumulatedTranscriptRef = useRef('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [textInput, setTextInput] = useState('');
 
   // Load conversations
   useEffect(() => {
@@ -670,6 +672,28 @@ export default function AidaAssistant() {
             }`}>
               {datasetContext ? `✓ ${datasetName || 'Dataset ulangan'}` : '○ Dataset yuklanmagan'}
             </div>
+
+            {/* Text input */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!textInput.trim() || state === 'thinking') return;
+                processQuestion(textInput.trim());
+                setTextInput('');
+              }}
+              className="flex gap-2 w-full max-w-md"
+            >
+              <Input
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Savolingizni yozing..."
+                className="flex-1 bg-secondary border-border text-sm h-10"
+                disabled={state === 'thinking'}
+              />
+              <Button type="submit" size="icon" disabled={state === 'thinking' || !textInput.trim()} className="h-10 w-10 shrink-0">
+                <Send className="w-4 h-4" />
+              </Button>
+            </form>
           </div>
         </div>
       </div>
