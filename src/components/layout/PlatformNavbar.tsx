@@ -7,17 +7,17 @@ import LanguageToggle from '@/components/dashboard/LanguageToggle';
 import { useAuth } from '@/lib/authContext';
 import { useI18n } from '@/lib/i18nContext';
 
-const navItems = [
-  { path: '/cleaning', label: 'Data Cleaning', icon: Sparkles },
-  { path: '/studio', label: 'Dashboard Studio', icon: BarChart3 },
-  { path: '/dashboards', label: 'History', icon: Clock },
-];
-
 export default function PlatformNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut } = useAuth();
   const { t } = useI18n();
+
+  const navItems = [
+    { path: '/cleaning', label: t('nav.dataCleaning'), icon: Sparkles },
+    { path: '/studio', label: t('nav.dashboardStudio'), icon: BarChart3 },
+    { path: '/dashboards', label: t('nav.history'), icon: Clock },
+  ];
 
   return (
     <motion.header
