@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/authContext';
 import { CATEGORIES, CASE_STUDIES, type CaseCategory } from '@/lib/caseStudies';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import LanguageToggle from '@/components/dashboard/LanguageToggle';
+import { useI18n } from '@/lib/i18nContext';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   BarChart3: <BarChart3 className="w-5 h-5" />,
@@ -18,6 +19,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 export default function Portfolio() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { t } = useI18n();
   const [activeCategory, setActiveCategory] = useState<CaseCategory | 'all'>('all');
 
   const filtered = activeCategory === 'all'
@@ -34,19 +36,19 @@ export default function Portfolio() {
               <Briefcase className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">Elite Data Analyst Lab</h1>
-              <p className="text-xs text-muted-foreground">Senior-Level Analytics Portfolio</p>
+              <h1 className="text-lg font-bold text-foreground">{t('portfolio.title')}</h1>
+              <p className="text-xs text-muted-foreground">{t('portfolio.subtitle')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="text-xs text-muted-foreground">
-              <BarChart3 className="w-3 h-3 mr-1" /> Intelligence Studio
+              <BarChart3 className="w-3 h-3 mr-1" /> {t('portfolio.backToStudio')}
             </Button>
             <ThemeToggle />
             <LanguageToggle />
             {user && (
               <Button variant="ghost" size="sm" onClick={signOut} className="text-xs text-muted-foreground">
-                Sign Out
+                {t('portfolio.signOut')}
               </Button>
             )}
           </div>
@@ -57,14 +59,14 @@ export default function Portfolio() {
       <section className="max-w-7xl mx-auto px-6 py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-            <span className="text-gradient">Data Analytics</span>{' '}
-            <span className="text-foreground">Case Studies</span>
+            <span className="text-gradient">{t('portfolio.heroTitle1')}</span>{' '}
+            <span className="text-foreground">{t('portfolio.heroTitle2')}</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Real-world analytics projects demonstrating structured business thinking, KPI identification, and strategic recommendations at senior-analyst level.
+            {t('portfolio.heroDesc')}
           </p>
           <div className="flex items-center justify-center gap-4 mt-6 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5"><BarChart3 className="w-4 h-4 text-primary" /> Product</span>
+            <span className="flex items-center gap-1.5"><BarChart3 className="w-4 h-4 text-primary" /> {t('portfolio.product')}</span>
             <span className="flex items-center gap-1.5"><Brain className="w-4 h-4" style={{ color: 'hsl(var(--chart-4))' }} /> AI/ML</span>
             <span className="flex items-center gap-1.5"><DollarSign className="w-4 h-4" style={{ color: 'hsl(var(--chart-3))' }} /> Finance</span>
             <span className="flex items-center gap-1.5"><Rocket className="w-4 h-4 text-accent" /> Growth</span>
@@ -79,7 +81,7 @@ export default function Portfolio() {
             onClick={() => setActiveCategory('all')}
             className="rounded-full"
           >
-            All Projects
+            {t('portfolio.allProjects')}
           </Button>
           {(Object.entries(CATEGORIES) as [CaseCategory, typeof CATEGORIES[CaseCategory]][]).map(([key, cat]) => (
             <Button
@@ -147,8 +149,8 @@ export default function Portfolio() {
                   {/* Tools */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                      {study.tools.slice(0, 4).map(t => (
-                        <span key={t} className="px-1.5 py-0.5 rounded bg-muted/50">{t}</span>
+                      {study.tools.slice(0, 4).map(tool => (
+                        <span key={tool} className="px-1.5 py-0.5 rounded bg-muted/50">{tool}</span>
                       ))}
                       {study.tools.length > 4 && <span>+{study.tools.length - 4}</span>}
                     </div>
