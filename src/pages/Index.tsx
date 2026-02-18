@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BarChart3, Sparkles, ShieldCheck, Brain, Zap, ArrowRight, Upload,
-  TrendingUp, Target, Layers3, ChevronRight, Star, Database, Eye
+  TrendingUp, Target, Layers3, ChevronRight, Star, Database, Eye, Quote
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/authContext';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import LanguageToggle from '@/components/dashboard/LanguageToggle';
 import { Loader2 } from 'lucide-react';
+import demoDashboard from '@/assets/demo-dashboard.jpg';
 
 const features = [
   {
@@ -56,6 +57,30 @@ const steps = [
   { num: '04', title: 'Export', desc: 'Download or share your results', icon: Target },
 ];
 
+const testimonials = [
+  {
+    name: 'Aziza Karimova',
+    role: 'Data Analyst, FinTech Solutions',
+    text: "Intelligence Studio bizning ish jarayonimizni tubdan o'zgartirdi. Ma'lumotlarni tozalash va tahlil qilish endi bir necha daqiqada amalga oshadi.",
+    avatar: 'AK',
+    rating: 5,
+  },
+  {
+    name: 'Jasur Toshmatov',
+    role: 'CEO, DataDrive.uz',
+    text: "AI tahlil va 3D vizualizatsiya imkoniyatlari juda kuchli. Mijozlarimizga professional hisobotlar taqdim etish osonlashdi.",
+    avatar: 'JT',
+    rating: 5,
+  },
+  {
+    name: 'Nilufar Abdullayeva',
+    role: 'Marketing Director, E-Commerce Hub',
+    text: "CSV fayllarni yuklash va avtomatik dashboard yaratish — bu haqiqatan ham sehrli. Vaqtni 10 barobar tejaydi.",
+    avatar: 'NA',
+    rating: 5,
+  },
+];
+
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -96,7 +121,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <LanguageToggle />
-            <Button variant="ghost" size="sm" onClick={() => navigate('/auth')} className="text-sm text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/auth')} className="text-sm text-muted-foreground hidden sm:inline-flex">
               Kirish
             </Button>
             <Button size="sm" onClick={() => navigate('/auth')} className="gradient-primary text-primary-foreground text-sm font-semibold px-5 glow-primary">
@@ -108,7 +133,6 @@ const Index = () => {
 
       {/* Hero Section */}
       <section className="relative pt-16 sm:pt-24 pb-20 sm:pb-32 px-4 sm:px-6">
-        {/* Background effects */}
         <div className="absolute top-20 left-1/4 w-96 h-96 rounded-full bg-primary/8 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-10 right-1/4 w-72 h-72 rounded-full bg-accent/8 blur-[100px] pointer-events-none" />
 
@@ -161,6 +185,38 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
               </motion.div>
             ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Demo Screenshot */}
+      <section className="py-8 sm:py-16 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="relative rounded-2xl overflow-hidden border border-border/30 shadow-2xl shadow-primary/10 group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 left-0 right-0 h-10 bg-background/80 backdrop-blur-sm flex items-center gap-2 px-4 z-20">
+              <div className="w-3 h-3 rounded-full bg-destructive/60" />
+              <div className="w-3 h-3 rounded-full bg-warning/60" />
+              <div className="w-3 h-3 rounded-full bg-success/60" />
+              <span className="text-[10px] text-muted-foreground ml-2 font-mono">Intelligence Studio — Dashboard</span>
+            </div>
+            <motion.img
+              src={demoDashboard}
+              alt="Intelligence Studio dashboard demo showing charts, KPIs and data tables"
+              className="w-full pt-10 transition-transform duration-700 group-hover:scale-[1.02]"
+              loading="lazy"
+            />
+            <div className="absolute bottom-6 left-0 right-0 z-20 text-center">
+              <Button size="sm" onClick={() => navigate('/auth')} className="gradient-primary text-primary-foreground font-semibold glow-primary">
+                <Sparkles className="w-4 h-4 mr-2" /> Hoziroq sinab ko'ring
+              </Button>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -248,6 +304,61 @@ const Index = () => {
                   </div>
                   <h3 className="text-lg font-bold text-foreground mb-2">{f.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-14"
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-chart-3/10 border border-chart-3/20 text-chart-3 text-xs font-medium mb-4">
+              <Quote className="w-3 h-3" />
+              Mijozlar fikrlari
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
+              Foydalanuvchilar <span className="text-gradient">nima deydi?</span>
+            </h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              Minglab mutaxassislar Intelligence Studio'dan foydalanmoqda
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {testimonials.map((t, i) => (
+              <motion.div
+                key={t.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.12 }}
+                className="glass-card p-6 relative group hover:border-primary/20 transition-all duration-300"
+              >
+                <Quote className="w-8 h-8 text-primary/10 absolute top-4 right-4" />
+                <div className="flex items-center gap-1 mb-4">
+                  {Array.from({ length: t.rating }).map((_, j) => (
+                    <Star key={j} className="w-4 h-4 fill-primary text-primary" />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-5 italic">
+                  "{t.text}"
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
+                    {t.avatar}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{t.name}</p>
+                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                  </div>
                 </div>
               </motion.div>
             ))}
