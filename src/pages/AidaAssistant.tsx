@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square } from 'lucide-react';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -874,31 +874,82 @@ ${chatMessages.map(m => {
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5 text-xs">
-                  <User className="w-3.5 h-3.5" />
-                  {currentVoice.name}
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs border-border">
+                  <Volume2 className="w-3.5 h-3.5" />
+                  {currentVoice.name} • {voiceSpeed.toFixed(1)}x
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {voiceOptions.map(v => (
-                  <DropdownMenuItem key={v.id} onClick={() => setSelectedVoice(v.id)}>
-                    {v.label} {selectedVoice === v.id && '✓'}
-                  </DropdownMenuItem>
-                ))}
+              <DropdownMenuContent align="end" className="w-72 bg-popover border-border z-50 p-3">
+                <p className="text-xs font-semibold text-foreground mb-2">Ovoz tanlang</p>
+                <div className="space-y-1 mb-3">
+                  {voiceOptions.map(v => (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVoice(v.id)}
+                      className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                        selectedVoice === v.id
+                          ? 'bg-primary/10 text-primary border border-primary/30'
+                          : 'hover:bg-muted text-foreground'
+                      }`}
+                    >
+                      <span>{v.label}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Preview voice
+                          const previewAudio = document.getElementById('voice-preview-audio') as HTMLAudioElement;
+                          if (previewAudio && !previewAudio.paused) {
+                            previewAudio.pause();
+                            previewAudio.currentTime = 0;
+                            return;
+                          }
+                          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aida-tts`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                            },
+                            body: JSON.stringify({ text: 'Salom, men AIDA sun\'iy intellekt yordamchisiman.', voiceId: v.voiceId, speed: voiceSpeed }),
+                          }).then(r => r.blob()).then(blob => {
+                            const url = URL.createObjectURL(blob);
+                            let audio = document.getElementById('voice-preview-audio') as HTMLAudioElement;
+                            if (!audio) {
+                              audio = document.createElement('audio');
+                              audio.id = 'voice-preview-audio';
+                              document.body.appendChild(audio);
+                            }
+                            audio.src = url;
+                            audio.play();
+                          }).catch(() => toast.error('Preview xatolik'));
+                        }}
+                        className="p-1 rounded-md hover:bg-background transition-colors"
+                        title="Ovozni tinglash"
+                      >
+                        <Play className="w-3.5 h-3.5" />
+                      </button>
+                    </button>
+                  ))}
+                </div>
+                <div className="border-t border-border pt-3">
+                  <p className="text-xs font-semibold text-foreground mb-1.5">Tezlik: {voiceSpeed.toFixed(2)}x</p>
+                  <input
+                    type="range"
+                    min="0.8"
+                    max="1.2"
+                    step="0.05"
+                    value={voiceSpeed}
+                    onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+                    className="w-full h-1.5 accent-primary cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
+                    <span>0.8x</span>
+                    <span>1.0x</span>
+                    <span>1.2x</span>
+                  </div>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
-            <div className="flex items-center gap-1.5 px-2">
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap">{voiceSpeed.toFixed(1)}x</span>
-              <input
-                type="range"
-                min="0.8"
-                max="1.2"
-                step="0.05"
-                value={voiceSpeed}
-                onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
-                className="w-16 h-1 accent-primary cursor-pointer"
-              />
-            </div>
             <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground">
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </Button>
