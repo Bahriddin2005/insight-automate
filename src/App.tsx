@@ -15,6 +15,7 @@ import Install from "./pages/Install";
 import Portfolio from "./pages/Portfolio";
 import CaseStudyDetail from "./pages/CaseStudyDetail";
 import OfflineBanner from "./components/dashboard/OfflineBanner";
+import AidaAssistant from "./pages/AidaAssistant";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/install" element={<Install />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/portfolio/:id" element={<CaseStudyDetail />} />
+              <Route path="/aida" element={<AidaAssistant />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
