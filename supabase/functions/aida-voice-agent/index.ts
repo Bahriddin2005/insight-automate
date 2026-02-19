@@ -29,14 +29,14 @@ const tools = [
     type: "function",
     function: {
       name: "build_dashboard",
-      description: "Build a dashboard visualization from the current dataset. Use when user asks for charts, dashboard, visualization, or graphs.",
+      description: "Build a full interactive dashboard with multiple charts (bar, line, pie, area, scatter, heatmap) directly in the chat. Use when user asks for charts, dashboard, visualization, or graphs.",
       parameters: {
         type: "object",
         properties: {
           mode: {
             type: "string",
             enum: ["auto", "executive", "sales", "finance", "marketing", "hr", "education", "quality", "3d"],
-            description: "Dashboard template mode. 'auto' picks the best template based on data. '3d' creates 3D interactive dashboard."
+            description: "Dashboard template mode. 'auto' picks the best template based on data."
           },
           charts: {
             type: "array",
@@ -53,7 +53,7 @@ const tools = [
     type: "function",
     function: {
       name: "generate_insights",
-      description: "Generate deep analytical insights from the dataset including KPIs, trends, anomalies, and recommendations.",
+      description: "Generate deep analytical insights with specific numbers, trends, anomalies, KPIs, and visual charts from the dataset.",
       parameters: {
         type: "object",
         properties: {
@@ -91,7 +91,7 @@ const tools = [
     type: "function",
     function: {
       name: "profile_data",
-      description: "Profile the current dataset: show row/column counts, data types, missing values, quality score, and statistics.",
+      description: "Profile the current dataset: show row/column counts, data types, missing values, quality score, statistics, and visual charts.",
       parameters: {
         type: "object",
         properties: {},
@@ -123,7 +123,7 @@ const tools = [
     type: "function",
     function: {
       name: "compare_datasets",
-      description: "Compare two time periods or segments within the current dataset.",
+      description: "Compare segments or categories within the current dataset with visual charts.",
       parameters: {
         type: "object",
         properties: {
@@ -152,53 +152,48 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
-    const systemPrompt = `Sen AIDA — real-time ovozli AI Data Analyst va buyruq ijrochisi.
+    const systemPrompt = `Sen AIDA — eng yuqori darajadagi AI Data Analyst. Sen haqiqiy inson kabi fikrlaysan, chuqur tahlil qilasan va ANIQ raqamlar bilan javob berasan.
 
-REJIM: Siri + ChatGPT aralashmasi. Foydalanuvchi gapiradi — sen ijro etasan va javob berasan.
+SENING KUCHLARING:
+1. Ma'lumotlarni 100% aniqlikda tahlil qilish
+2. Har bir raqamni izohlab berish — nima uchun bunday, nima sababi, qanday ta'sir qiladi
+3. Vizual dashboard yaratish — bir necha xil diagramma (bar, line, pie, area, scatter)
+4. Ma'lumotni tozalash va sifatini baholash
+5. Strategik tavsiyalar — CEO darajasida
 
-BUYRUQLARNI TANIB OLISH:
-Foydalanuvchi so'rovini 5 turga ajrat:
-1) SAVOL → javob ber
-2) BUYRUQ → tegishli tool chaqir, natijani ayt
-3) DATA TAHLIL → dataset tahlil qil
-4) DASHBOARD → dashboard yarat
-5) SOZLAMALAR → export, filtr, navigatsiya
-
-TOOL CHAQIRISH QOIDALARI:
-- Agar foydalanuvchi "tozala", "clean" desa → clean_data tool chaqir
-- Agar "dashboard", "grafik", "vizualizatsiya" desa → build_dashboard tool chaqir
-- Agar "3D dashboard" desa → build_dashboard(mode="3d") tool chaqir
-- Agar "tahlil", "insight", "ko'rsatkich" desa → generate_insights tool chaqir
-- Agar "eksport", "yuklab ol", "PDF", "Excel" desa → export_report tool chaqir
+MUHIM QOIDALAR:
+- DOIMO raqamlar bilan gapir. "Ko'p" dema, "1,247 ta" de.
+- Har bir javobda MUAYYAN RAQAMLARNI keltir.
+- Agar foydalanuvchi "dashboard", "grafik", "vizual", "diagramma", "ko'rsat" desa → build_dashboard tool chaqir
+- Agar "tozala", "clean" desa → clean_data tool chaqir  
+- Agar "tahlil", "analiz", "insight" desa → generate_insights tool chaqir
 - Agar "profil", "ma'lumot haqida" desa → profile_data tool chaqir
-- Agar "bosh sahifa", "dashboard'ga o't" desa → navigate_to tool chaqir
 - Agar "solishtir", "taqqosla" desa → compare_datasets tool chaqir
 
-TOOL CHAQIRGANDA:
-1. Bir jumlada nima qilishingni tasdiqlaydi
-2. Tool'ni chaqir
-3. Natijani ovozli xabar qilib ayt
+TOOL CHAQIRGANDAN KEYIN:
+1. Nima qilganingni OVOZDA gapirib tushuntir
+2. Asosiy topilmalarni 3-5 ta nuqtada ayt
+3. Keyingi qadam tavsiya qil
 
-OVOZ USLUBI:
-- Qisqa jumlalar, ishonchli ohang
-- Adabiy o'zbek tili
-- 20 soniyadan oshmasin
-- Raqamlardan keyin pauza
-- "menimcha" dema, "bilmayman" dema
-- Emoji yo'q, jargon yo'q
+JAVOB USLUBI:
+- Professional, ishonchli, ANIQ
+- Har doim raqamlar bilan
+- Qisqa va mazmunli
+- O'zbek tilida javob ber
+- "Menimcha" dema — sen BILASAN
+- Emoji ishlatma (faqat tool natijalarida)
 
 JAVOB TUZILMASI:
-1. Qisqa xulosa
-2. Asosiy ko'rsatkich (raqam bilan)
-3. Mazmuniy izoh
-4. Tavsiya
-5. "Xohlasangiz, chuqurroq tahlil qilaman."
+1. XULOSA: 1-2 jumlada asosiy topilma
+2. RAQAMLAR: Asosiy ko'rsatkichlar (min 3 ta)
+3. TAHLIL: Nima uchun bunday? Sabab va ta'sir
+4. TAVSIYA: Nima qilish kerak? Aniq qadam
+5. "Chuqurroq tahlil yoki dashboard yaratishni xohlaysizmi?"
 
-WAKE WORD JAVOB:
-Agar foydalanuvchi "AIDA" yoki "Hey AIDA" desa:
-"Ha, men shu yerdaman. Tinglayapman."
+WAKE WORD:
+"AIDA" yoki "Hey AIDA" eshitganda: "Ha, men shu yerdaman. Buyuring."
 
-${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda dataset yuklanmagan. Foydalanuvchiga dataset yuklashni tavsiya qil.'}`;
+${datasetContext ? `\nMAVJUD DATASET:\n${datasetContext}` : '\nDataset yuklanmagan. Foydalanuvchiga "Chap tomonda dataset yuklash tugmasini bosing" deb ayt.'}`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -206,7 +201,6 @@ ${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda
       { role: 'user', content: question },
     ];
 
-    // Streaming mode
     if (stream) {
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -226,16 +220,19 @@ ${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda
       if (!response.ok) {
         const text = await response.text();
         console.error('AI gateway stream error:', response.status, text);
-        
         if (response.status === 429) {
           return new Response(JSON.stringify({ error: "Tizim band. Iltimos, keyinroq urinib ko'ring." }), {
             status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "Kredit tugagan. Iltimos, hisobni to'ldiring." }), {
+            status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         throw new Error(`AI gateway error: ${response.status}`);
       }
 
-      // Forward the SSE stream directly
       return new Response(response.body, {
         headers: {
           ...corsHeaders,
@@ -246,7 +243,7 @@ ${datasetContext ? `\nMAVJUD DATASET KONTEKSTI:\n${datasetContext}` : '\nHozirda
       });
     }
 
-    // Non-streaming mode (fallback)
+    // Non-streaming fallback
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {

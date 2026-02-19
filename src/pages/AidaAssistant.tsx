@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square, BarChart3, TrendingUp, PieChart as PieChartIcon, AreaChart, ScatterChart as ScatterIcon } from 'lucide-react';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/authContext';
-import { parseFile, analyzeDataset } from '@/lib/dataProcessor';
+import { parseFile, analyzeDataset, generateInsights } from '@/lib/dataProcessor';
 import type { DatasetAnalysis } from '@/lib/dataProcessor';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -25,11 +25,22 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  AreaChart as RechartsArea,
+  Area,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  ComposedChart,
 } from 'recharts';
 
 export type AidaChartData = {
-  type: 'bar' | 'line' | 'pie';
-  data: { name: string; value: number }[];
+  type: 'bar' | 'line' | 'pie' | 'area' | 'scatter' | 'stacked_bar' | 'radar';
+  data: { name: string; value: number; value2?: number }[];
   title?: string;
 };
 
@@ -39,6 +50,7 @@ type Message = {
   content: string;
   timestamp: Date;
   chartData?: AidaChartData;
+  charts?: AidaChartData[];
 };
 
 type AidaState = 'sleeping' | 'listening' | 'thinking' | 'speaking';
@@ -84,7 +96,6 @@ function WaveformVisualizer({ state, audioRef }: { state: AidaState; audioRef: R
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    // Connect mic for listening state
     if (state === 'listening') {
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
         micStreamRef.current = stream;
@@ -93,12 +104,10 @@ function WaveformVisualizer({ state, audioRef }: { state: AidaState; audioRef: R
         micSourceRef.current.connect(analyser);
       }).catch(() => {});
     } else {
-      // Disconnect mic
       if (micSourceRef.current) { try { micSourceRef.current.disconnect(); } catch {} micSourceRef.current = null; }
       if (micStreamRef.current) { micStreamRef.current.getTracks().forEach(t => t.stop()); micStreamRef.current = null; }
     }
 
-    // Connect audio element for speaking state
     if (state === 'speaking' && audioRef.current && !sourceRef.current) {
       try {
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -119,23 +128,19 @@ function WaveformVisualizer({ state, audioRef }: { state: AidaState; audioRef: R
       animFrameRef.current = requestAnimationFrame(draw);
       analyser.getByteFrequencyData(dataArray);
       ctx.clearRect(0, 0, W, H);
-
       const cx = W / 2;
       const cy = H / 2;
       const baseRadius = 40;
       const bars = 48;
-
       for (let i = 0; i < bars; i++) {
         const angle = (i / bars) * Math.PI * 2;
         const dataIdx = Math.floor((i / bars) * bufferLength);
         const val = dataArray[dataIdx] / 255;
         const barHeight = val * 30 + 2;
-
         const x1 = cx + Math.cos(angle) * baseRadius;
         const y1 = cy + Math.sin(angle) * baseRadius;
         const x2 = cx + Math.cos(angle) * (baseRadius + barHeight);
         const y2 = cy + Math.sin(angle) * (baseRadius + barHeight);
-
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -145,15 +150,10 @@ function WaveformVisualizer({ state, audioRef }: { state: AidaState; audioRef: R
         ctx.stroke();
       }
     };
-
     draw();
-
-    return () => {
-      cancelAnimationFrame(animFrameRef.current);
-    };
+    return () => { cancelAnimationFrame(animFrameRef.current); };
   }, [state]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (micStreamRef.current) micStreamRef.current.getTracks().forEach(t => t.stop());
@@ -172,20 +172,118 @@ function WaveformVisualizer({ state, audioRef }: { state: AidaState; audioRef: R
   );
 }
 
-// Build chart payload from dataset analysis for AIDA chat visualization
+const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+// Build ALL possible charts from a dataset analysis — full dashboard in chat
+function buildAllChartsFromAnalysis(analysis: DatasetAnalysis): AidaChartData[] {
+  const { columnInfo, cleanedData } = analysis;
+  const charts: AidaChartData[] = [];
+
+  const catCols = columnInfo.filter(c => c.type === 'categorical' && c.topValues && c.topValues.length > 1);
+  const numCols = columnInfo.filter(c => c.type === 'numeric' && c.stats);
+  const dateCol = columnInfo.find(c => c.type === 'datetime');
+
+  // 1) Top categorical → bar chart
+  if (catCols[0]?.topValues) {
+    const data = catCols[0].topValues.slice(0, 12).map(t => ({ name: t.value, value: t.count }));
+    charts.push({ type: 'bar', data, title: `📊 ${catCols[0].name} — Taqsimot` });
+  }
+
+  // 2) Second categorical → pie chart
+  if (catCols[1]?.topValues) {
+    const data = catCols[1].topValues.slice(0, 8).map(t => ({ name: t.value, value: t.count }));
+    charts.push({ type: 'pie', data, title: `🥧 ${catCols[1].name} — Ulushlar` });
+  }
+
+  // 3) Time series → area chart  
+  if (dateCol && numCols[0] && cleanedData.length > 0) {
+    const byDate: Record<string, number> = {};
+    cleanedData.forEach(row => {
+      const d = new Date(String(row[dateCol.name]));
+      if (isNaN(d.getTime())) return;
+      const key = d.toISOString().split('T')[0];
+      const val = Number(row[numCols[0].name]);
+      if (!isNaN(val)) byDate[key] = (byDate[key] || 0) + val;
+    });
+    const sorted = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).slice(-30);
+    if (sorted.length > 2) {
+      charts.push({ type: 'area', data: sorted.map(([name, value]) => ({ name: name.slice(5), value })), title: `📈 ${numCols[0].name} — Vaqt bo'yicha trend` });
+    }
+  }
+
+  // 4) Numeric distribution → bar histogram
+  if (numCols[0] && cleanedData.length > 0) {
+    const vals = cleanedData.map(r => Number(r[numCols[0].name])).filter(n => !isNaN(n));
+    if (vals.length > 0) {
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      const step = (max - min) / 8 || 1;
+      const buckets: Record<string, number> = {};
+      vals.forEach(v => {
+        const bucket = `${(Math.floor((v - min) / step) * step + min).toFixed(0)}`;
+        buckets[bucket] = (buckets[bucket] || 0) + 1;
+      });
+      const data = Object.entries(buckets).sort(([a], [b]) => Number(a) - Number(b)).map(([n, v]) => ({ name: n, value: v }));
+      charts.push({ type: 'bar', data, title: `📊 ${numCols[0].name} — Taqsimot histogrammasi` });
+    }
+  }
+
+  // 5) If two numeric columns → scatter plot
+  if (numCols.length >= 2 && cleanedData.length > 0) {
+    const scatter = cleanedData.slice(0, 200).map(row => ({
+      name: '',
+      value: Number(row[numCols[0].name]) || 0,
+      value2: Number(row[numCols[1].name]) || 0,
+    })).filter(d => !isNaN(d.value) && !isNaN(d.value2));
+    if (scatter.length > 5) {
+      charts.push({ type: 'scatter', data: scatter, title: `🔵 ${numCols[0].name} vs ${numCols[1].name}` });
+    }
+  }
+
+  // 6) Categorical + numeric → stacked/grouped bar
+  if (catCols[0]?.topValues && numCols[0] && cleanedData.length > 0) {
+    const grouped: Record<string, number> = {};
+    cleanedData.forEach(row => {
+      const cat = String(row[catCols[0].name] || 'Boshqa');
+      const val = Number(row[numCols[0].name]);
+      if (!isNaN(val)) grouped[cat] = (grouped[cat] || 0) + val;
+    });
+    const sorted = Object.entries(grouped).sort(([, a], [, b]) => b - a).slice(0, 10);
+    if (sorted.length > 1) {
+      charts.push({ type: 'bar', data: sorted.map(([name, value]) => ({ name, value })), title: `📊 ${catCols[0].name} bo'yicha ${numCols[0].name} yig'indisi` });
+    }
+  }
+
+  // 7) If second time series + numeric → line
+  if (dateCol && numCols[1] && cleanedData.length > 0) {
+    const byDate: Record<string, number> = {};
+    cleanedData.forEach(row => {
+      const d = new Date(String(row[dateCol.name]));
+      if (isNaN(d.getTime())) return;
+      const key = d.toISOString().split('T')[0];
+      const val = Number(row[numCols[1].name]);
+      if (!isNaN(val)) byDate[key] = (byDate[key] || 0) + val;
+    });
+    const sorted = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).slice(-30);
+    if (sorted.length > 2) {
+      charts.push({ type: 'line', data: sorted.map(([name, value]) => ({ name: name.slice(5), value })), title: `📉 ${numCols[1].name} — Dinamika` });
+    }
+  }
+
+  return charts;
+}
+
+// Build single chart from analysis (for analysis requests)
 function buildChartFromAnalysis(analysis: DatasetAnalysis): AidaChartData | null {
   const { columnInfo, cleanedData } = analysis;
   const catCol = columnInfo.find(c => c.type === 'categorical' && c.topValues && c.topValues.length > 0);
   const numCol = columnInfo.find(c => c.type === 'numeric' && c.stats);
   const dateCol = columnInfo.find(c => c.type === 'datetime');
 
-  // 1) Categorical: bar/pie from topValues
   if (catCol?.topValues && catCol.topValues.length > 0) {
     const data = catCol.topValues.slice(0, 10).map(t => ({ name: t.value, value: t.count }));
     return { type: 'bar', data, title: `${catCol.name} — eng ko'p qiymatlar` };
   }
-
-  // 2) Time series: date + numeric → line
   if (dateCol && numCol && cleanedData.length > 0) {
     const byDate: Record<string, number> = {};
     cleanedData.forEach(row => {
@@ -199,8 +297,6 @@ function buildChartFromAnalysis(analysis: DatasetAnalysis): AidaChartData | null
     const data = sorted.map(([name, value]) => ({ name: name.slice(5), value }));
     if (data.length > 0) return { type: 'line', data, title: `${numCol.name} — vaqt bo'yicha` };
   }
-
-  // 3) Numeric: simple distribution buckets
   if (numCol && cleanedData.length > 0) {
     const vals = cleanedData.map(r => Number(r[numCol.name])).filter(n => !isNaN(n));
     if (vals.length === 0) return null;
@@ -209,32 +305,32 @@ function buildChartFromAnalysis(analysis: DatasetAnalysis): AidaChartData | null
     const step = (max - min) / 6 || 1;
     const buckets: Record<string, number> = {};
     vals.forEach(v => {
-      const bucket = step <= 0 ? String(v) : `${(Math.floor((v - min) / step) * step + min).toFixed(0)}`;
+      const bucket = `${(Math.floor((v - min) / step) * step + min).toFixed(0)}`;
       buckets[bucket] = (buckets[bucket] || 0) + 1;
     });
-    const data = Object.entries(buckets)
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([n, v]) => ({ name: n, value: v }));
+    const data = Object.entries(buckets).sort(([a], [b]) => Number(a) - Number(b)).map(([n, v]) => ({ name: n, value: v }));
     if (data.length > 0) return { type: 'bar', data, title: `${numCol.name} — taqsimot` };
   }
-
   return null;
 }
 
 function isAnalysisRequest(question: string): boolean {
   const q = question.toLowerCase().trim();
-  const triggers = ['analiz', 'tahlil', 'buni analiz', 'grafik', 'chart', 'ko\'rsat', 'korsat', 'vizual', 'qanday', 'summary', 'xulosa', 'tahlil qil', 'analiz qil'];
+  const triggers = ['analiz', 'tahlil', 'buni analiz', 'grafik', 'chart', 'ko\'rsat', 'korsat', 'vizual', 'qanday', 'summary', 'xulosa', 'tahlil qil', 'analiz qil', 'dashboard', 'diagramma'];
   return triggers.some(t => q.includes(t));
 }
 
-// Inline chart for AIDA assistant messages
-const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', '#8b5cf6', '#ec4899', '#14b8a6'];
-
+// Enhanced inline chart component supporting all chart types
 function AidaMessageChart({ type, data, title }: AidaChartData) {
   if (!data?.length) return null;
   return (
-    <div className="mt-3 rounded-xl border border-border/50 bg-muted/30 p-3">
-      {title && <p className="text-xs font-medium text-muted-foreground mb-2">{title}</p>}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="mt-3 rounded-xl border border-border/50 bg-muted/30 p-3"
+    >
+      {title && <p className="text-xs font-semibold text-muted-foreground mb-2">{title}</p>}
       <div className="h-[220px] w-full min-w-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           {type === 'bar' ? (
@@ -242,17 +338,39 @@ function AidaMessageChart({ type, data, title }: AidaChartData) {
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Soni" />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Qiymat" />
             </BarChart>
           ) : type === 'line' ? (
             <LineChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
               <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} name="Qiymat" />
             </LineChart>
+          ) : type === 'area' ? (
+            <RechartsArea data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+              <defs>
+                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+              <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill="url(#areaGrad)" strokeWidth={2} name="Qiymat" />
+            </RechartsArea>
+          ) : type === 'scatter' ? (
+            <ScatterChart margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+              <XAxis dataKey="value" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" name="X" />
+              <YAxis dataKey="value2" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" name="Y" />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+              <Scatter data={data} fill="hsl(var(--primary))" fillOpacity={0.6} />
+            </ScatterChart>
           ) : (
             <PieChart>
               <Pie
@@ -266,12 +384,42 @@ function AidaMessageChart({ type, data, title }: AidaChartData) {
               >
                 {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Pie>
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} formatter={(v: number) => [v, 'Soni']} />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} formatter={(v: number) => [v, 'Soni']} />
             </PieChart>
           )}
         </ResponsiveContainer>
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+// Multi-chart dashboard rendered inline in chat
+function InlineDashboard({ charts }: { charts: AidaChartData[] }) {
+  if (!charts?.length) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, staggerChildren: 0.1 }}
+      className="mt-4 space-y-3"
+    >
+      <div className="flex items-center gap-2 text-xs font-semibold text-primary mb-2">
+        <BarChart3 className="w-4 h-4" />
+        <span>AIDA Dashboard — {charts.length} ta diagramma</span>
+      </div>
+      <div className="grid grid-cols-1 gap-3">
+        {charts.map((chart, idx) => (
+          <motion.div
+            key={idx}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+          >
+            <AidaMessageChart {...chart} />
+          </motion.div>
+        ))}
+      </div>
+    </motion.div>
   );
 }
 
@@ -313,7 +461,6 @@ export default function AidaAssistant() {
   ];
   const currentVoice = voiceOptions.find(v => v.id === selectedVoice) || voiceOptions[0];
 
-  // Auto-focus text input on mount
   useEffect(() => {
     setTimeout(() => textInputRef.current?.focus(), 500);
   }, []);
@@ -335,7 +482,6 @@ export default function AidaAssistant() {
     if (data) setConversations(data as Conversation[]);
   };
 
-  // Load messages for active conversation
   useEffect(() => {
     if (!activeConversationId || !user) return;
     loadMessages(activeConversationId);
@@ -409,7 +555,7 @@ export default function AidaAssistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // File upload handler
+  // File upload handler — also auto-generates dashboard charts in chat
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -418,12 +564,46 @@ export default function AidaAssistant() {
     try {
       const rawData = await parseFile(file, 0);
       const result = analyzeDataset(rawData);
-      const ctx = `Dataset: ${file.name}\nRows: ${result.rows}\nColumns: ${result.columns}\nColumn info: ${JSON.stringify(result.columnInfo).slice(0, 3000)}\nQuality Score: ${result.qualityScore}%\nMissing: ${result.missingPercent}%\nDuplicates removed: ${result.duplicatesRemoved}\nSample data: ${JSON.stringify(result.cleanedData.slice(0, 5)).slice(0, 2000)}`;
+
+      // Build rich context for AI
+      const colSummary = result.columnInfo.map(c => {
+        let desc = `${c.name} (${c.type})`;
+        if (c.stats) desc += ` — min:${c.stats.min.toFixed(1)}, max:${c.stats.max.toFixed(1)}, mean:${c.stats.mean.toFixed(1)}, median:${c.stats.median.toFixed(1)}`;
+        if (c.topValues?.length) desc += ` — top: ${c.topValues.slice(0, 5).map(t => `${t.value}(${t.count})`).join(', ')}`;
+        return desc;
+      }).join('\n');
+
+      const ctx = `Dataset: ${file.name}\nRows: ${result.rows}\nColumns: ${result.columns}\nQuality Score: ${result.qualityScore}%\nMissing: ${result.missingPercent}%\nDuplicates removed: ${result.duplicatesRemoved}\n\nColumn details:\n${colSummary}\n\nSample data (first 5 rows):\n${JSON.stringify(result.cleanedData.slice(0, 5), null, 1).slice(0, 3000)}`;
+
       setDatasetContext(ctx);
       setDatasetName(file.name);
       setAidaStoredAnalysis(result);
       sessionStorage.setItem('aida_dataset_context', ctx);
-      addSystemMessage(`✓ Dataset yuklandi: ${file.name} (${result.rows} qator, ${result.columns} ustun, sifat: ${result.qualityScore}%)`);
+
+      // Generate insights
+      const insights = generateInsights(result);
+
+      // Auto-generate dashboard charts
+      const dashboardCharts = buildAllChartsFromAnalysis(result);
+
+      const summaryMsg = `✅ **Dataset yuklandi: ${file.name}**\n\n📊 **Umumiy ma'lumot:**\n- Qatorlar: **${result.rows}**\n- Ustunlar: **${result.columns}**\n- Sifat balli: **${result.qualityScore}%**\n- Yetishmayotgan: **${result.missingPercent}%**\n- O'chirilgan dublikatlar: **${result.duplicatesRemoved}**\n\n💡 **Avtomatik tahlil:**\n${insights.slice(0, 5).map(i => `- ${i}`).join('\n')}\n\n📈 **Dashboard avtomatik yaratildi — ${dashboardCharts.length} ta diagramma:**`;
+
+      const sysMsg: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: summaryMsg,
+        timestamp: new Date(),
+        charts: dashboardCharts,
+      };
+      setMessages(prev => [...prev, sysMsg]);
+
+      toast.success(`${file.name} yuklandi va dashboard yaratildi!`);
+
+      // Speak about what was done
+      if (!isMuted) {
+        const spokenSummary = `Dataset yuklandi. ${result.rows} qator va ${result.columns} ustun bor. Sifat balli ${result.qualityScore} foiz. Men ${dashboardCharts.length} ta diagramma yaratdim. Ma'lumotlarni ko'rib chiqishingiz mumkin.`;
+        speakResponse(spokenSummary);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Faylni qayta ishlashda xatolik.');
     } finally {
@@ -451,51 +631,50 @@ export default function AidaAssistant() {
       let interimTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalTranscript += t;
+        if (event.results[i].isFinal) finalTranscript += t + ' ';
         else interimTranscript += t;
       }
-      const combined = (finalTranscript + interimTranscript).toLowerCase().trim();
-      setTranscript(finalTranscript + interimTranscript);
 
+      const combined = (accumulatedTranscriptRef.current + ' ' + finalTranscript + interimTranscript).trim();
+      setTranscript(combined);
+
+      if (finalTranscript.trim()) {
+        accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + finalTranscript).trim();
+      }
+
+      // Wake word detection
+      const lower = combined.toLowerCase();
       if (!wakeWordDetectedRef.current) {
-        if (combined.includes('aida') || combined.includes('ayda') || combined.includes('hey aida')) {
+        if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда')) {
           wakeWordDetectedRef.current = true;
           accumulatedTranscriptRef.current = '';
           setTranscript('');
-          // Greet and then switch to listening
           speakGreeting('Salom, men shu yerdaman. Nima qilamiz?');
+          return;
         }
-      } else if (finalTranscript.trim()) {
-        accumulatedTranscriptRef.current += ' ' + finalTranscript.trim();
+      }
+
+      // Process after silence when wake word is active
+      if (wakeWordDetectedRef.current && finalTranscript.trim()) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
           const question = accumulatedTranscriptRef.current.trim();
-          if (question) processQuestion(question);
+          if (question.length > 2) {
+            processQuestion(question);
+          }
         }, 2000);
       }
     };
 
-    recognition.onerror = (event: any) => {
-      if (event.error === 'no-speech') return;
-      console.error('Speech error:', event.error);
-      if (event.error === 'network' || event.error === 'audio-capture' || event.error === 'not-allowed') {
-        // Retry after a short delay for recoverable errors
-        setTimeout(() => {
-          if (recognitionRef.current) {
-            try { recognitionRef.current.stop(); } catch {}
-            try { recognitionRef.current.start(); } catch {}
-          }
-        }, 1500);
+    recognition.onerror = (e: any) => {
+      if (e.error !== 'no-speech' && e.error !== 'aborted') {
+        console.error('Speech error:', e.error);
       }
     };
 
     recognition.onend = () => {
       if (recognitionRef.current) {
-        setTimeout(() => {
-          if (recognitionRef.current) {
-            try { recognitionRef.current.start(); } catch {}
-          }
-        }, 300);
+        try { recognitionRef.current.start(); } catch {}
       }
     };
 
@@ -574,62 +753,125 @@ ${chatMessages.map(m => {
     }
   };
 
-  const executeToolCall = useCallback((toolCall: { name: string; arguments: Record<string, any> }) => {
+  const executeToolCall = useCallback((toolCall: { name: string; arguments: Record<string, any> }): { text: string; charts?: AidaChartData[] } => {
     const { name, arguments: args } = toolCall;
     
     switch (name) {
       case 'clean_data': {
         const strategy = args.strategy || 'auto';
-        addSystemMessage(`🔧 Tool: clean_data (${strategy}) — Dataset tozalanmoqda...`);
-        // Trigger data cleaning from sessionStorage
-        const stored = sessionStorage.getItem('analysis');
-        if (stored) {
-          toast.success('Dataset muvaffaqiyatli tozalandi', { description: `Strategiya: ${strategy}` });
-          addSystemMessage(`✓ Dataset tozalandi (${strategy} rejim)`);
-        } else {
-          addSystemMessage('⚠ Dataset yuklanmagan. Avval dataset yuklang.');
+        addSystemMessage(`🔧 Ma'lumotlar tozalanmoqda (${strategy} rejim)...`);
+        
+        if (aidaStoredAnalysis) {
+          const a = aidaStoredAnalysis;
+          const cleaningDetails = [
+            `✅ **Ma'lumotlar tozalandi** (${strategy} rejim)`,
+            ``,
+            `📋 **Natijalar:**`,
+            `- Boshlang'ich qatorlar: **${a.rawRowCount}**`,
+            `- Tozalangan qatorlar: **${a.rows}**`,
+            `- O'chirilgan dublikatlar: **${a.duplicatesRemoved}**`,
+            `- Yetishmayotgan qiymatlar: **${a.missingPercent}%**`,
+            `- Sifat balli: **${a.qualityScore}%**`,
+          ];
+          
+          const charts = buildAllChartsFromAnalysis(a);
+          toast.success(`Dataset tozalandi va ${charts.length} ta diagramma yaratildi`);
+          
+          return {
+            text: cleaningDetails.join('\n'),
+            charts,
+          };
         }
-        return `Dataset ${strategy} rejimda tozalandi.`;
+        return { text: '⚠ Dataset yuklanmagan. Avval fayl yuklang.' };
       }
       case 'build_dashboard': {
         const mode = args.mode || 'auto';
-        addSystemMessage(`🔧 Tool: build_dashboard (${mode}) — Dashboard qurilmoqda...`);
-        // Navigate to dashboard with template
-        sessionStorage.setItem('aida_dashboard_mode', mode);
-        toast.success(`Dashboard qurilmoqda`, { description: `Rejim: ${mode}` });
-        setTimeout(() => navigate('/'), 1500);
-        return `${mode} rejimda dashboard qurildi. Bosh sahifaga yo'naltirilmoqda.`;
+        addSystemMessage(`🔧 Dashboard qurilmoqda (${mode} rejim)...`);
+        
+        if (aidaStoredAnalysis) {
+          const charts = buildAllChartsFromAnalysis(aidaStoredAnalysis);
+          toast.success(`${charts.length} ta diagramma bilan dashboard yaratildi!`);
+          
+          return {
+            text: `📊 **${mode.toUpperCase()} Dashboard yaratildi!**\n\nMen ${charts.length} xil turdagi diagramma yaratdim:\n${charts.map((c, i) => `${i + 1}. ${c.title || c.type}`).join('\n')}`,
+            charts,
+          };
+        }
+        return { text: '⚠ Dashboard yaratish uchun avval dataset yuklang.' };
       }
       case 'generate_insights': {
         const focus = args.focus || 'overview';
-        addSystemMessage(`🔧 Tool: generate_insights (${focus}) — Tahlil qilinmoqda...`);
-        toast.info('Chuqur tahlil yaratilmoqda...', { description: `Fokus: ${focus}` });
-        return `${focus} bo'yicha tahlil yaratildi.`;
+        addSystemMessage(`🔧 Chuqur tahlil (${focus})...`);
+        
+        if (aidaStoredAnalysis) {
+          const insights = generateInsights(aidaStoredAnalysis);
+          const charts = buildAllChartsFromAnalysis(aidaStoredAnalysis).slice(0, 4);
+          
+          return {
+            text: `🧠 **Chuqur tahlil natijasi (${focus}):**\n\n${insights.map(i => `- ${i}`).join('\n')}\n\n📈 **Vizual ko'rsatmalar:**`,
+            charts,
+          };
+        }
+        return { text: '⚠ Tahlil qilish uchun dataset yuklanmagan.' };
       }
       case 'export_report': {
         const format = args.format || 'pdf';
-        addSystemMessage(`🔧 Tool: export_report (${format}) — Eksport qilinmoqda...`);
+        addSystemMessage(`🔧 Eksport (${format})...`);
         if (format === 'txt' || format === 'pdf') {
           exportConversation(format as 'txt' | 'pdf');
           toast.success(`${format.toUpperCase()} formatda eksport qilindi`);
         } else {
           toast.info(`${format.toUpperCase()} eksport hozircha faqat dashboard sahifasida mavjud`);
         }
-        return `Hisobot ${format} formatda eksport qilindi.`;
+        return { text: `Hisobot ${format.toUpperCase()} formatda eksport qilindi.` };
       }
       case 'profile_data': {
-        addSystemMessage('🔧 Tool: profile_data — Ma\'lumotlar profili yaratilmoqda...');
-        const stored = sessionStorage.getItem('analysis');
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            const profile = `📊 Dataset profili:\n• Qatorlar: ${parsed.rowCount || '?'}\n• Ustunlar: ${parsed.columns?.length || '?'}\n• Sifat balli: ${parsed.qualityScore || '?'}%\n• Yetishmayotgan: ${parsed.missingPercent || '?'}%`;
-            addSystemMessage(profile);
-            return profile;
-          } catch { /* ignore */ }
+        addSystemMessage('🔧 Ma\'lumotlar profili...');
+        if (aidaStoredAnalysis) {
+          const a = aidaStoredAnalysis;
+          const numCols = a.columnInfo.filter(c => c.type === 'numeric');
+          const catCols = a.columnInfo.filter(c => c.type === 'categorical');
+          const dateCols = a.columnInfo.filter(c => c.type === 'datetime');
+          
+          const profile = [
+            `📊 **Dataset profili:**`,
+            `- Qatorlar: **${a.rows}** (asl: ${a.rawRowCount})`,
+            `- Ustunlar: **${a.columns}**`,
+            `  - Raqamli: **${numCols.length}**`,
+            `  - Kategorik: **${catCols.length}**`,
+            `  - Sana: **${dateCols.length}**`,
+            `- Sifat balli: **${a.qualityScore}%**`,
+            `- Yetishmayotgan: **${a.missingPercent}%**`,
+            ``,
+            `📐 **Raqamli ustunlar statistikasi:**`,
+            ...numCols.slice(0, 6).map(c => c.stats ? `- **${c.name}**: min=${c.stats.min.toFixed(1)}, max=${c.stats.max.toFixed(1)}, mean=${c.stats.mean.toFixed(1)}, median=${c.stats.median.toFixed(1)}` : `- ${c.name}: N/A`),
+          ];
+
+          const charts: AidaChartData[] = [];
+          // Quality chart
+          charts.push({
+            type: 'pie',
+            data: [
+              { name: 'Sifatli', value: a.qualityScore },
+              { name: 'Muammoli', value: 100 - a.qualityScore },
+            ],
+            title: '🎯 Ma\'lumot sifati',
+          });
+          // Column types chart
+          charts.push({
+            type: 'bar',
+            data: [
+              { name: 'Raqamli', value: numCols.length },
+              { name: 'Kategorik', value: catCols.length },
+              { name: 'Sana', value: dateCols.length },
+              { name: 'Matn', value: a.columnInfo.filter(c => c.type === 'text').length },
+            ],
+            title: '📊 Ustun turlari',
+          });
+          
+          return { text: profile.join('\n'), charts };
         }
-        addSystemMessage('⚠ Dataset yuklanmagan.');
-        return 'Dataset yuklanmagan.';
+        return { text: '⚠ Dataset yuklanmagan.' };
       }
       case 'navigate_to': {
         const dest = args.destination || 'home';
@@ -640,22 +882,41 @@ ${chatMessages.map(m => {
           my_dashboards: '/my-dashboards',
           settings: '/',
         };
-        addSystemMessage(`🔧 Tool: navigate_to (${dest})`);
         toast.info(`${dest} sahifasiga yo'naltirilmoqda...`);
         setTimeout(() => navigate(routes[dest] || '/'), 1000);
-        return `${dest} sahifasiga yo'naltirildi.`;
+        return { text: `${dest} sahifasiga yo'naltirildi.` };
       }
       case 'compare_datasets': {
         const dim = args.dimension || 'unknown';
-        addSystemMessage(`🔧 Tool: compare_datasets (${dim}) — Solishtirish...`);
-        toast.info('Ma\'lumotlar solishtirilmoqda...');
-        return `${dim} bo'yicha solishtirish amalga oshirildi.`;
+        const metric = args.metric;
+        addSystemMessage(`🔧 Solishtirish (${dim})...`);
+
+        if (aidaStoredAnalysis && aidaStoredAnalysis.cleanedData.length > 0) {
+          const data = aidaStoredAnalysis.cleanedData;
+          const groups: Record<string, number[]> = {};
+          data.forEach(row => {
+            const key = String(row[dim] || 'Boshqa');
+            const val = metric ? Number(row[metric]) : 1;
+            if (!groups[key]) groups[key] = [];
+            if (!isNaN(val)) groups[key].push(val);
+          });
+
+          const chartData = Object.entries(groups)
+            .map(([name, vals]) => ({ name, value: vals.reduce((s, v) => s + v, 0) }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 12);
+
+          return {
+            text: `📊 **${dim} bo'yicha solishtirish:**\n\n${chartData.map(d => `- **${d.name}**: ${d.value.toLocaleString()}`).join('\n')}`,
+            charts: [{ type: 'bar' as const, data: chartData, title: `${dim} — Solishtirish` }],
+          };
+        }
+        return { text: '⚠ Solishtirish uchun dataset yuklanmagan.' };
       }
       default:
-        addSystemMessage(`⚠ Noma'lum tool: ${name}`);
-        return `Tool ${name} topilmadi.`;
+        return { text: `⚠ Noma'lum buyruq: ${name}` };
     }
-  }, [navigate, exportConversation]);
+  }, [navigate, exportConversation, aidaStoredAnalysis]);
 
   const processQuestion = async (question: string) => {
     setState('thinking');
@@ -663,7 +924,6 @@ ${chatMessages.map(m => {
     accumulatedTranscriptRef.current = '';
     setTranscript('');
 
-    // Ensure conversation exists
     let convId = activeConversationId;
     if (!convId) {
       convId = await createConversation();
@@ -677,8 +937,7 @@ ${chatMessages.map(m => {
     try {
       const history = messages.filter(m => m.role !== 'system').slice(-10).map(m => ({ role: m.role, content: m.content }));
 
-      // Try streaming first
-      const streamingMsgId = (Date.now() + 1).toString();
+      const sMsgId = (Date.now() + 1).toString();
       let streamedContent = '';
       let toolCalls: any[] = [];
       let toolCallChunks: Record<number, { name: string; arguments: string }> = {};
@@ -704,9 +963,8 @@ ${chatMessages.map(m => {
       const contentType = response.headers.get('content-type') || '';
       
       if (contentType.includes('text/event-stream') && response.body) {
-        // Add placeholder message for streaming
-        setStreamingMsgId(streamingMsgId);
-        const placeholderMsg: Message = { id: streamingMsgId, role: 'assistant', content: '', timestamp: new Date() };
+        setStreamingMsgId(sMsgId);
+        const placeholderMsg: Message = { id: sMsgId, role: 'assistant', content: '', timestamp: new Date() };
         setMessages(prev => [...prev, placeholderMsg]);
 
         const reader = response.body.getReader();
@@ -731,32 +989,25 @@ ${chatMessages.map(m => {
               const delta = parsed.choices?.[0]?.delta;
               if (!delta) continue;
 
-              // Handle text content
               if (delta.content) {
                 streamedContent += delta.content;
                 setMessages(prev => prev.map(m => 
-                  m.id === streamingMsgId ? { ...m, content: streamedContent } : m
+                  m.id === sMsgId ? { ...m, content: streamedContent } : m
                 ));
               }
 
-              // Handle tool calls
               if (delta.tool_calls) {
                 for (const tc of delta.tool_calls) {
                   const idx = tc.index ?? 0;
-                  if (!toolCallChunks[idx]) {
-                    toolCallChunks[idx] = { name: '', arguments: '' };
-                  }
+                  if (!toolCallChunks[idx]) toolCallChunks[idx] = { name: '', arguments: '' };
                   if (tc.function?.name) toolCallChunks[idx].name = tc.function.name;
                   if (tc.function?.arguments) toolCallChunks[idx].arguments += tc.function.arguments;
                 }
               }
-            } catch {
-              // skip unparseable chunks
-            }
+            } catch { /* skip */ }
           }
         }
 
-        // Process tool calls from stream
         toolCalls = Object.values(toolCallChunks)
           .filter(tc => tc.name)
           .map(tc => ({
@@ -765,44 +1016,49 @@ ${chatMessages.map(m => {
           }));
 
       } else {
-        // Non-streaming JSON response
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         streamedContent = data.answer || '';
         toolCalls = data.toolCalls || [];
         
-        const assistantMsg: Message = { id: streamingMsgId, role: 'assistant', content: streamedContent, timestamp: new Date() };
+        const assistantMsg: Message = { id: sMsgId, role: 'assistant', content: streamedContent, timestamp: new Date() };
         setMessages(prev => [...prev, assistantMsg]);
       }
 
-      // Execute tool calls
+      // Execute tool calls and collect charts
+      let allCharts: AidaChartData[] = [];
       if (toolCalls.length > 0) {
-        const toolResults: string[] = [];
+        const toolTexts: string[] = [];
         for (const tc of toolCalls) {
           const result = executeToolCall(tc);
-          toolResults.push(result);
+          toolTexts.push(result.text);
+          if (result.charts) allCharts.push(...result.charts);
         }
-        const toolSummary = toolResults.join('\n');
+        const toolSummary = toolTexts.join('\n\n');
         const fullAnswer = streamedContent
           ? `${streamedContent}\n\n${toolSummary}`
-          : `Buyruq bajarildi.\n\n${toolSummary}`;
+          : toolSummary;
         
         setMessages(prev => prev.map(m => 
-          m.id === streamingMsgId ? { ...m, content: fullAnswer } : m
+          m.id === sMsgId ? { ...m, content: fullAnswer, charts: allCharts.length > 0 ? allCharts : undefined } : m
         ));
         streamedContent = fullAnswer;
       }
 
       if (!streamedContent) streamedContent = 'Javob olinmadi.';
 
-      const chartData = aidaStoredAnalysis && isAnalysisRequest(question) ? buildChartFromAnalysis(aidaStoredAnalysis) : undefined;
-      setMessages(prev => prev.map(m => m.id === streamingMsgId ? { ...m, content: streamedContent, chartData } : m));
+      // Auto-add chart for analysis requests even without tool calls
+      if (allCharts.length === 0) {
+        const chartData = aidaStoredAnalysis && isAnalysisRequest(question) ? buildChartFromAnalysis(aidaStoredAnalysis) : undefined;
+        if (chartData) {
+          setMessages(prev => prev.map(m => m.id === sMsgId ? { ...m, chartData } : m));
+        }
+      }
 
       setStreamingMsgId(null);
       await saveMessage(convId, 'assistant', streamedContent);
       if (!isMuted) await speakResponse(streamedContent);
 
-      // Update conversation title from first question
       if (messages.filter(m => m.role === 'user').length === 0) {
         const title = question.slice(0, 60);
         await supabase.from('aida_conversations').update({ title }).eq('id', convId);
@@ -841,7 +1097,6 @@ ${chatMessages.map(m => {
       if (!response.ok) throw new Error('TTS xatolik');
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
-        // Server returned JSON = fallback signal
         const data = await response.json();
         if (data.fallback) throw new Error(data.reason || 'ElevenLabs fallback');
       }
@@ -857,7 +1112,6 @@ ${chatMessages.map(m => {
       URL.revokeObjectURL(audioUrl);
     } catch (e) {
       console.error('TTS error, falling back to speechSynthesis:', e);
-      // Fallback to browser speechSynthesis
       try {
         const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').replace(/\n+/g, '. ').slice(0, 2000);
         const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -875,7 +1129,6 @@ ${chatMessages.map(m => {
     }
   };
 
-  // Speak greeting then switch to listening mode
   const speakGreeting = async (text: string) => {
     setState('speaking');
     try {
@@ -909,7 +1162,6 @@ ${chatMessages.map(m => {
       });
       URL.revokeObjectURL(audioUrl);
     } catch {
-      // Fallback to browser TTS
       try {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'uz-UZ';
@@ -921,7 +1173,6 @@ ${chatMessages.map(m => {
         });
       } catch {}
     }
-    // After greeting, switch to listening
     setState('listening');
     wakeWordDetectedRef.current = true;
     accumulatedTranscriptRef.current = '';
@@ -941,8 +1192,6 @@ ${chatMessages.map(m => {
     }
   };
 
-  
-
   const stateConfig = {
     sleeping: { color: 'bg-muted', pulse: false, icon: MicOff, label: 'Uxlash rejimi' },
     listening: { color: 'bg-emerald-500', pulse: true, icon: Mic, label: 'Tinglayapman...' },
@@ -955,7 +1204,7 @@ ${chatMessages.map(m => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar - conversation history */}
+      {/* Sidebar */}
       {showSidebar && (
         <aside className="w-72 border-r border-border flex flex-col bg-card">
           <div className="p-4 border-b border-border flex items-center justify-between">
@@ -987,7 +1236,6 @@ ${chatMessages.map(m => {
               <p className="text-xs text-muted-foreground text-center py-8">Hali suhbat yo'q</p>
             )}
           </div>
-          {/* Dataset upload in sidebar */}
           <div className="p-3 border-t border-border">
             <input
               ref={fileInputRef}
@@ -1018,7 +1266,6 @@ ${chatMessages.map(m => {
 
       {/* Main area */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
         <header className="border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => setShowSidebar(!showSidebar)}>
@@ -1079,7 +1326,6 @@ ${chatMessages.map(m => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Preview voice
                           const previewAudio = document.getElementById('voice-preview-audio') as HTMLAudioElement;
                           if (previewAudio && !previewAudio.paused) {
                             previewAudio.pause();
@@ -1151,7 +1397,7 @@ ${chatMessages.map(m => {
                   exit={{ opacity: 0 }}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                     msg.role === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : msg.role === 'system'
@@ -1163,7 +1409,10 @@ ${chatMessages.map(m => {
                     {msg.role === 'assistant' ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        {/* Single chart (backward compat) */}
                         {msg.chartData && <AidaMessageChart type={msg.chartData.type} data={msg.chartData.data} title={msg.chartData.title} />}
+                        {/* Multi-chart dashboard */}
+                        {msg.charts && msg.charts.length > 0 && <InlineDashboard charts={msg.charts} />}
                         {streamingMsgId === msg.id && (
                           <span className="inline-block w-2 h-4 bg-primary/80 ml-0.5 animate-pulse rounded-sm" />
                         )}
@@ -1201,7 +1450,6 @@ ${chatMessages.map(m => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Error */}
           {error && (
             <div className="mx-6 mb-2 flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-lg">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -1217,7 +1465,6 @@ ${chatMessages.map(m => {
               className="relative w-[200px] h-[200px] flex items-center justify-center"
               whileTap={{ scale: 0.95 }}
             >
-              {/* Background orb */}
               <div className={`absolute w-24 h-24 rounded-full ${currentState.color} transition-colors`} />
               {currentState.pulse && (
                 <>
@@ -1233,7 +1480,6 @@ ${chatMessages.map(m => {
                   />
                 </>
               )}
-              {/* Waveform overlay */}
               <WaveformVisualizer state={state} audioRef={audioRef} />
               <StateIcon className="w-10 h-10 text-white relative z-10" />
             </motion.button>
@@ -1268,7 +1514,7 @@ ${chatMessages.map(m => {
                       setTextInput('');
                     }
                   }}
-                  placeholder="Savolingizni yozing..."
+                  placeholder="Savolingizni yozing yoki 'dashboard qur' deng..."
                   className="flex-1 bg-transparent text-sm resize-none min-h-[36px] max-h-[120px] py-2 focus:outline-none text-foreground placeholder:text-muted-foreground/60 leading-snug"
                   rows={1}
                   disabled={state === 'thinking'}
@@ -1278,7 +1524,7 @@ ${chatMessages.map(m => {
                     type="button"
                     size="icon"
                     disabled={state === 'thinking' || !textInput.trim()}
-                    className="h-9 w-9 shrink-0 rounded-xl gradient-primary text-white shadow-md hover:shadow-lg transition-shadow disabled:opacity-30 disabled:shadow-none"
+                    className="h-9 w-9 shrink-0 rounded-xl bg-primary text-primary-foreground shadow-md hover:shadow-lg transition-shadow disabled:opacity-30 disabled:shadow-none"
                     onClick={() => {
                       if (!textInput.trim() || state === 'thinking') return;
                       processQuestion(textInput.trim());
@@ -1289,7 +1535,6 @@ ${chatMessages.map(m => {
                   </Button>
                 </motion.div>
               </div>
-              <p className="text-[10px] text-muted-foreground/40 text-center mt-1.5">Enter — yuborish • Ctrl+Enter — yangi qator</p>
             </div>
           </div>
         </div>
