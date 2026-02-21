@@ -320,17 +320,63 @@ function isAnalysisRequest(question: string): boolean {
   return triggers.some(t => q.includes(t));
 }
 
+// Export a chart element as PNG
+function exportChartAsPNG(el: HTMLElement, title: string) {
+  import('html2canvas').then(({ default: html2canvas }) => {
+    html2canvas(el, { backgroundColor: null, scale: 2, useCORS: true, logging: false }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = `${(title || 'chart').replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('PNG yuklandi!');
+    });
+  });
+}
+
+// Export a chart element as PDF via print window
+function exportChartAsPDF(el: HTMLElement, title: string) {
+  import('html2canvas').then(({ default: html2canvas }) => {
+    html2canvas(el, { backgroundColor: null, scale: 2, useCORS: true, logging: false }).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return;
+      const w = canvas.width / 2;
+      const h = canvas.height / 2;
+      printWindow.document.write(`<!DOCTYPE html><html><head><title>${title || 'Chart'}</title><style>@page{size:${w}px ${h}px;margin:0}body{margin:0}img{width:100%;height:auto;display:block}</style></head><body><img src="${imgData}"/></body></html>`);
+      printWindow.document.close();
+      printWindow.onload = () => printWindow.print();
+      toast.success('PDF tayyorlandi!');
+    });
+  });
+}
+
 // Enhanced inline chart component supporting all chart types
 function AidaMessageChart({ type, data, title }: AidaChartData) {
+  const chartRef = useRef<HTMLDivElement>(null);
   if (!data?.length) return null;
   return (
     <motion.div
+      ref={chartRef}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4 }}
       className="mt-3 rounded-xl border border-border/50 bg-muted/30 p-3"
     >
-      {title && <p className="text-xs font-semibold text-muted-foreground mb-2">{title}</p>}
+      <div className="flex items-center justify-between mb-2">
+        {title && <p className="text-xs font-semibold text-muted-foreground">{title}</p>}
+        <div className="flex gap-1 ml-auto">
+          <button
+            onClick={() => chartRef.current && exportChartAsPNG(chartRef.current, title || 'chart')}
+            className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="PNG yuklab olish"
+          >PNG</button>
+          <button
+            onClick={() => chartRef.current && exportChartAsPDF(chartRef.current, title || 'chart')}
+            className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="PDF yuklab olish"
+          >PDF</button>
+        </div>
+      </div>
       <div className="h-[220px] w-full min-w-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           {type === 'bar' ? (
@@ -395,17 +441,31 @@ function AidaMessageChart({ type, data, title }: AidaChartData) {
 
 // Multi-chart dashboard rendered inline in chat
 function InlineDashboard({ charts }: { charts: AidaChartData[] }) {
+  const dashRef = useRef<HTMLDivElement>(null);
   if (!charts?.length) return null;
   return (
     <motion.div
+      ref={dashRef}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, staggerChildren: 0.1 }}
       className="mt-4 space-y-3"
     >
-      <div className="flex items-center gap-2 text-xs font-semibold text-primary mb-2">
-        <BarChart3 className="w-4 h-4" />
-        <span>AIDA Dashboard — {charts.length} ta diagramma</span>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+          <BarChart3 className="w-4 h-4" />
+          <span>AIDA Dashboard — {charts.length} ta diagramma</span>
+        </div>
+        <div className="flex gap-1">
+          <button
+            onClick={() => dashRef.current && exportChartAsPNG(dashRef.current, 'AIDA_Dashboard')}
+            className="text-[10px] px-2 py-1 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          ><Download className="w-3 h-3" /> PNG</button>
+          <button
+            onClick={() => dashRef.current && exportChartAsPDF(dashRef.current, 'AIDA_Dashboard')}
+            className="text-[10px] px-2 py-1 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          ><Download className="w-3 h-3" /> PDF</button>
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-3">
         {charts.map((chart, idx) => (
