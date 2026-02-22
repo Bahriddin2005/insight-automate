@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square, BarChart3, TrendingUp, PieChart as PieChartIcon, AreaChart, ScatterChart as ScatterIcon } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square, BarChart3, TrendingUp, PieChart as PieChartIcon, AreaChart, ScatterChart as ScatterIcon, Maximize2, X } from 'lucide-react';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -350,8 +350,94 @@ function exportChartAsPDF(el: HTMLElement, title: string) {
   });
 }
 
+// Fullscreen chart modal
+function FullscreenChartModal({ chart, onClose }: { chart: AidaChartData | null; onClose: () => void }) {
+  const fsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+  if (!chart?.data?.length) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex flex-col"
+      onClick={onClose}
+    >
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border" onClick={e => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold text-foreground">{chart.title || 'Diagramma'}</h2>
+        <div className="flex items-center gap-2">
+          <button onClick={() => fsRef.current && exportChartAsPNG(fsRef.current, chart.title || 'chart')}
+            className="text-xs px-3 py-1.5 rounded-md bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">PNG</button>
+          <button onClick={() => fsRef.current && exportChartAsPDF(fsRef.current, chart.title || 'chart')}
+            className="text-xs px-3 py-1.5 rounded-md bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">PDF</button>
+          <button onClick={onClose} className="p-2 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+      <div ref={fsRef} className="flex-1 p-6" onClick={e => e.stopPropagation()}>
+        <div className="w-full h-full">
+          <ResponsiveContainer width="100%" height="100%">
+            {chart.type === 'bar' ? (
+              <BarChart data={chart.data} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+                <XAxis dataKey="name" tick={{ fontSize: 13 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 13 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ fontSize: 13, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="Qiymat" />
+              </BarChart>
+            ) : chart.type === 'line' ? (
+              <LineChart data={chart.data} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+                <XAxis dataKey="name" tick={{ fontSize: 13 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 13 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ fontSize: 13, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 5 }} name="Qiymat" />
+              </LineChart>
+            ) : chart.type === 'area' ? (
+              <RechartsArea data={chart.data} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                <defs>
+                  <linearGradient id="fsAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+                <XAxis dataKey="name" tick={{ fontSize: 13 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 13 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ fontSize: 13, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill="url(#fsAreaGrad)" strokeWidth={3} name="Qiymat" />
+              </RechartsArea>
+            ) : chart.type === 'scatter' ? (
+              <ScatterChart margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+                <XAxis dataKey="value" tick={{ fontSize: 13 }} stroke="hsl(var(--muted-foreground))" name="X" />
+                <YAxis dataKey="value2" tick={{ fontSize: 13 }} stroke="hsl(var(--muted-foreground))" name="Y" />
+                <Tooltip contentStyle={{ fontSize: 13, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                <Scatter data={chart.data} fill="hsl(var(--primary))" fillOpacity={0.7} />
+              </ScatterChart>
+            ) : (
+              <PieChart>
+                <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="80%"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                  {chart.data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 13, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+              </PieChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // Enhanced inline chart component supporting all chart types
-function AidaMessageChart({ type, data, title }: AidaChartData) {
+function AidaMessageChart({ type, data, title, onFullscreen }: AidaChartData & { onFullscreen?: () => void }) {
   const chartRef = useRef<HTMLDivElement>(null);
   if (!data?.length) return null;
   return (
@@ -365,6 +451,11 @@ function AidaMessageChart({ type, data, title }: AidaChartData) {
       <div className="flex items-center justify-between mb-2">
         {title && <p className="text-xs font-semibold text-muted-foreground">{title}</p>}
         <div className="flex gap-1 ml-auto">
+          <button
+            onClick={onFullscreen}
+            className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="To'liq ekran"
+          ><Maximize2 className="w-3 h-3 inline" /></button>
           <button
             onClick={() => chartRef.current && exportChartAsPNG(chartRef.current, title || 'chart')}
             className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
@@ -440,7 +531,7 @@ function AidaMessageChart({ type, data, title }: AidaChartData) {
 }
 
 // Multi-chart dashboard rendered inline in chat
-function InlineDashboard({ charts }: { charts: AidaChartData[] }) {
+function InlineDashboard({ charts, onFullscreen }: { charts: AidaChartData[]; onFullscreen?: (chart: AidaChartData) => void }) {
   const dashRef = useRef<HTMLDivElement>(null);
   if (!charts?.length) return null;
   return (
@@ -475,7 +566,7 @@ function InlineDashboard({ charts }: { charts: AidaChartData[] }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
           >
-            <AidaMessageChart {...chart} />
+            <AidaMessageChart {...chart} onFullscreen={() => onFullscreen?.(chart)} />
           </motion.div>
         ))}
       </div>
@@ -492,6 +583,7 @@ export default function AidaAssistant() {
   const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState('');
   const [datasetContext, setDatasetContext] = useState('');
+  const [fullscreenChart, setFullscreenChart] = useState<AidaChartData | null>(null);
   const [datasetName, setDatasetName] = useState('');
   const [aidaStoredAnalysis, setAidaStoredAnalysis] = useState<DatasetAnalysis | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -1470,9 +1562,9 @@ ${chatMessages.map(m => {
                       <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                         {/* Single chart (backward compat) */}
-                        {msg.chartData && <AidaMessageChart type={msg.chartData.type} data={msg.chartData.data} title={msg.chartData.title} />}
+                        {msg.chartData && <AidaMessageChart type={msg.chartData.type} data={msg.chartData.data} title={msg.chartData.title} onFullscreen={() => setFullscreenChart(msg.chartData!)} />}
                         {/* Multi-chart dashboard */}
-                        {msg.charts && msg.charts.length > 0 && <InlineDashboard charts={msg.charts} />}
+                        {msg.charts && msg.charts.length > 0 && <InlineDashboard charts={msg.charts} onFullscreen={setFullscreenChart} />}
                         {streamingMsgId === msg.id && (
                           <span className="inline-block w-2 h-4 bg-primary/80 ml-0.5 animate-pulse rounded-sm" />
                         )}
@@ -1599,6 +1691,9 @@ ${chatMessages.map(m => {
           </div>
         </div>
       </div>
+      <AnimatePresence>
+        {fullscreenChart && <FullscreenChartModal chart={fullscreenChart} onClose={() => setFullscreenChart(null)} />}
+      </AnimatePresence>
     </div>
   );
 }
