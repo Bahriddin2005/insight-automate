@@ -29,13 +29,12 @@ serve(async (req) => {
           text,
           model_id: 'eleven_multilingual_v2',
           voice_settings: {
-            stability: 0.75,
-            similarity_boost: 0.85,
-            style: 0.25,
+            stability: 0.65,
+            similarity_boost: 0.80,
+            style: 0.15,
             use_speaker_boost: true,
             speed: selectedSpeed,
           },
-          language_code: 'uz',
         }),
       }
     );
