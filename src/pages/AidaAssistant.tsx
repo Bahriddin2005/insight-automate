@@ -858,7 +858,6 @@ export default function AidaAssistant() {
         if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
         window.speechSynthesis.cancel();
         setState('sleeping');
-        addSystemMessage('AIDA to\'xtatildi. Qayta ishga tushirish uchun "AIDA" deng.');
         return;
       }
       
@@ -899,7 +898,6 @@ export default function AidaAssistant() {
     try {
       recognition.start();
       setState('sleeping');
-      addSystemMessage('AIDA tayyor. "AIDA" yoki "Hey AIDA" deb chaqiring.');
     } catch {
       setError('Mikrofonni yoqib bo\'lmadi.');
     }
@@ -920,7 +918,6 @@ export default function AidaAssistant() {
         setState('sleeping');
         wakeWordDetectedRef.current = false;
         accumulatedTranscriptRef.current = '';
-        addSystemMessage('AIDA uxlash rejimiga o\'tdi. Qayta chaqirish uchun "AIDA" deng.');
       }, 60000);
       return () => clearTimeout(autoSleep);
     }
@@ -1286,7 +1283,6 @@ ${chatMessages.map(m => {
       setState('listening');
       wakeWordDetectedRef.current = true;
       accumulatedTranscriptRef.current = '';
-      addSystemMessage('Yana savol berishingiz mumkin yoki "AIDA" deb qayta chaqiring.');
     } catch (e) {
       console.error('AIDA error:', e);
       setStreamingMsgId(null);
