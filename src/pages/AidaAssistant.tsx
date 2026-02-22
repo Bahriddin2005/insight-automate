@@ -849,6 +849,19 @@ export default function AidaAssistant() {
 
       // Wake word detection
       const lower = combined.toLowerCase();
+      
+      // "AIDA jim bo'l" / "AIDA STOP" — immediately stop speaking and go silent
+      if (lower.includes('jim bo') || lower.includes('aida stop') || lower.includes('aida jim') || lower.includes('stop aida')) {
+        wakeWordDetectedRef.current = false;
+        accumulatedTranscriptRef.current = '';
+        setTranscript('');
+        if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+        window.speechSynthesis.cancel();
+        setState('sleeping');
+        addSystemMessage('AIDA to\'xtatildi. Qayta ishga tushirish uchun "AIDA" deng.');
+        return;
+      }
+      
       if (!wakeWordDetectedRef.current) {
         if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда')) {
           wakeWordDetectedRef.current = true;
