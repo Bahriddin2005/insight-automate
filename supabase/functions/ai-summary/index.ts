@@ -14,8 +14,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
-    const lang = language === 'uz' ? "O'zbek" : 'English';
-    const systemPrompt = `You are a senior data analyst. Given dataset metadata, write a concise, insightful summary (4-6 sentences) in ${lang} language. Focus on key patterns, data quality observations, and actionable insights. Be specific with numbers. Do not use markdown formatting.`;
+    const systemPrompt = `Sen katta tajribali ma'lumot tahlilchisisisan. Ma'lumotlar to'plami haqida qisqa, mazmunli xulosa yoz (to'rt-olti gap). FAQAT O'ZBEK TILIDA yoz. Inglizcha va ruscha so'z ISHLATMA. Ustun nomlarini o'zbekchaga tarjima qil. Raqamlarni aniq keltir. Asosiy qonuniyatlar, ma'lumot sifati va amaliy tavsiyalarga e'tibor ber. Markdown formatlash ISHLATMA.`;
 
     const colDetails = columnInfo.map((c: any) => {
       let desc = `- ${c.name} (${c.type}): ${c.uniqueCount} unique, ${c.missingPercent.toFixed(1)}% missing`;
