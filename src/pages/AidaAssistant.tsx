@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square, BarChart3, TrendingUp, PieChart as PieChartIcon, AreaChart, ScatterChart as ScatterIcon, Maximize2, X } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square, BarChart3, TrendingUp, PieChart as PieChartIcon, AreaChart, ScatterChart as ScatterIcon, Maximize2, X, ZoomIn, ZoomOut, Move, RotateCcw } from 'lucide-react';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -436,9 +436,58 @@ function FullscreenChartModal({ chart, onClose }: { chart: AidaChartData | null;
   );
 }
 
-// Enhanced inline chart component supporting all chart types
+// Interactive chart wrapper with zoom/pan
+function useChartZoomPan() {
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0 });
+  const translateStart = useRef({ x: 0, y: 0 });
+
+  const zoomIn = () => setScale(s => Math.min(s + 0.25, 4));
+  const zoomOut = () => setScale(s => Math.max(s - 0.25, 0.5));
+  const reset = () => { setScale(1); setTranslate({ x: 0, y: 0 }); };
+
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setScale(s => Math.min(Math.max(s + (e.deltaY > 0 ? -0.1 : 0.1), 0.5), 4));
+    }
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (scale <= 1) return;
+    setIsPanning(true);
+    panStart.current = { x: e.clientX, y: e.clientY };
+    translateStart.current = { ...translate };
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!isPanning) return;
+    setTranslate({
+      x: translateStart.current.x + (e.clientX - panStart.current.x),
+      y: translateStart.current.y + (e.clientY - panStart.current.y),
+    });
+  };
+
+  const onPointerUp = () => setIsPanning(false);
+
+  const style: React.CSSProperties = {
+    transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
+    transformOrigin: 'center center',
+    cursor: scale > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default',
+    transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+  };
+
+  return { scale, style, zoomIn, zoomOut, reset, onWheel, onPointerDown, onPointerMove, onPointerUp };
+}
+
+// Enhanced inline chart component with zoom/pan
 function AidaMessageChart({ type, data, title, onFullscreen }: AidaChartData & { onFullscreen?: () => void }) {
   const chartRef = useRef<HTMLDivElement>(null);
+  const zp = useChartZoomPan();
+
   if (!data?.length) return null;
   return (
     <motion.div
@@ -448,83 +497,87 @@ function AidaMessageChart({ type, data, title, onFullscreen }: AidaChartData & {
       transition={{ duration: 0.4 }}
       className="mt-3 rounded-xl border border-border/50 bg-muted/30 p-3"
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
         {title && <p className="text-xs font-semibold text-muted-foreground">{title}</p>}
-        <div className="flex gap-1 ml-auto">
-          <button
-            onClick={onFullscreen}
-            className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            title="To'liq ekran"
-          ><Maximize2 className="w-3 h-3 inline" /></button>
-          <button
-            onClick={() => chartRef.current && exportChartAsPNG(chartRef.current, title || 'chart')}
-            className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            title="PNG yuklab olish"
-          >PNG</button>
-          <button
-            onClick={() => chartRef.current && exportChartAsPDF(chartRef.current, title || 'chart')}
-            className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            title="PDF yuklab olish"
-          >PDF</button>
+        <div className="flex gap-1 ml-auto items-center">
+          <button onClick={zp.zoomIn} className="p-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Zoom in">
+            <ZoomIn className="w-3 h-3" />
+          </button>
+          <span className="text-[9px] text-muted-foreground min-w-[28px] text-center">{Math.round(zp.scale * 100)}%</span>
+          <button onClick={zp.zoomOut} className="p-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Zoom out">
+            <ZoomOut className="w-3 h-3" />
+          </button>
+          {zp.scale !== 1 && (
+            <button onClick={zp.reset} className="p-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Reset">
+              <RotateCcw className="w-3 h-3" />
+            </button>
+          )}
+          <div className="w-px h-3 bg-border mx-0.5" />
+          <button onClick={onFullscreen} className="p-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="To'liq ekran">
+            <Maximize2 className="w-3 h-3" />
+          </button>
+          <button onClick={() => chartRef.current && exportChartAsPNG(chartRef.current, title || 'chart')} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="PNG">PNG</button>
+          <button onClick={() => chartRef.current && exportChartAsPDF(chartRef.current, title || 'chart')} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="PDF">PDF</button>
         </div>
       </div>
-      <div className="h-[220px] w-full min-w-[260px]">
-        <ResponsiveContainer width="100%" height="100%">
-          {type === 'bar' ? (
-            <BarChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
-              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Qiymat" />
-            </BarChart>
-          ) : type === 'line' ? (
-            <LineChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
-              <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} name="Qiymat" />
-            </LineChart>
-          ) : type === 'area' ? (
-            <RechartsArea data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
-              <defs>
-                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
-              <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill="url(#areaGrad)" strokeWidth={2} name="Qiymat" />
-            </RechartsArea>
-          ) : type === 'scatter' ? (
-            <ScatterChart margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
-              <XAxis dataKey="value" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" name="X" />
-              <YAxis dataKey="value2" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" name="Y" />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
-              <Scatter data={data} fill="hsl(var(--primary))" fillOpacity={0.6} />
-            </ScatterChart>
-          ) : (
-            <PieChart>
-              <Pie
-                data={data}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={70}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-              >
-                {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} formatter={(v: number) => [v, 'Soni']} />
-            </PieChart>
-          )}
-        </ResponsiveContainer>
+      <div
+        className="h-[220px] w-full min-w-[260px] overflow-hidden rounded-lg"
+        onWheel={zp.onWheel}
+        onPointerDown={zp.onPointerDown}
+        onPointerMove={zp.onPointerMove}
+        onPointerUp={zp.onPointerUp}
+      >
+        <div style={zp.style} className="w-full h-full">
+          <ResponsiveContainer width="100%" height="100%">
+            {type === 'bar' ? (
+              <BarChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Qiymat" />
+              </BarChart>
+            ) : type === 'line' ? (
+              <LineChart data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} name="Qiymat" />
+              </LineChart>
+            ) : type === 'area' ? (
+              <RechartsArea data={data} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill="url(#areaGrad)" strokeWidth={2} name="Qiymat" />
+              </RechartsArea>
+            ) : type === 'scatter' ? (
+              <ScatterChart margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted-foreground/20" />
+                <XAxis dataKey="value" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" name="X" />
+                <YAxis dataKey="value2" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" name="Y" />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+                <Scatter data={data} fill="hsl(var(--primary))" fillOpacity={0.6} />
+              </ScatterChart>
+            ) : (
+              <PieChart>
+                <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                  {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} formatter={(v: number) => [v, 'Soni']} />
+              </PieChart>
+            )}
+          </ResponsiveContainer>
+        </div>
       </div>
     </motion.div>
   );
