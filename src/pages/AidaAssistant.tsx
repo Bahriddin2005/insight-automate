@@ -806,7 +806,7 @@ export default function AidaAssistant() {
 
       // Speak about what was done
       if (!isMuted) {
-        const spokenSummary = `Dataset yuklandi. ${result.rows} qator va ${result.columns} ustun bor. Sifat balli ${result.qualityScore} foiz. Men ${dashboardCharts.length} ta diagramma yaratdim. Ma'lumotlarni ko'rib chiqishingiz mumkin.`;
+        const spokenSummary = `Ma'lumotlar to'plami yuklandi. ${result.rows} qator va ${result.columns} ustun mavjud. Sifat bahosi yuz baldan ${result.qualityScore}. Men ${dashboardCharts.length} ta diagramma yaratdim. Ko'rib chiqishingiz mumkin.`;
         speakResponse(spokenSummary);
       }
     } catch (err) {
@@ -854,7 +854,7 @@ export default function AidaAssistant() {
           wakeWordDetectedRef.current = true;
           accumulatedTranscriptRef.current = '';
           setTranscript('');
-          speakGreeting('Salom, men shu yerdaman. Nima qilamiz?');
+          speakGreeting('Salom, men shu yerdaman. Buyuring, nima qilamiz?');
           return;
         }
       }
