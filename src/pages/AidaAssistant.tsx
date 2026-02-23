@@ -1134,6 +1134,18 @@ ${chatMessages.map(m => {
   }, [navigate, exportConversation, aidaStoredAnalysis]);
 
   const processQuestion = async (question: string) => {
+    // STOP buyrug'i — matn orqali ham ishlaydi
+    const lower = question.toLowerCase().trim();
+    if (lower === 'stop' || lower === 'aida stop' || lower.includes('jim bo') || lower === 'to\'xta' || lower === 'aida jim') {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      window.speechSynthesis.cancel();
+      setState('sleeping');
+      wakeWordDetectedRef.current = false;
+      accumulatedTranscriptRef.current = '';
+      setTranscript('');
+      return;
+    }
+
     setState('thinking');
     wakeWordDetectedRef.current = false;
     accumulatedTranscriptRef.current = '';
