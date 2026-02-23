@@ -1341,9 +1341,18 @@ ${chatMessages.map(m => {
       try {
         const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').replace(/\n+/g, '. ').slice(0, 2000);
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'uz-UZ';
-        utterance.rate = 1.0;
+        // Try to find the best available voice for Uzbek/Turkish (similar phonetics)
+        const voices = window.speechSynthesis.getVoices();
+        const uzVoice = voices.find(v => v.lang.startsWith('uz')) 
+          || voices.find(v => v.lang.startsWith('tr'))
+          || voices.find(v => v.lang.startsWith('ru'))
+          || voices.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith('en'))
+          || voices[0];
+        if (uzVoice) utterance.voice = uzVoice;
+        utterance.lang = uzVoice?.lang || 'uz-UZ';
+        utterance.rate = voiceSpeed > 1 ? 1.0 : 0.9;
         utterance.pitch = 1.0;
+        utterance.volume = 1.0;
         await new Promise<void>((resolve) => {
           utterance.onend = () => resolve();
           utterance.onerror = () => resolve();
@@ -1390,8 +1399,16 @@ ${chatMessages.map(m => {
     } catch {
       try {
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'uz-UZ';
+        const voices = window.speechSynthesis.getVoices();
+        const uzVoice = voices.find(v => v.lang.startsWith('uz')) 
+          || voices.find(v => v.lang.startsWith('tr'))
+          || voices.find(v => v.lang.startsWith('ru'))
+          || voices.find(v => v.name.toLowerCase().includes('google') && v.lang.startsWith('en'))
+          || voices[0];
+        if (uzVoice) utterance.voice = uzVoice;
+        utterance.lang = uzVoice?.lang || 'uz-UZ';
         utterance.rate = 1.0;
+        utterance.volume = 1.0;
         await new Promise<void>((resolve) => {
           utterance.onend = () => resolve();
           utterance.onerror = () => resolve();
