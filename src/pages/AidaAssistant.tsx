@@ -1087,7 +1087,7 @@ export default function AidaAssistant() {
   }, []);
 
   useEffect(() => {
-    if (state === 'listening') {
+    if (state === 'listening' && !alwaysListening) {
       const autoSleep = setTimeout(() => {
         setState('sleeping');
         wakeWordDetectedRef.current = false;
@@ -1095,7 +1095,7 @@ export default function AidaAssistant() {
       }, 60000);
       return () => clearTimeout(autoSleep);
     }
-  }, [state]);
+  }, [state, alwaysListening]);
 
   const addSystemMessage = (content: string) => {
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', content, timestamp: new Date() }]);
