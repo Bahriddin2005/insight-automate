@@ -644,6 +644,7 @@ export default function AidaAssistant() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+  const [alwaysListening, setAlwaysListening] = useState(true); // Direct mode — no wake word needed
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -977,7 +978,8 @@ export default function AidaAssistant() {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'uz-UZ';
+    // uz-UZ is NOT supported by Chrome — use ru-RU which works well for Uzbek speakers
+    recognition.lang = 'ru-RU';
     recognitionRef.current = recognition;
 
     recognition.onresult = (event: any) => {
@@ -1000,7 +1002,7 @@ export default function AidaAssistant() {
       const lower = combined.toLowerCase();
       
       // "AIDA jim bo'l" / "AIDA STOP" — immediately stop speaking and go silent
-      if (lower.includes('jim bo') || lower.includes('aida stop') || lower.includes('aida jim') || lower.includes('stop aida')) {
+      if (lower.includes('jim bo') || lower.includes('aida stop') || lower.includes('aida jim') || lower.includes('stop aida') || lower === 'stop' || lower === 'стоп') {
         wakeWordDetectedRef.current = false;
         accumulatedTranscriptRef.current = '';
         setTranscript('');
@@ -1010,13 +1012,23 @@ export default function AidaAssistant() {
         return;
       }
       
-      if (!wakeWordDetectedRef.current) {
-        if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда')) {
+      // In "always listening" mode — skip wake word, go directly to processing
+      if (alwaysListening) {
+        if (!wakeWordDetectedRef.current && finalTranscript.trim()) {
+          // Auto-activate on any speech
           wakeWordDetectedRef.current = true;
-          accumulatedTranscriptRef.current = '';
-          setTranscript('');
-          speakGreeting('Salom, men shu yerdaman. Buyuring, nima qilamiz?');
-          return;
+          setState('listening');
+        }
+      } else {
+        // Traditional wake word mode
+        if (!wakeWordDetectedRef.current) {
+          if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда')) {
+            wakeWordDetectedRef.current = true;
+            accumulatedTranscriptRef.current = '';
+            setTranscript('');
+            speakGreeting('Salom, men shu yerdaman. Buyuring, nima qilamiz?');
+            return;
+          }
         }
       }
 
@@ -1025,14 +1037,14 @@ export default function AidaAssistant() {
         const cmd = accumulatedTranscriptRef.current.trim().toLowerCase();
         const handled = handleVoiceCommand(cmd);
         if (handled) {
-          wakeWordDetectedRef.current = true;
+          wakeWordDetectedRef.current = alwaysListening; // Keep listening in always mode
           accumulatedTranscriptRef.current = '';
           setTranscript('');
           return;
         }
       }
 
-      // Process after silence when wake word is active
+      // Process after short silence — FAST response (1s instead of 2s)
       if (wakeWordDetectedRef.current && finalTranscript.trim()) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
@@ -1040,7 +1052,7 @@ export default function AidaAssistant() {
           if (question.length > 2) {
             processQuestion(question);
           }
-        }, 2000);
+        }, 1000); // 1 second silence = send (was 2s)
       }
     };
 
@@ -1058,11 +1070,12 @@ export default function AidaAssistant() {
 
     try {
       recognition.start();
-      setState('sleeping');
+      setState(alwaysListening ? 'listening' : 'sleeping');
+      if (alwaysListening) wakeWordDetectedRef.current = true;
     } catch {
       setError('Mikrofonni yoqib bo\'lmadi.');
     }
-  }, []);
+  }, [alwaysListening]);
 
   useEffect(() => {
     startListening();
@@ -1071,10 +1084,10 @@ export default function AidaAssistant() {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
-  }, []);
+  }, [alwaysListening]);
 
   useEffect(() => {
-    if (state === 'listening') {
+    if (state === 'listening' && !alwaysListening) {
       const autoSleep = setTimeout(() => {
         setState('sleeping');
         wakeWordDetectedRef.current = false;
@@ -1082,7 +1095,7 @@ export default function AidaAssistant() {
       }, 60000);
       return () => clearTimeout(autoSleep);
     }
-  }, [state]);
+  }, [state, alwaysListening]);
 
   const addSystemMessage = (content: string) => {
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', content, timestamp: new Date() }]);
@@ -1694,6 +1707,30 @@ ${chatMessages.map(m => {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <button
+              onClick={() => {
+                setAlwaysListening(v => {
+                  const next = !v;
+                  if (next) {
+                    wakeWordDetectedRef.current = true;
+                    setState('listening');
+                  } else {
+                    wakeWordDetectedRef.current = false;
+                    setState('sleeping');
+                  }
+                  return next;
+                });
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                alwaysListening
+                  ? 'bg-primary/10 text-primary border-primary/30'
+                  : 'bg-muted text-muted-foreground border-border'
+              }`}
+              title={alwaysListening ? 'To\'g\'ridan-to\'g\'ri tinglash yoqilgan' : 'Wake word rejimi'}
+            >
+              <Mic className="w-3 h-3" />
+              {alwaysListening ? 'Doim tinglaydi' : 'Wake word'}
+            </button>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-xs text-muted-foreground">
               <Activity className="w-3 h-3" />
               {currentState.label}
@@ -1901,12 +1938,12 @@ ${chatMessages.map(m => {
             </motion.button>
 
             <p className="text-sm text-muted-foreground text-center">
-              {state === 'sleeping' && '"AIDA" deb chaqiring yoki tugmani bosing'}
-              {state === 'listening' && 'Savolingizni ayting yoki buyruq bering...'}
+              {state === 'sleeping' && (alwaysListening ? 'Gapiring — AIDA tinglayapti...' : '"AIDA" deb chaqiring yoki tugmani bosing')}
+              {state === 'listening' && 'Savolingizni ayting — 1 soniya kutib javob beraman...'}
               {state === 'thinking' && 'AIDA tahlil qilmoqda...'}
               {state === 'speaking' && 'AIDA javob bermoqda. To\'xtatish uchun bosing.'}
             </p>
-            {state === 'sleeping' && (
+            {(state === 'sleeping' || state === 'listening') && (
               <button 
                 onClick={() => setShowVoiceHelp(true)} 
                 className="text-xs text-muted-foreground/60 hover:text-primary transition-colors flex items-center gap-1"
