@@ -1084,7 +1084,7 @@ export default function AidaAssistant() {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
-  }, []);
+  }, [alwaysListening]);
 
   useEffect(() => {
     if (state === 'listening' && !alwaysListening) {
