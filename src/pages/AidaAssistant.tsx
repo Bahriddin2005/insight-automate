@@ -644,6 +644,7 @@ export default function AidaAssistant() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
+  const [alwaysListening, setAlwaysListening] = useState(true); // Direct mode — no wake word needed
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
