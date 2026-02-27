@@ -930,7 +930,7 @@ export default function AidaAssistant() {
     }
 
     return false;
-  }, [navigate, voiceSpeed, messages, exportConversation, voiceOptions]);
+  }, [navigate, voiceSpeed, messages, voiceOptions]);
 
   // Speech recognition
   const startListening = useCallback(() => {
