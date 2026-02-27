@@ -1764,6 +1764,9 @@ ${chatMessages.map(m => {
             <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground">
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </Button>
+            <Button variant="ghost" size="icon" onClick={() => setShowVoiceHelp(!showVoiceHelp)} className="text-muted-foreground" title="Ovozli buyruqlar">
+              <Command className="w-4 h-4" />
+            </Button>
           </div>
         </header>
 
