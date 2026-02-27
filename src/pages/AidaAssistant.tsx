@@ -1555,7 +1555,7 @@ ${chatMessages.map(m => {
       }
     }
     // Resume recognition after speaking
-    if (recognitionRef.current) { try { recognitionRef.current.start(); } catch {} }
+    // Scribe resumes automatically after speaking
   };
 
   const speakGreeting = async (text: string) => {
