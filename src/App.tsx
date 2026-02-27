@@ -47,6 +47,7 @@ const App = () => (
               <Route path="/portfolio/:id" element={<CaseStudyDetail />} />
               <Route path="/aida" element={<AidaAssistant />} />
               <Route path="/roadmap" element={<DataScienceRoadmap />} />
+              <Route path="/prodata" element={<ProDataLab />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
