@@ -20,6 +20,7 @@ import NotFound from "./pages/NotFound";
 import DataCleaningCenter from "./pages/DataCleaningCenter";
 import DashboardStudio from "./pages/DashboardStudio";
 import DataScienceRoadmap from "./pages/DataScienceRoadmap";
+import ProDataLab from "./pages/ProDataLab";
 
 const queryClient = new QueryClient();
 
