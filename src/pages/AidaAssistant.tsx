@@ -1492,6 +1492,8 @@ ${chatMessages.map(m => {
   const speakResponse = async (text: string) => {
     if (isMuted) return;
     setState('speaking');
+    // Pause recognition during TTS to prevent echo
+    if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
     try {
       // Clean text and add natural pauses for human-like speech
       const cleanText = text
