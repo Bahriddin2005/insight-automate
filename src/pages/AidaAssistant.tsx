@@ -1011,48 +1011,60 @@ export default function AidaAssistant() {
         setState('sleeping');
         return;
       }
-      
-      // In "always listening" mode — skip wake word, go directly to processing
-      if (alwaysListening) {
-        if (!wakeWordDetectedRef.current && finalTranscript.trim()) {
-          // Auto-activate on any speech
+
+      // Wake word "AIDA" — ALWAYS detect in both modes, greet and start listening
+      if (!wakeWordDetectedRef.current) {
+        if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда') || lower.includes('аида')) {
+          wakeWordDetectedRef.current = true;
+          accumulatedTranscriptRef.current = '';
+          setTranscript('');
+          // Pause recognition during greeting to avoid echo
+          if (recognitionRef.current) {
+            try { recognitionRef.current.stop(); } catch {}
+          }
+          speakGreeting('Salom, men shu yerdaman. Buyuring!').then(() => {
+            // Resume recognition after greeting finishes
+            if (recognitionRef.current) {
+              try { recognitionRef.current.start(); } catch {}
+            }
+          });
+          return;
+        }
+        // In "always listening" mode — also accept speech without wake word
+        if (alwaysListening && finalTranscript.trim()) {
           wakeWordDetectedRef.current = true;
           setState('listening');
-        }
-      } else {
-        // Traditional wake word mode
-        if (!wakeWordDetectedRef.current) {
-          if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда')) {
-            wakeWordDetectedRef.current = true;
-            accumulatedTranscriptRef.current = '';
-            setTranscript('');
-            speakGreeting('Salom, men shu yerdaman. Buyuring, nima qilamiz?');
-            return;
-          }
         }
       }
 
       // --- LOCAL VOICE COMMANDS (instant, no AI needed) ---
       if (wakeWordDetectedRef.current && finalTranscript.trim()) {
         const cmd = accumulatedTranscriptRef.current.trim().toLowerCase();
-        const handled = handleVoiceCommand(cmd);
-        if (handled) {
-          wakeWordDetectedRef.current = alwaysListening; // Keep listening in always mode
-          accumulatedTranscriptRef.current = '';
-          setTranscript('');
-          return;
+        // Remove wake word from command text
+        const cleanCmd = cmd.replace(/^(aida|ayda|hey aida|эйда|аида)\s*/i, '').trim();
+        if (cleanCmd.length > 0) {
+          const handled = handleVoiceCommand(cleanCmd);
+          if (handled) {
+            // After command, keep listening for next command
+            wakeWordDetectedRef.current = true;
+            accumulatedTranscriptRef.current = '';
+            setTranscript('');
+            return;
+          }
         }
       }
 
-      // Process after short silence — FAST response (1s instead of 2s)
+      // Process after short silence — send to AI (1s timeout)
       if (wakeWordDetectedRef.current && finalTranscript.trim()) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
           const question = accumulatedTranscriptRef.current.trim();
-          if (question.length > 2) {
-            processQuestion(question);
+          // Remove wake word from question
+          const cleanQ = question.replace(/^(aida|ayda|hey aida|эйда|аида)\s*/i, '').trim();
+          if (cleanQ.length > 2) {
+            processQuestion(cleanQ);
           }
-        }, 1000); // 1 second silence = send (was 2s)
+        }, 1000);
       }
     };
 
@@ -1480,6 +1492,8 @@ ${chatMessages.map(m => {
   const speakResponse = async (text: string) => {
     if (isMuted) return;
     setState('speaking');
+    // Pause recognition during TTS to prevent echo
+    if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
     try {
       // Clean text and add natural pauses for human-like speech
       const cleanText = text
@@ -1545,6 +1559,8 @@ ${chatMessages.map(m => {
         console.error('speechSynthesis fallback also failed:', fallbackErr);
       }
     }
+    // Resume recognition after speaking
+    if (recognitionRef.current) { try { recognitionRef.current.start(); } catch {} }
   };
 
   const speakGreeting = async (text: string) => {
