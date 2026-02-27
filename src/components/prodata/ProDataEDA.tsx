@@ -270,6 +270,7 @@ export default function ProDataEDA({ data, columns, fileName }: Props) {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }
