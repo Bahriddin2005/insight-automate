@@ -2024,10 +2024,27 @@ ${chatMessages.map(m => {
 
             <p className="text-sm text-muted-foreground text-center">
               {state === 'sleeping' && (alwaysListening ? 'Gapiring — AIDA tinglayapti...' : '"AIDA" deb chaqiring yoki tugmani bosing')}
-              {state === 'listening' && 'Savolingizni ayting — 1 soniya kutib javob beraman...'}
+              {state === 'listening' && 'Savolingizni ayting — 1.2 soniya kutib javob beraman...'}
               {state === 'thinking' && 'AIDA tahlil qilmoqda...'}
               {state === 'speaking' && 'AIDA javob bermoqda. To\'xtatish uchun bosing.'}
             </p>
+
+            {/* Scribe status badge */}
+            <div className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 ${
+              scribe.isConnected ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'
+            }`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${scribe.isConnected ? 'bg-emerald-500' : 'bg-destructive'}`} />
+              Scribe: {scribe.status}{scribe.isTranscribing ? ' (yozmoqda)' : ''}
+              {!scribe.isConnected && (
+                <button 
+                  onClick={() => doScribeConnect(scribeRef.current)} 
+                  className="ml-1 underline hover:text-primary"
+                >
+                  qayta ulash
+                </button>
+              )}
+            </div>
+
             {(state === 'sleeping' || state === 'listening') && (
               <button 
                 onClick={() => setShowVoiceHelp(true)} 
