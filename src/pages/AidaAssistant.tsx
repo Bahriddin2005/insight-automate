@@ -1704,7 +1704,7 @@ ${chatMessages.map(m => {
 
   const stateConfig = {
     sleeping: { color: 'bg-muted', pulse: false, icon: MicOff, label: 'Uxlash rejimi' },
-    listening: { color: 'bg-emerald-500', pulse: true, icon: Mic, label: `Tinglayapman... (Scribe ${scribe.isConnected ? '✓' : '○'})` },
+    listening: { color: 'bg-emerald-500', pulse: true, icon: Mic, label: `Tinglayapman... (${scribe.status}${scribe.isTranscribing ? ' 🔴' : ''})` },
     thinking: { color: 'bg-amber-500', pulse: true, icon: Brain, label: 'Tahlil qilyapman...' },
     speaking: { color: 'bg-primary', pulse: true, icon: Volume2, label: 'Gapirmoqda...' },
   };
