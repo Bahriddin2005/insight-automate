@@ -1965,9 +1965,10 @@ ${chatMessages.map(m => {
               ))}
             </AnimatePresence>
 
-            {transcript && state === 'listening' && (
+            {transcript && (state === 'listening' || state === 'sleeping') && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
                 <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-primary/20 text-primary border border-primary/30">
+                  <p className="text-xs text-muted-foreground mb-1">🎙️ Tinglayapman:</p>
                   <p className="text-sm italic">{transcript}</p>
                 </div>
               </motion.div>
