@@ -1002,7 +1002,7 @@ export default function AidaAssistant() {
       const lower = combined.toLowerCase();
       
       // "AIDA jim bo'l" / "AIDA STOP" — immediately stop speaking and go silent
-      if (lower.includes('jim bo') || lower.includes('aida stop') || lower.includes('aida jim') || lower.includes('stop aida')) {
+      if (lower.includes('jim bo') || lower.includes('aida stop') || lower.includes('aida jim') || lower.includes('stop aida') || lower === 'stop' || lower === 'стоп') {
         wakeWordDetectedRef.current = false;
         accumulatedTranscriptRef.current = '';
         setTranscript('');
@@ -1012,13 +1012,23 @@ export default function AidaAssistant() {
         return;
       }
       
-      if (!wakeWordDetectedRef.current) {
-        if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда')) {
+      // In "always listening" mode — skip wake word, go directly to processing
+      if (alwaysListening) {
+        if (!wakeWordDetectedRef.current && finalTranscript.trim()) {
+          // Auto-activate on any speech
           wakeWordDetectedRef.current = true;
-          accumulatedTranscriptRef.current = '';
-          setTranscript('');
-          speakGreeting('Salom, men shu yerdaman. Buyuring, nima qilamiz?');
-          return;
+          setState('listening');
+        }
+      } else {
+        // Traditional wake word mode
+        if (!wakeWordDetectedRef.current) {
+          if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда')) {
+            wakeWordDetectedRef.current = true;
+            accumulatedTranscriptRef.current = '';
+            setTranscript('');
+            speakGreeting('Salom, men shu yerdaman. Buyuring, nima qilamiz?');
+            return;
+          }
         }
       }
 
@@ -1027,14 +1037,14 @@ export default function AidaAssistant() {
         const cmd = accumulatedTranscriptRef.current.trim().toLowerCase();
         const handled = handleVoiceCommand(cmd);
         if (handled) {
-          wakeWordDetectedRef.current = true;
+          wakeWordDetectedRef.current = alwaysListening; // Keep listening in always mode
           accumulatedTranscriptRef.current = '';
           setTranscript('');
           return;
         }
       }
 
-      // Process after silence when wake word is active
+      // Process after short silence — FAST response (1s instead of 2s)
       if (wakeWordDetectedRef.current && finalTranscript.trim()) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
@@ -1042,7 +1052,7 @@ export default function AidaAssistant() {
           if (question.length > 2) {
             processQuestion(question);
           }
-        }, 2000);
+        }, 1000); // 1 second silence = send (was 2s)
       }
     };
 
