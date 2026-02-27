@@ -1927,6 +1927,62 @@ ${chatMessages.map(m => {
       <AnimatePresence>
         {fullscreenChart && <FullscreenChartModal chart={fullscreenChart} onClose={() => setFullscreenChart(null)} />}
       </AnimatePresence>
+
+      {/* Voice Commands Help Panel */}
+      <AnimatePresence>
+        {showVoiceHelp && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            onClick={() => setShowVoiceHelp(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Command className="w-5 h-5 text-primary" />
+                  <h2 className="font-semibold text-foreground">Ovozli buyruqlar</h2>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setShowVoiceHelp(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="p-5 space-y-1 max-h-[60vh] overflow-y-auto">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Avval "AIDA" deb chaqiring, keyin buyruqni ayting
+                </p>
+                {voiceCommands.map((vc, i) => (
+                  <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0">
+                    <code className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-md font-mono shrink-0 mt-0.5">
+                      {vc.cmd.split(' / ')[0]}
+                    </code>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground">{vc.desc}</p>
+                      {vc.cmd.includes(' / ') && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Boshqa variantlar: {vc.cmd.split(' / ').slice(1).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 border-t border-border bg-muted/30">
+                <p className="text-xs text-muted-foreground text-center">
+                  💡 Tanilmagan buyruqlar AIDA ga savol sifatida yuboriladi
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
