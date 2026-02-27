@@ -21,6 +21,7 @@ import DataCleaningCenter from "./pages/DataCleaningCenter";
 import DashboardStudio from "./pages/DashboardStudio";
 import DataScienceRoadmap from "./pages/DataScienceRoadmap";
 import ProDataLab from "./pages/ProDataLab";
+import TableauDashboards from "./pages/TableauDashboards";
 
 const queryClient = new QueryClient();
 
