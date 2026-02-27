@@ -1070,11 +1070,12 @@ export default function AidaAssistant() {
 
     try {
       recognition.start();
-      setState('sleeping');
+      setState(alwaysListening ? 'listening' : 'sleeping');
+      if (alwaysListening) wakeWordDetectedRef.current = true;
     } catch {
       setError('Mikrofonni yoqib bo\'lmadi.');
     }
-  }, []);
+  }, [alwaysListening]);
 
   useEffect(() => {
     startListening();
