@@ -17,7 +17,7 @@ type Module = 'upload' | 'eda' | 'ml' | 'predict' | 'viz' | 'analytics';
 const modules: { id: Module; label: string; icon: typeof Upload; desc: string }[] = [
   { id: 'upload', label: 'Data Upload', icon: Upload, desc: 'CSV, Excel, JSON yuklash' },
   { id: 'eda', label: 'EDA', icon: BarChart3, desc: 'Avtomatik tahlil' },
-  { id: 'ml', label: 'ML Training', icon: Brain, desc: 'Model o'rgatish' },
+  { id: 'ml', label: 'ML Training', icon: Brain, desc: "Model o'rgatish" },
   { id: 'predict', label: 'Predictions', icon: Rocket, desc: 'Real-time bashorat' },
   { id: 'viz', label: 'Visualizations', icon: PieChart, desc: 'Interaktiv grafiklar' },
   { id: 'analytics', label: 'Advanced', icon: FlaskConical, desc: 'PCA, testlar' },
