@@ -1053,38 +1053,50 @@ export default function AidaAssistant() {
     },
   });
 
-  // Connect Scribe on mount
-  const connectScribe = useCallback(async () => {
-    if (scribe.isConnected) return;
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('aida-stt-token');
-      if (fnError || !data?.token) {
-        console.error('STT token error:', fnError);
-        setError('Ovoz tanish xizmati ulanmadi. Qayta urinib ko\'ring.');
-        return;
-      }
-      await scribe.connect({
-        token: data.token,
-        microphone: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      setScribeConnected(true);
-      setState(alwaysListening ? 'listening' : 'sleeping');
-      if (alwaysListening) wakeWordDetectedRef.current = true;
-      toast.success('🎙️ ElevenLabs Scribe ulandi — aniq ovoz tanish tayyor!');
-    } catch (e) {
-      console.error('Scribe connect error:', e);
-      setError('Mikrofon ulanmadi. Ruxsat berilganligini tekshiring.');
-    }
-  }, [scribe, alwaysListening]);
+  // Keep a ref to scribe so we can use it without stale closures
+  const scribeRef = useRef(scribe);
+  scribeRef.current = scribe;
 
+  // Connect Scribe on mount
   useEffect(() => {
-    connectScribe();
+    let cancelled = false;
+    const doConnect = async () => {
+      const s = scribeRef.current;
+      if (s.isConnected) return;
+      try {
+        console.log('[Scribe] Requesting STT token...');
+        const { data, error: fnError } = await supabase.functions.invoke('aida-stt-token');
+        if (cancelled) return;
+        if (fnError || !data?.token) {
+          console.error('[Scribe] STT token error:', fnError, data);
+          setError('Ovoz tanish xizmati ulanmadi. Qayta urinib ko\'ring.');
+          return;
+        }
+        console.log('[Scribe] Token received, connecting...');
+        await s.connect({
+          token: data.token,
+          microphone: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        if (cancelled) return;
+        console.log('[Scribe] Connected successfully!');
+        setScribeConnected(true);
+        setState(alwaysListeningRef.current ? 'listening' : 'sleeping');
+        if (alwaysListeningRef.current) wakeWordDetectedRef.current = true;
+        toast.success('🎙️ ElevenLabs Scribe ulandi — aniq ovoz tanish tayyor!');
+      } catch (e) {
+        if (cancelled) return;
+        console.error('[Scribe] Connect error:', e);
+        setError('Mikrofon ulanmadi. Ruxsat berilganligini tekshiring.');
+      }
+    };
+    doConnect();
     return () => {
-      if (scribe.isConnected) scribe.disconnect();
+      cancelled = true;
+      try { scribeRef.current.disconnect(); } catch {}
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
