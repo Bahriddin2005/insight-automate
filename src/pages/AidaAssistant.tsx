@@ -1484,8 +1484,8 @@ ${chatMessages.map(m => {
       setState('sleeping');
     }
   };
+  processQuestionRef.current = processQuestion;
 
-  const speakResponse = async (text: string) => {
     if (isMuted) return;
     setState('speaking');
     // Pause recognition during TTS to prevent echo
