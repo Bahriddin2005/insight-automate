@@ -979,9 +979,79 @@ export default function AidaAssistant() {
   handleVoiceCommandRef.current = handleVoiceCommand;
 
   // --- ElevenLabs Scribe Realtime STT ---
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scribeConnectingRef = useRef(false);
+
+  const doScribeConnect = useCallback(async (scribeInstance: ReturnType<typeof useScribe>) => {
+    if (scribeInstance.isConnected || scribeConnectingRef.current) return;
+    scribeConnectingRef.current = true;
+    try {
+      console.log('[Scribe] Requesting STT token...');
+      const { data, error: fnError } = await supabase.functions.invoke('aida-stt-token');
+      if (fnError || !data?.token) {
+        console.error('[Scribe] STT token error:', fnError, data);
+        setError('Ovoz tanish xizmati ulanmadi. 5 soniyadan keyin qayta uriniladi...');
+        scribeConnectingRef.current = false;
+        // Auto retry after 5s
+        reconnectTimerRef.current = setTimeout(() => doScribeConnect(scribeRef.current), 5000);
+        return;
+      }
+      console.log('[Scribe] Token received, connecting...');
+      await scribeInstance.connect({
+        token: data.token,
+        microphone: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      console.log('[Scribe] Connected successfully!');
+      setScribeConnected(true);
+      setError('');
+      setState(alwaysListeningRef.current ? 'listening' : 'sleeping');
+      if (alwaysListeningRef.current) wakeWordDetectedRef.current = true;
+      toast.success('🎙️ ElevenLabs Scribe ulandi — aniq ovoz tanish tayyor!');
+    } catch (e) {
+      console.error('[Scribe] Connect error:', e);
+      setError('Mikrofon ulanmadi. 5 soniyadan keyin qayta uriniladi...');
+      // Auto retry after 5s
+      reconnectTimerRef.current = setTimeout(() => doScribeConnect(scribeRef.current), 5000);
+    } finally {
+      scribeConnectingRef.current = false;
+    }
+  }, []);
+
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
     commitStrategy: 'vad' as any,
+    onConnect: () => {
+      console.log('[Scribe] WebSocket connected');
+      setScribeConnected(true);
+      setError('');
+    },
+    onDisconnect: () => {
+      console.log('[Scribe] Disconnected — scheduling reconnect in 3s...');
+      setScribeConnected(false);
+      // Auto-reconnect after 3 seconds
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = setTimeout(() => {
+        console.log('[Scribe] Auto-reconnecting...');
+        doScribeConnect(scribeRef.current);
+      }, 3000);
+    },
+    onError: (err) => {
+      console.error('[Scribe] Error:', err);
+    },
+    onSessionTimeLimitExceededError: () => {
+      console.log('[Scribe] Session time limit — reconnecting...');
+      setScribeConnected(false);
+      reconnectTimerRef.current = setTimeout(() => doScribeConnect(scribeRef.current), 1000);
+    },
+    onInsufficientAudioActivityError: () => {
+      console.log('[Scribe] Insufficient audio — reconnecting...');
+      setScribeConnected(false);
+      reconnectTimerRef.current = setTimeout(() => doScribeConnect(scribeRef.current), 2000);
+    },
     onPartialTranscript: (data) => {
       if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const partial = (accumulatedTranscriptRef.current + ' ' + data.text).trim();
@@ -1018,7 +1088,6 @@ export default function AidaAssistant() {
           speakGreetingRef.current?.('Salom, men shu yerdaman. Buyuring!');
           return;
         }
-        // In always-listening mode — accept speech without wake word
         if (alwaysListeningRef.current) {
           wakeWordDetectedRef.current = true;
           setState('listening');
@@ -1037,7 +1106,7 @@ export default function AidaAssistant() {
         }
       }
 
-      // Send to AI after silence (VAD handles segmentation, use short timer for accumulation)
+      // Send to AI after silence
       if (wakeWordDetectedRef.current) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
@@ -1053,54 +1122,24 @@ export default function AidaAssistant() {
     },
   });
 
-  // Keep a ref to scribe so we can use it without stale closures
+  // Keep a ref to scribe
   const scribeRef = useRef(scribe);
   scribeRef.current = scribe;
 
-  // Connect Scribe on mount
+  // Connect Scribe on mount (with small delay to ensure hook is initialized)
   useEffect(() => {
-    let cancelled = false;
-    const doConnect = async () => {
-      const s = scribeRef.current;
-      if (s.isConnected) return;
-      try {
-        console.log('[Scribe] Requesting STT token...');
-        const { data, error: fnError } = await supabase.functions.invoke('aida-stt-token');
-        if (cancelled) return;
-        if (fnError || !data?.token) {
-          console.error('[Scribe] STT token error:', fnError, data);
-          setError('Ovoz tanish xizmati ulanmadi. Qayta urinib ko\'ring.');
-          return;
-        }
-        console.log('[Scribe] Token received, connecting...');
-        await s.connect({
-          token: data.token,
-          microphone: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        });
-        if (cancelled) return;
-        console.log('[Scribe] Connected successfully!');
-        setScribeConnected(true);
-        setState(alwaysListeningRef.current ? 'listening' : 'sleeping');
-        if (alwaysListeningRef.current) wakeWordDetectedRef.current = true;
-        toast.success('🎙️ ElevenLabs Scribe ulandi — aniq ovoz tanish tayyor!');
-      } catch (e) {
-        if (cancelled) return;
-        console.error('[Scribe] Connect error:', e);
-        setError('Mikrofon ulanmadi. Ruxsat berilganligini tekshiring.');
-      }
-    };
-    doConnect();
+    const timer = setTimeout(() => {
+      console.log('[Scribe] Initial connect attempt...');
+      doScribeConnect(scribeRef.current);
+    }, 500);
     return () => {
-      cancelled = true;
+      clearTimeout(timer);
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       try { scribeRef.current.disconnect(); } catch {}
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
-  }, []);
+  }, [doScribeConnect]);
 
   // Reconnect when alwaysListening changes
   useEffect(() => {
