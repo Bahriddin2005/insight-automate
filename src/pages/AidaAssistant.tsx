@@ -1680,7 +1680,7 @@ ${chatMessages.map(m => {
     if (state === 'sleeping') {
       wakeWordDetectedRef.current = true;
       accumulatedTranscriptRef.current = '';
-      // Scribe reconnects automatically if needed
+      if (!scribe.isConnected) doScribeConnect(scribeRef.current);
       speakGreeting('Salom, men shu yerdaman. Nima qilamiz?');
     } else if (state === 'speaking' && audioRef.current) {
       audioRef.current.pause();
