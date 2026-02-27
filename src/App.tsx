@@ -21,6 +21,7 @@ import DataCleaningCenter from "./pages/DataCleaningCenter";
 import DashboardStudio from "./pages/DashboardStudio";
 import DataScienceRoadmap from "./pages/DataScienceRoadmap";
 import ProDataLab from "./pages/ProDataLab";
+import TableauDashboards from "./pages/TableauDashboards";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/aida" element={<AidaAssistant />} />
               <Route path="/roadmap" element={<DataScienceRoadmap />} />
               <Route path="/prodata" element={<ProDataLab />} />
+              <Route path="/tableau" element={<TableauDashboards />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

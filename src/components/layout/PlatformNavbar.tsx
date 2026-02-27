@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, BarChart3, Clock, Mic, LogOut, FlaskConical } from 'lucide-react';
+import { Sparkles, BarChart3, Clock, Mic, LogOut, FlaskConical, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import LanguageToggle from '@/components/dashboard/LanguageToggle';
@@ -19,6 +19,7 @@ export default function PlatformNavbar() {
     { path: '/dashboards', label: t('nav.history'), icon: Clock },
     
     { path: '/prodata', label: 'ProDataLab', icon: FlaskConical },
+    { path: '/tableau', label: 'Tableau', icon: LayoutDashboard },
   ];
 
   return (
