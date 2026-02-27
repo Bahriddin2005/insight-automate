@@ -1307,7 +1307,16 @@ ${chatMessages.map(m => {
     if (isMuted) return;
     setState('speaking');
     try {
-      const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').replace(/\n+/g, '. ').slice(0, 2000);
+      // Clean text and add natural pauses for human-like speech
+      const cleanText = text
+        .replace(/[#*_`~\[\]()>|]/g, '')
+        .replace(/\n{2,}/g, '... ')   // paragraph breaks → long pause
+        .replace(/\n/g, ', ')          // line breaks → short pause
+        .replace(/(\d+)\./g, '$1,')    // numbered lists → comma pause
+        .replace(/:\s/g, '... ')       // colons → pause for emphasis
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+        .slice(0, 2000);
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aida-tts`,
         {
