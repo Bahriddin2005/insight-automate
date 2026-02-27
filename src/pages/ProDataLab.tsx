@@ -96,7 +96,7 @@ export default function ProDataLab() {
         >
           {modules.map((mod, i) => {
             const isActive = active === mod.id;
-            const needsData = mod.id !== 'upload' && !dataset;
+            const needsData = mod.id !== 'upload' && mod.id !== 'admin' && !dataset;
             return (
               <motion.button
                 key={mod.id}

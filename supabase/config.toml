@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.aida-voice-agent]
 verify_jwt = false
+
+[functions.ml-train]
+verify_jwt = false
