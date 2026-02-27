@@ -1488,7 +1488,7 @@ ${chatMessages.map(m => {
     if (isMuted) return;
     setState('speaking');
     // Pause recognition during TTS to prevent echo
-    if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
+    // Scribe handles mic automatically — no manual pause needed
     try {
       // Clean text and add natural pauses for human-like speech
       const cleanText = text
