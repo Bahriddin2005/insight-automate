@@ -645,8 +645,10 @@ export default function AidaAssistant() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
-  const [alwaysListening, setAlwaysListening] = useState(true); // Direct mode — no wake word needed
+  const [alwaysListening, setAlwaysListening] = useState(true);
   const [scribeConnected, setScribeConnected] = useState(false);
+  const stateRef = useRef<AidaState>('sleeping');
+  const alwaysListeningRef = useRef(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -658,6 +660,10 @@ export default function AidaAssistant() {
   const processQuestionRef = useRef<(q: string) => void>();
   const handleVoiceCommandRef = useRef<(cmd: string) => boolean>();
   const speakGreetingRef = useRef<(text: string) => Promise<void>>();
+
+  // Keep refs in sync with state
+  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => { alwaysListeningRef.current = alwaysListening; }, [alwaysListening]);
   // Voice selection
   const [selectedVoice, setSelectedVoice] = useState('daniel');
   const [voiceSpeed, setVoiceSpeed] = useState(1.15);
