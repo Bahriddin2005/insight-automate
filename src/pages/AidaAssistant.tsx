@@ -1023,7 +1023,7 @@ export default function AidaAssistant() {
 
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
-    commitStrategy: 'vad',
+    commitStrategy: 'vad' as any,
     onConnect: () => {
       console.log('[Scribe] WebSocket connected');
       setScribeConnected(true);
