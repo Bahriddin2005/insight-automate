@@ -1559,6 +1559,8 @@ ${chatMessages.map(m => {
         console.error('speechSynthesis fallback also failed:', fallbackErr);
       }
     }
+    // Resume recognition after speaking
+    if (recognitionRef.current) { try { recognitionRef.current.start(); } catch {} }
   };
 
   const speakGreeting = async (text: string) => {
