@@ -1023,7 +1023,7 @@ export default function AidaAssistant() {
 
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
-    commitStrategy: 'vad' as any,
+    commitStrategy: 'vad',
     onConnect: () => {
       console.log('[Scribe] WebSocket connected');
       setScribeConnected(true);
@@ -1032,7 +1032,6 @@ export default function AidaAssistant() {
     onDisconnect: () => {
       console.log('[Scribe] Disconnected — scheduling reconnect in 3s...');
       setScribeConnected(false);
-      // Auto-reconnect after 3 seconds
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = setTimeout(() => {
         console.log('[Scribe] Auto-reconnecting...');
@@ -1042,26 +1041,38 @@ export default function AidaAssistant() {
     onError: (err) => {
       console.error('[Scribe] Error:', err);
     },
-    onSessionTimeLimitExceededError: () => {
-      console.log('[Scribe] Session time limit — reconnecting...');
+    onSessionTimeLimitExceededError: (d) => {
+      console.log('[Scribe] Session time limit:', d?.error, '— reconnecting...');
       setScribeConnected(false);
       reconnectTimerRef.current = setTimeout(() => doScribeConnect(scribeRef.current), 1000);
     },
-    onInsufficientAudioActivityError: () => {
-      console.log('[Scribe] Insufficient audio — reconnecting...');
+    onInsufficientAudioActivityError: (d) => {
+      console.log('[Scribe] Insufficient audio:', d?.error, '— reconnecting...');
       setScribeConnected(false);
       reconnectTimerRef.current = setTimeout(() => doScribeConnect(scribeRef.current), 2000);
     },
     onPartialTranscript: (data) => {
+      console.log('[Scribe] Partial:', data.text, '| State:', stateRef.current);
       if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const partial = (accumulatedTranscriptRef.current + ' ' + data.text).trim();
       setTranscript(partial);
+      // Ensure we're in listening state when we receive audio
+      if (stateRef.current === 'sleeping') {
+        setState('listening');
+        wakeWordDetectedRef.current = true;
+      }
     },
     onCommittedTranscript: (data) => {
       console.log('[Scribe] Committed:', data.text, '| State:', stateRef.current);
       if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const text = data.text.trim();
       if (!text) return;
+
+      // Auto-wake when receiving speech
+      if (stateRef.current === 'sleeping') {
+        setState('listening');
+        wakeWordDetectedRef.current = true;
+      }
 
       accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + text).trim();
       setTranscript(accumulatedTranscriptRef.current);
@@ -1117,7 +1128,7 @@ export default function AidaAssistant() {
           }
           accumulatedTranscriptRef.current = '';
           setTranscript('');
-        }, 800);
+        }, 1200);
       }
     },
   });
