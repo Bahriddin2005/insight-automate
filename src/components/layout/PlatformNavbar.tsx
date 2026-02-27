@@ -19,6 +19,7 @@ export default function PlatformNavbar() {
     { path: '/dashboards', label: t('nav.history'), icon: Clock },
     
     { path: '/prodata', label: 'ProDataLab', icon: FlaskConical },
+    { path: '/tableau', label: 'Tableau', icon: LayoutDashboard },
   ];
 
   return (
