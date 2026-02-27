@@ -1938,12 +1938,12 @@ ${chatMessages.map(m => {
             </motion.button>
 
             <p className="text-sm text-muted-foreground text-center">
-              {state === 'sleeping' && '"AIDA" deb chaqiring yoki tugmani bosing'}
-              {state === 'listening' && 'Savolingizni ayting yoki buyruq bering...'}
+              {state === 'sleeping' && (alwaysListening ? 'Gapiring — AIDA tinglayapti...' : '"AIDA" deb chaqiring yoki tugmani bosing')}
+              {state === 'listening' && 'Savolingizni ayting — 1 soniya kutib javob beraman...'}
               {state === 'thinking' && 'AIDA tahlil qilmoqda...'}
               {state === 'speaking' && 'AIDA javob bermoqda. To\'xtatish uchun bosing.'}
             </p>
-            {state === 'sleeping' && (
+            {(state === 'sleeping' || state === 'listening') && (
               <button 
                 onClick={() => setShowVoiceHelp(true)} 
                 className="text-xs text-muted-foreground/60 hover:text-primary transition-colors flex items-center gap-1"
