@@ -158,7 +158,7 @@ export default function TableauDashboards() {
                         </div>
                         <div className="flex gap-1 shrink-0">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => { e.stopPropagation(); handleToggleActive(viz); }}>
-                            {viz.is_active ? <Eye className="w-3.5 h-3.5 text-green-500" /> : <Eye className="w-3.5 h-3.5 text-muted-foreground" />}
+                            {viz.is_active ? <Eye className="w-3.5 h-3.5 text-primary" /> : <Eye className="w-3.5 h-3.5 text-muted-foreground" />}
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={e => { e.stopPropagation(); handleDelete(viz.id); }}>
                             <Trash2 className="w-3.5 h-3.5" />
