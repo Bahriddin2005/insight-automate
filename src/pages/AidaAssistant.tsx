@@ -871,6 +871,18 @@ export default function AidaAssistant() {
         }
       }
 
+      // --- LOCAL VOICE COMMANDS (instant, no AI needed) ---
+      if (wakeWordDetectedRef.current && finalTranscript.trim()) {
+        const cmd = accumulatedTranscriptRef.current.trim().toLowerCase();
+        const handled = handleVoiceCommand(cmd);
+        if (handled) {
+          wakeWordDetectedRef.current = true;
+          accumulatedTranscriptRef.current = '';
+          setTranscript('');
+          return;
+        }
+      }
+
       // Process after silence when wake word is active
       if (wakeWordDetectedRef.current && finalTranscript.trim()) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
