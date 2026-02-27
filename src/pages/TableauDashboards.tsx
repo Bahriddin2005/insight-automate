@@ -208,7 +208,7 @@ export default function TableauDashboards() {
                         <td className="p-3 font-medium">{log.resource_name || log.resource_id}</td>
                         <td className="p-3"><Badge variant="secondary" className="text-[10px]">{log.resource_type}</Badge></td>
                         <td className="p-3">
-                          {log.status === 'success' ? <CheckCircle2 className="w-4 h-4 text-green-500" /> :
+                          {log.status === 'success' ? <CheckCircle2 className="w-4 h-4 text-primary" /> :
                            log.status === 'error' ? <XCircle className="w-4 h-4 text-destructive" /> :
                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                         </td>
