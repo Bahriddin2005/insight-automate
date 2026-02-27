@@ -297,6 +297,87 @@ export type Database = {
         }
         Relationships: []
       }
+      tableau_refresh_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          resource_id: string
+          resource_name: string | null
+          resource_type: string
+          started_at: string
+          status: string
+          triggered_by: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          resource_id: string
+          resource_name?: string | null
+          resource_type?: string
+          started_at?: string
+          status?: string
+          triggered_by: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          resource_id?: string
+          resource_name?: string | null
+          resource_type?: string
+          started_at?: string
+          status?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
+      tableau_vizzes: {
+        Row: {
+          allowed_roles: string[] | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          project: string | null
+          tags: string[] | null
+          updated_at: string
+          viz_url: string
+        }
+        Insert: {
+          allowed_roles?: string[] | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          project?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          viz_url: string
+        }
+        Update: {
+          allowed_roles?: string[] | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          project?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          viz_url?: string
+        }
+        Relationships: []
+      }
       upload_sessions: {
         Row: {
           ai_summary: string | null
