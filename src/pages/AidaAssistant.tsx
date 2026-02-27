@@ -1376,7 +1376,7 @@ ${chatMessages.map(m => {
   const speakGreeting = async (text: string) => {
     setState('speaking');
     try {
-      const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').slice(0, 500);
+      const cleanText = text.replace(/[#*_`~\[\]()>|]/g, '').replace(/\n{2,}/g, '... ').replace(/\n/g, ', ').trim().slice(0, 500);
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/aida-tts`,
         {
