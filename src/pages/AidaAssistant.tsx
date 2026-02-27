@@ -1707,6 +1707,30 @@ ${chatMessages.map(m => {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <button
+              onClick={() => {
+                setAlwaysListening(v => {
+                  const next = !v;
+                  if (next) {
+                    wakeWordDetectedRef.current = true;
+                    setState('listening');
+                  } else {
+                    wakeWordDetectedRef.current = false;
+                    setState('sleeping');
+                  }
+                  return next;
+                });
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                alwaysListening
+                  ? 'bg-primary/10 text-primary border-primary/30'
+                  : 'bg-muted text-muted-foreground border-border'
+              }`}
+              title={alwaysListening ? 'To\'g\'ridan-to\'g\'ri tinglash yoqilgan' : 'Wake word rejimi'}
+            >
+              <Mic className="w-3 h-3" />
+              {alwaysListening ? 'Doim tinglaydi' : 'Wake word'}
+            </button>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-xs text-muted-foreground">
               <Activity className="w-3 h-3" />
               {currentState.label}
