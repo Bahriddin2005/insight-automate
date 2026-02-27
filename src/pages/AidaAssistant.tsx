@@ -816,6 +816,121 @@ export default function AidaAssistant() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+  // --- Voice Commands System ---
+  const [showVoiceHelp, setShowVoiceHelp] = useState(false);
+  
+  const voiceCommands = [
+    { cmd: 'bosh sahifa / uyga qayt', desc: 'Bosh sahifaga o\'tish' },
+    { cmd: 'dashboardlar / mening dashboardlarim', desc: 'Dashboardlar sahifasi' },
+    { cmd: 'ovozni o\'chir / ovozni yoq', desc: 'Ovozni boshqarish' },
+    { cmd: 'yangi suhbat', desc: 'Yangi suhbat boshlash' },
+    { cmd: 'dataset yukla', desc: 'Fayl yuklash oynasi' },
+    { cmd: 'eksport / hisobotni yukla', desc: 'Suhbatni eksport qilish' },
+    { cmd: 'daniel / laura / alice / sarah', desc: 'Ovozni almashtirish' },
+    { cmd: 'tezroq / sekinroq', desc: 'Ovoz tezligini o\'zgartirish' },
+    { cmd: 'jim bo\'l / stop', desc: 'AIDA ni to\'xtatish' },
+    { cmd: 'buyruqlar / yordam', desc: 'Bu ro\'yxatni ko\'rsatish' },
+  ];
+
+  const handleVoiceCommand = useCallback((cmd: string): boolean => {
+    // Navigation commands
+    if (cmd.includes('bosh sahifa') || cmd.includes('uyga') || cmd.includes('asosiy sahifa')) {
+      speakGreeting('Bosh sahifaga o\'tmoqdamiz');
+      setTimeout(() => navigate('/'), 1500);
+      return true;
+    }
+    if (cmd.includes('dashboard') || cmd.includes('mening dashboard')) {
+      speakGreeting('Dashboardlar sahifasiga o\'tmoqdamiz');
+      setTimeout(() => navigate('/my-dashboards'), 1500);
+      return true;
+    }
+    if (cmd.includes('portfolio') || cmd.includes('loyihalar')) {
+      speakGreeting('Portfolio sahifasiga o\'tmoqdamiz');
+      setTimeout(() => navigate('/portfolio'), 1500);
+      return true;
+    }
+
+    // Mute/unmute
+    if (cmd.includes('ovozni o\'chir') || cmd.includes('ovozni yop') || cmd.includes('mute')) {
+      setIsMuted(true);
+      toast.success('Ovoz o\'chirildi');
+      return true;
+    }
+    if (cmd.includes('ovozni yoq') || cmd.includes('unmute') || cmd.includes('ovozni och')) {
+      setIsMuted(false);
+      speakGreeting('Ovoz yoqildi');
+      return true;
+    }
+
+    // New conversation
+    if (cmd.includes('yangi suhbat') || cmd.includes('yangi chat') || cmd.includes('tozala')) {
+      setActiveConversationId(null);
+      setMessages([]);
+      speakGreeting('Yangi suhbat boshlandi');
+      return true;
+    }
+
+    // File upload
+    if (cmd.includes('dataset yukla') || cmd.includes('fayl yukla') || cmd.includes('ma\'lumot yukla')) {
+      fileInputRef.current?.click();
+      speakGreeting('Fayl tanlash oynasi ochildi');
+      return true;
+    }
+
+    // Export
+    if (cmd.includes('eksport') || cmd.includes('hisobotni yukla') || cmd.includes('saqla')) {
+      if (messages.filter(m => m.role !== 'system').length > 0) {
+        exportConversation('pdf');
+        speakGreeting('Suhbat PDF formatda eksport qilindi');
+      } else {
+        speakGreeting('Eksport qilish uchun avval suhbat boshlang');
+      }
+      return true;
+    }
+
+    // Voice change
+    const voiceMap: Record<string, string> = {
+      'daniel': 'daniel', 'doniyor': 'daniel',
+      'laura': 'laura', 'lavra': 'laura',
+      'alice': 'alice', 'elis': 'alice',
+      'matilda': 'matilda',
+      'santa': 'santa',
+      'sarah': 'sarah', 'sara': 'sarah',
+    };
+    for (const [keyword, voiceId] of Object.entries(voiceMap)) {
+      if (cmd.includes(keyword)) {
+        const voice = voiceOptions.find(v => v.id === voiceId);
+        if (voice) {
+          setSelectedVoice(voiceId);
+          speakGreeting(`Ovoz ${voice.name} ga o'zgartirildi`);
+          return true;
+        }
+      }
+    }
+
+    // Speed control
+    if (cmd.includes('tezroq') || cmd.includes('tezlikni oshir')) {
+      const newSpeed = Math.min(voiceSpeed + 0.1, 1.2);
+      setVoiceSpeed(newSpeed);
+      speakGreeting(`Tezlik ${newSpeed.toFixed(1)} iks ga oshirildi`);
+      return true;
+    }
+    if (cmd.includes('sekinroq') || cmd.includes('sekin gapirsang') || cmd.includes('tezlikni kamaytir')) {
+      const newSpeed = Math.max(voiceSpeed - 0.1, 0.8);
+      setVoiceSpeed(newSpeed);
+      speakGreeting(`Tezlik ${newSpeed.toFixed(1)} iks ga kamaytirildi`);
+      return true;
+    }
+
+    // Help / commands list
+    if (cmd.includes('buyruqlar') || cmd.includes('yordam') || cmd.includes('nima qila olasan') || cmd.includes('komandalar')) {
+      setShowVoiceHelp(true);
+      speakGreeting('Ovozli buyruqlar ro\'yxati ochildi. Siz navigatsiya, ovoz sozlamalari, eksport va boshqa buyruqlardan foydalanishingiz mumkin.');
+      return true;
+    }
+
+    return false;
+  }, [navigate, voiceSpeed, messages, exportConversation, voiceOptions]);
 
   // Speech recognition
   const startListening = useCallback(() => {
