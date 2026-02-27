@@ -978,7 +978,8 @@ export default function AidaAssistant() {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'uz-UZ';
+    // uz-UZ is NOT supported by Chrome — use ru-RU which works well for Uzbek speakers
+    recognition.lang = 'ru-RU';
     recognitionRef.current = recognition;
 
     recognition.onresult = (event: any) => {
