@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, Plus, Trash2, Edit2, RefreshCw, Eye, Settings2, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { BarChart3, Plus, Trash2, RefreshCw, Eye, Loader2, CheckCircle2, XCircle, Shield, Play } from 'lucide-react';
 import PlatformLayout from '@/components/layout/PlatformLayout';
 import TableauViz from '@/components/tableau/TableauViz';
 import { Card } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/authContext';
 import { toast } from 'sonner';
@@ -48,20 +48,28 @@ export default function TableauDashboards() {
   const [loading, setLoading] = useState(true);
   const [selectedViz, setSelectedViz] = useState<TableauVizRecord | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [form, setForm] = useState({ name: '', viz_url: '', project: '', description: '', tags: '' });
+  const [showRefreshDialog, setShowRefreshDialog] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshForm, setRefreshForm] = useState({ resource_type: 'workbook', resource_id: '', resource_name: '' });
+  const [form, setForm] = useState({ name: '', viz_url: '', project: '', description: '', tags: '', allowed_roles: '' });
+  const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const loadData = async () => {
     setLoading(true);
-    const [vizRes, logRes] = await Promise.all([
+    const [vizRes, logRes, rolesRes] = await Promise.all([
       supabase.from('tableau_vizzes').select('*').order('created_at', { ascending: false }),
       supabase.from('tableau_refresh_logs').select('*').order('started_at', { ascending: false }).limit(50),
+      user ? supabase.from('user_roles').select('role').eq('user_id', user.id) : Promise.resolve({ data: [] }),
     ]);
     if (vizRes.data) setVizzes(vizRes.data as unknown as TableauVizRecord[]);
     if (logRes.data) setLogs(logRes.data as unknown as RefreshLog[]);
+    if (rolesRes.data) setUserRoles((rolesRes.data as any[]).map(r => r.role));
     setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [user]);
+
+  const isAdmin = userRoles.includes('admin');
 
   const handleAdd = async () => {
     if (!user || !form.name || !form.viz_url) return;
@@ -71,11 +79,12 @@ export default function TableauDashboards() {
       project: form.project,
       description: form.description,
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
+      allowed_roles: form.allowed_roles.split(',').map(t => t.trim()).filter(Boolean),
       created_by: user.id,
     } as any);
     if (error) { toast.error(error.message); return; }
     toast.success('Dashboard qo\'shildi');
-    setForm({ name: '', viz_url: '', project: '', description: '', tags: '' });
+    setForm({ name: '', viz_url: '', project: '', description: '', tags: '', allowed_roles: '' });
     setShowAddDialog(false);
     loadData();
   };
@@ -93,41 +102,115 @@ export default function TableauDashboards() {
     loadData();
   };
 
+  const handleRefresh = async () => {
+    if (!refreshForm.resource_id) { toast.error('Resource ID kiriting'); return; }
+    setRefreshing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('tableau-refresh', {
+        body: refreshForm,
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Refresh boshlandi! Job ID: ${data.job_id}`);
+      setShowRefreshDialog(false);
+      setRefreshForm({ resource_type: 'workbook', resource_id: '', resource_name: '' });
+      loadData();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Refresh xatolik');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const formatDate = (d: string) => new Date(d).toLocaleString('uz-UZ');
 
   return (
     <PlatformLayout>
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="w-6 h-6 text-primary" />
               Tableau Dashboards
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">Embed & manage Tableau dashboards with SSO + RLS</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Embed & manage Tableau dashboards with SSO + RLS
+              {userRoles.length > 0 && (
+                <span className="ml-2">
+                  {userRoles.map(r => (
+                    <Badge key={r} variant="outline" className="text-[10px] ml-1">
+                      <Shield className="w-3 h-3 mr-0.5" />{r}
+                    </Badge>
+                  ))}
+                </span>
+              )}
+            </p>
           </div>
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogTrigger asChild>
-              <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Qo'shish</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Yangi Tableau Dashboard</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <div><Label>Nomi</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Sales Dashboard" /></div>
-                <div><Label>Viz URL</Label><Input value={form.viz_url} onChange={e => setForm(f => ({ ...f, viz_url: e.target.value }))} placeholder="https://10ax.online.tableau.com/..." /></div>
-                <div><Label>Loyiha</Label><Input value={form.project} onChange={e => setForm(f => ({ ...f, project: e.target.value }))} placeholder="Marketing" /></div>
-                <div><Label>Tavsif</Label><Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
-                <div><Label>Teglar (vergul bilan)</Label><Input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="sales, monthly, KPI" /></div>
-                <Button onClick={handleAdd} className="w-full">Saqlash</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            {/* Refresh trigger dialog */}
+            <Dialog open={showRefreshDialog} onOpenChange={setShowRefreshDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline"><RefreshCw className="w-4 h-4 mr-1" /> Refresh</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Data Refresh Trigger</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label>Resurs turi</Label>
+                    <Select value={refreshForm.resource_type} onValueChange={v => setRefreshForm(f => ({ ...f, resource_type: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="workbook">Workbook</SelectItem>
+                        <SelectItem value="datasource">Datasource</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Resource ID</Label>
+                    <Input value={refreshForm.resource_id} onChange={e => setRefreshForm(f => ({ ...f, resource_id: e.target.value }))} placeholder="Tableau workbook/datasource ID" />
+                    <p className="text-[11px] text-muted-foreground mt-1">Tableau Server/Cloud dan oling: Settings → ID</p>
+                  </div>
+                  <div>
+                    <Label>Nomi (ixtiyoriy)</Label>
+                    <Input value={refreshForm.resource_name} onChange={e => setRefreshForm(f => ({ ...f, resource_name: e.target.value }))} placeholder="Sales Workbook" />
+                  </div>
+                  <Button onClick={handleRefresh} disabled={refreshing} className="w-full">
+                    {refreshing ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Play className="w-4 h-4 mr-1" />}
+                    Refresh boshlash
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Add viz dialog */}
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm"><Plus className="w-4 h-4 mr-1" /> Qo'shish</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Yangi Tableau Dashboard</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div><Label>Nomi</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Sales Dashboard" /></div>
+                  <div><Label>Viz URL</Label><Input value={form.viz_url} onChange={e => setForm(f => ({ ...f, viz_url: e.target.value }))} placeholder="https://10ax.online.tableau.com/..." /></div>
+                  <div><Label>Loyiha</Label><Input value={form.project} onChange={e => setForm(f => ({ ...f, project: e.target.value }))} placeholder="Marketing" /></div>
+                  <div><Label>Tavsif</Label><Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+                  <div><Label>Teglar (vergul bilan)</Label><Input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="sales, monthly, KPI" /></div>
+                  <div>
+                    <Label>Ruxsat etilgan rollar (vergul bilan, bo'sh = hammaga)</Label>
+                    <Input value={form.allowed_roles} onChange={e => setForm(f => ({ ...f, allowed_roles: e.target.value }))} placeholder="admin, moderator" />
+                    <p className="text-[11px] text-muted-foreground mt-1">Bo'sh qoldirsangiz barcha foydalanuvchilar ko'ra oladi</p>
+                  </div>
+                  <Button onClick={handleAdd} className="w-full">Saqlash</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </motion.div>
 
         <Tabs defaultValue="dashboards">
           <TabsList>
             <TabsTrigger value="dashboards">Dashboardlar</TabsTrigger>
-            <TabsTrigger value="logs">Refresh Logs</TabsTrigger>
+            <TabsTrigger value="logs">Refresh Logs ({logs.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboards" className="space-y-4">
@@ -137,13 +220,13 @@ export default function TableauDashboards() {
               <Card className="p-8 text-center text-muted-foreground">
                 <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-40" />
                 <p>Hali dashboard qo'shilmagan</p>
+                <p className="text-xs mt-1">Sizning rolingizga mos dashboardlar yo'q yoki hali qo'shilmagan</p>
                 <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowAddDialog(true)}>
                   <Plus className="w-4 h-4 mr-1" /> Birinchi dashboardni qo'shing
                 </Button>
               </Card>
             ) : (
               <div className="grid gap-4">
-                {/* Viz list */}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {vizzes.map(viz => (
                     <Card
@@ -167,25 +250,24 @@ export default function TableauDashboards() {
                       </div>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {viz.tags?.map(tag => <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>)}
+                        {viz.allowed_roles?.length > 0 && viz.allowed_roles.map(role => (
+                          <Badge key={role} variant="outline" className="text-[10px]">
+                            <Shield className="w-2.5 h-2.5 mr-0.5" />{role}
+                          </Badge>
+                        ))}
                       </div>
                       {!viz.is_active && <Badge variant="outline" className="mt-2 text-[10px]">Nofaol</Badge>}
                     </Card>
                   ))}
                 </div>
 
-                {/* Embedded viz */}
                 {selectedViz && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="flex items-center gap-2 mb-2">
                       <h2 className="font-semibold text-foreground">{selectedViz.name}</h2>
                       {selectedViz.description && <span className="text-xs text-muted-foreground">— {selectedViz.description}</span>}
                     </div>
-                    <TableauViz
-                      vizUrl={selectedViz.viz_url}
-                      toolbar="bottom"
-                      device="default"
-                      height="700px"
-                    />
+                    <TableauViz vizUrl={selectedViz.viz_url} toolbar="bottom" device="default" height="700px" />
                   </motion.div>
                 )}
               </div>
@@ -193,6 +275,9 @@ export default function TableauDashboards() {
           </TabsContent>
 
           <TabsContent value="logs">
+            <div className="flex justify-end mb-3">
+              <Button variant="outline" size="sm" onClick={loadData}><RefreshCw className="w-3.5 h-3.5 mr-1" /> Yangilash</Button>
+            </div>
             {logs.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">Hali refresh log yo'q</Card>
             ) : (
