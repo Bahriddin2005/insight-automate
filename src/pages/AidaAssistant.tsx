@@ -971,42 +971,27 @@ export default function AidaAssistant() {
     return false;
   }, [navigate, voiceSpeed, messages, voiceOptions]);
 
-  // Speech recognition
-  const startListening = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setError('Brauzeringiz ovozni taniy olmaydi. Chrome yoki Edge brauzeridan foydalaning.');
-      return;
-    }
+  // --- ElevenLabs Scribe Realtime STT ---
+  const scribe = useScribe({
+    modelId: 'scribe_v2_realtime',
+    commitStrategy: 'vad',
+    onPartialTranscript: (data) => {
+      if (state === 'speaking' || state === 'thinking') return;
+      const partial = (accumulatedTranscriptRef.current + ' ' + data.text).trim();
+      setTranscript(partial);
+    },
+    onCommittedTranscript: (data) => {
+      if (state === 'speaking' || state === 'thinking') return;
+      const text = data.text.trim();
+      if (!text) return;
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    // uz-UZ is NOT supported by Chrome — use ru-RU which works well for Uzbek speakers
-    recognition.lang = 'ru-RU';
-    recognitionRef.current = recognition;
+      accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + text).trim();
+      setTranscript(accumulatedTranscriptRef.current);
 
-    recognition.onresult = (event: any) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const t = event.results[i][0].transcript;
-        if (event.results[i].isFinal) finalTranscript += t + ' ';
-        else interimTranscript += t;
-      }
+      const lower = accumulatedTranscriptRef.current.toLowerCase();
 
-      const combined = (accumulatedTranscriptRef.current + ' ' + finalTranscript + interimTranscript).trim();
-      setTranscript(combined);
-
-      if (finalTranscript.trim()) {
-        accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + finalTranscript).trim();
-      }
-
-      // Wake word detection
-      const lower = combined.toLowerCase();
-      
-      // "AIDA jim bo'l" / "AIDA STOP" — immediately stop speaking and go silent
-      if (lower.includes('jim bo') || lower.includes('aida stop') || lower.includes('aida jim') || lower.includes('stop aida') || lower === 'stop' || lower === 'стоп') {
+      // STOP command
+      if (lower.includes('jim bo') || lower.includes('aida stop') || lower.includes('stop aida') || lower === 'stop' || lower === 'стоп') {
         wakeWordDetectedRef.current = false;
         accumulatedTranscriptRef.current = '';
         setTranscript('');
@@ -1016,90 +1001,96 @@ export default function AidaAssistant() {
         return;
       }
 
-      // Wake word "AIDA" — ALWAYS detect in both modes, greet and start listening
+      // Wake word detection
       if (!wakeWordDetectedRef.current) {
-        if (lower.includes('aida') || lower.includes('ayda') || lower.includes('hey aida') || lower.includes('эйда') || lower.includes('аида')) {
+        if (lower.includes('aida') || lower.includes('ayda') || lower.includes('эйда') || lower.includes('аида')) {
           wakeWordDetectedRef.current = true;
           accumulatedTranscriptRef.current = '';
           setTranscript('');
-          // Pause recognition during greeting to avoid echo
-          if (recognitionRef.current) {
-            try { recognitionRef.current.stop(); } catch {}
-          }
-          speakGreeting('Salom, men shu yerdaman. Buyuring!').then(() => {
-            // Resume recognition after greeting finishes
-            if (recognitionRef.current) {
-              try { recognitionRef.current.start(); } catch {}
-            }
-          });
+          speakGreetingRef.current?.('Salom, men shu yerdaman. Buyuring!');
           return;
         }
-        // In "always listening" mode — also accept speech without wake word
-        if (alwaysListening && finalTranscript.trim()) {
+        // In always-listening mode — accept speech without wake word
+        if (alwaysListening) {
           wakeWordDetectedRef.current = true;
           setState('listening');
         }
       }
 
-      // --- LOCAL VOICE COMMANDS (instant, no AI needed) ---
-      if (wakeWordDetectedRef.current && finalTranscript.trim()) {
+      // Voice commands
+      if (wakeWordDetectedRef.current) {
         const cmd = accumulatedTranscriptRef.current.trim().toLowerCase();
-        // Remove wake word from command text
         const cleanCmd = cmd.replace(/^(aida|ayda|hey aida|эйда|аида)\s*/i, '').trim();
-        if (cleanCmd.length > 0) {
-          const handled = handleVoiceCommand(cleanCmd);
-          if (handled) {
-            // After command, keep listening for next command
-            wakeWordDetectedRef.current = true;
-            accumulatedTranscriptRef.current = '';
-            setTranscript('');
-            return;
-          }
+        if (cleanCmd.length > 0 && handleVoiceCommandRef.current?.(cleanCmd)) {
+          wakeWordDetectedRef.current = true;
+          accumulatedTranscriptRef.current = '';
+          setTranscript('');
+          return;
         }
       }
 
-      // Process after short silence — send to AI (1s timeout)
-      if (wakeWordDetectedRef.current && finalTranscript.trim()) {
+      // Send to AI after silence (VAD handles segmentation, use short timer for accumulation)
+      if (wakeWordDetectedRef.current) {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
           const question = accumulatedTranscriptRef.current.trim();
-          // Remove wake word from question
           const cleanQ = question.replace(/^(aida|ayda|hey aida|эйда|аида)\s*/i, '').trim();
           if (cleanQ.length > 2) {
-            processQuestion(cleanQ);
+            processQuestionRef.current?.(cleanQ);
           }
-        }, 1000);
+          accumulatedTranscriptRef.current = '';
+          setTranscript('');
+        }, 800);
       }
-    };
+    },
+  });
 
-    recognition.onerror = (e: any) => {
-      if (e.error !== 'no-speech' && e.error !== 'aborted') {
-        console.error('Speech error:', e.error);
-      }
-    };
-
-    recognition.onend = () => {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.start(); } catch {}
-      }
-    };
-
+  // Connect Scribe on mount
+  const connectScribe = useCallback(async () => {
+    if (scribe.isConnected) return;
     try {
-      recognition.start();
+      const { data, error: fnError } = await supabase.functions.invoke('aida-stt-token');
+      if (fnError || !data?.token) {
+        console.error('STT token error:', fnError);
+        setError('Ovoz tanish xizmati ulanmadi. Qayta urinib ko\'ring.');
+        return;
+      }
+      await scribe.connect({
+        token: data.token,
+        microphone: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      setScribeConnected(true);
       setState(alwaysListening ? 'listening' : 'sleeping');
       if (alwaysListening) wakeWordDetectedRef.current = true;
-    } catch {
-      setError('Mikrofonni yoqib bo\'lmadi.');
+      toast.success('🎙️ ElevenLabs Scribe ulandi — aniq ovoz tanish tayyor!');
+    } catch (e) {
+      console.error('Scribe connect error:', e);
+      setError('Mikrofon ulanmadi. Ruxsat berilganligini tekshiring.');
     }
-  }, [alwaysListening]);
+  }, [scribe, alwaysListening]);
 
   useEffect(() => {
-    startListening();
+    connectScribe();
     return () => {
-      if (recognitionRef.current) { recognitionRef.current.abort(); recognitionRef.current = null; }
+      if (scribe.isConnected) scribe.disconnect();
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
+  }, []);
+
+  // Reconnect when alwaysListening changes
+  useEffect(() => {
+    if (alwaysListening) {
+      wakeWordDetectedRef.current = true;
+      setState('listening');
+    } else {
+      wakeWordDetectedRef.current = false;
+      setState('sleeping');
+    }
   }, [alwaysListening]);
 
   useEffect(() => {
