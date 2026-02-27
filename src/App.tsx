@@ -20,6 +20,7 @@ import NotFound from "./pages/NotFound";
 import DataCleaningCenter from "./pages/DataCleaningCenter";
 import DashboardStudio from "./pages/DashboardStudio";
 import DataScienceRoadmap from "./pages/DataScienceRoadmap";
+import ProDataLab from "./pages/ProDataLab";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/portfolio/:id" element={<CaseStudyDetail />} />
               <Route path="/aida" element={<AidaAssistant />} />
               <Route path="/roadmap" element={<DataScienceRoadmap />} />
+              <Route path="/prodata" element={<ProDataLab />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
