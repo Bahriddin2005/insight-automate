@@ -17,7 +17,7 @@ export default function PlatformNavbar() {
     { path: '/cleaning', label: t('nav.dataCleaning'), icon: Sparkles },
     { path: '/studio', label: t('nav.dashboardStudio'), icon: BarChart3 },
     { path: '/dashboards', label: t('nav.history'), icon: Clock },
-    { path: '/roadmap', label: 'DS Roadmap', icon: GraduationCap },
+    
     { path: '/prodata', label: 'ProDataLab', icon: FlaskConical },
   ];
 
