@@ -122,6 +122,15 @@ export default function ProDataEDA({ data, columns, fileName }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Export Button */}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={exportPDF}>
+          <Download className="w-3 h-3 mr-2" />
+          EDA hisobotini yuklab olish
+        </Button>
+      </div>
+
+      <div ref={reportRef} className="space-y-6">
       {/* Quality Overview */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
