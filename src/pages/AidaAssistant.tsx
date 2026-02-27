@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square, BarChart3, TrendingUp, PieChart as PieChartIcon, AreaChart, ScatterChart as ScatterIcon, Maximize2, X, ZoomIn, ZoomOut, Move, RotateCcw } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, ArrowLeft, Brain, Activity, AlertCircle, Loader2, Upload, MessageSquare, Plus, Trash2, FileSpreadsheet, Send, Download, Sparkles, Wrench, CheckCircle2, User, Play, Square, BarChart3, TrendingUp, PieChart as PieChartIcon, AreaChart, ScatterChart as ScatterIcon, Maximize2, X, ZoomIn, ZoomOut, Move, RotateCcw, HelpCircle, Command } from 'lucide-react';
 import ThemeToggle from '@/components/dashboard/ThemeToggle';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -816,6 +816,124 @@ export default function AidaAssistant() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+  // --- Voice Commands System ---
+  const [showVoiceHelp, setShowVoiceHelp] = useState(false);
+  
+  const voiceCommands = [
+    { cmd: 'bosh sahifa / uyga qayt', desc: 'Bosh sahifaga o\'tish' },
+    { cmd: 'dashboardlar / mening dashboardlarim', desc: 'Dashboardlar sahifasi' },
+    { cmd: 'ovozni o\'chir / ovozni yoq', desc: 'Ovozni boshqarish' },
+    { cmd: 'yangi suhbat', desc: 'Yangi suhbat boshlash' },
+    { cmd: 'dataset yukla', desc: 'Fayl yuklash oynasi' },
+    { cmd: 'eksport / hisobotni yukla', desc: 'Suhbatni eksport qilish' },
+    { cmd: 'daniel / laura / alice / sarah', desc: 'Ovozni almashtirish' },
+    { cmd: 'tezroq / sekinroq', desc: 'Ovoz tezligini o\'zgartirish' },
+    { cmd: 'jim bo\'l / stop', desc: 'AIDA ni to\'xtatish' },
+    { cmd: 'buyruqlar / yordam', desc: 'Bu ro\'yxatni ko\'rsatish' },
+  ];
+
+  const handleVoiceCommand = useCallback((cmd: string): boolean => {
+    // Navigation commands
+    if (cmd.includes('bosh sahifa') || cmd.includes('uyga') || cmd.includes('asosiy sahifa')) {
+      speakGreeting('Bosh sahifaga o\'tmoqdamiz');
+      setTimeout(() => navigate('/'), 1500);
+      return true;
+    }
+    if (cmd.includes('dashboard') || cmd.includes('mening dashboard')) {
+      speakGreeting('Dashboardlar sahifasiga o\'tmoqdamiz');
+      setTimeout(() => navigate('/my-dashboards'), 1500);
+      return true;
+    }
+    if (cmd.includes('portfolio') || cmd.includes('loyihalar')) {
+      speakGreeting('Portfolio sahifasiga o\'tmoqdamiz');
+      setTimeout(() => navigate('/portfolio'), 1500);
+      return true;
+    }
+
+    // Mute/unmute
+    if (cmd.includes('ovozni o\'chir') || cmd.includes('ovozni yop') || cmd.includes('mute')) {
+      setIsMuted(true);
+      toast.success('Ovoz o\'chirildi');
+      return true;
+    }
+    if (cmd.includes('ovozni yoq') || cmd.includes('unmute') || cmd.includes('ovozni och')) {
+      setIsMuted(false);
+      speakGreeting('Ovoz yoqildi');
+      return true;
+    }
+
+    // New conversation
+    if (cmd.includes('yangi suhbat') || cmd.includes('yangi chat') || cmd.includes('tozala')) {
+      setActiveConversationId(null);
+      setMessages([]);
+      speakGreeting('Yangi suhbat boshlandi');
+      return true;
+    }
+
+    // File upload
+    if (cmd.includes('dataset yukla') || cmd.includes('fayl yukla') || cmd.includes('ma\'lumot yukla')) {
+      fileInputRef.current?.click();
+      speakGreeting('Fayl tanlash oynasi ochildi');
+      return true;
+    }
+
+    // Export — defer to avoid forward reference
+    if (cmd.includes('eksport') || cmd.includes('hisobotni yukla') || cmd.includes('saqla')) {
+      if (messages.filter(m => m.role !== 'system').length > 0) {
+        // Defer export to next tick so exportConversation is defined
+        setTimeout(() => {
+          try { exportConversation('pdf'); } catch {}
+        }, 100);
+        speakGreeting('Suhbat PDF formatda eksport qilindi');
+      } else {
+        speakGreeting('Eksport qilish uchun avval suhbat boshlang');
+      }
+      return true;
+    }
+
+    // Voice change
+    const voiceMap: Record<string, string> = {
+      'daniel': 'daniel', 'doniyor': 'daniel',
+      'laura': 'laura', 'lavra': 'laura',
+      'alice': 'alice', 'elis': 'alice',
+      'matilda': 'matilda',
+      'santa': 'santa',
+      'sarah': 'sarah', 'sara': 'sarah',
+    };
+    for (const [keyword, voiceId] of Object.entries(voiceMap)) {
+      if (cmd.includes(keyword)) {
+        const voice = voiceOptions.find(v => v.id === voiceId);
+        if (voice) {
+          setSelectedVoice(voiceId);
+          speakGreeting(`Ovoz ${voice.name} ga o'zgartirildi`);
+          return true;
+        }
+      }
+    }
+
+    // Speed control
+    if (cmd.includes('tezroq') || cmd.includes('tezlikni oshir')) {
+      const newSpeed = Math.min(voiceSpeed + 0.1, 1.2);
+      setVoiceSpeed(newSpeed);
+      speakGreeting(`Tezlik ${newSpeed.toFixed(1)} iks ga oshirildi`);
+      return true;
+    }
+    if (cmd.includes('sekinroq') || cmd.includes('sekin gapirsang') || cmd.includes('tezlikni kamaytir')) {
+      const newSpeed = Math.max(voiceSpeed - 0.1, 0.8);
+      setVoiceSpeed(newSpeed);
+      speakGreeting(`Tezlik ${newSpeed.toFixed(1)} iks ga kamaytirildi`);
+      return true;
+    }
+
+    // Help / commands list
+    if (cmd.includes('buyruqlar') || cmd.includes('yordam') || cmd.includes('nima qila olasan') || cmd.includes('komandalar')) {
+      setShowVoiceHelp(true);
+      speakGreeting('Ovozli buyruqlar ro\'yxati ochildi. Siz navigatsiya, ovoz sozlamalari, eksport va boshqa buyruqlardan foydalanishingiz mumkin.');
+      return true;
+    }
+
+    return false;
+  }, [navigate, voiceSpeed, messages, voiceOptions]);
 
   // Speech recognition
   const startListening = useCallback(() => {
@@ -867,6 +985,18 @@ export default function AidaAssistant() {
           accumulatedTranscriptRef.current = '';
           setTranscript('');
           speakGreeting('Salom, men shu yerdaman. Buyuring, nima qilamiz?');
+          return;
+        }
+      }
+
+      // --- LOCAL VOICE COMMANDS (instant, no AI needed) ---
+      if (wakeWordDetectedRef.current && finalTranscript.trim()) {
+        const cmd = accumulatedTranscriptRef.current.trim().toLowerCase();
+        const handled = handleVoiceCommand(cmd);
+        if (handled) {
+          wakeWordDetectedRef.current = true;
+          accumulatedTranscriptRef.current = '';
+          setTranscript('');
           return;
         }
       }
@@ -1634,6 +1764,9 @@ ${chatMessages.map(m => {
             <Button variant="ghost" size="icon" onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground">
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </Button>
+            <Button variant="ghost" size="icon" onClick={() => setShowVoiceHelp(!showVoiceHelp)} className="text-muted-foreground" title="Ovozli buyruqlar">
+              <Command className="w-4 h-4" />
+            </Button>
           </div>
         </header>
 
@@ -1738,10 +1871,19 @@ ${chatMessages.map(m => {
 
             <p className="text-sm text-muted-foreground text-center">
               {state === 'sleeping' && '"AIDA" deb chaqiring yoki tugmani bosing'}
-              {state === 'listening' && 'Savolingizni ayting...'}
+              {state === 'listening' && 'Savolingizni ayting yoki buyruq bering...'}
               {state === 'thinking' && 'AIDA tahlil qilmoqda...'}
               {state === 'speaking' && 'AIDA javob bermoqda. To\'xtatish uchun bosing.'}
             </p>
+            {state === 'sleeping' && (
+              <button 
+                onClick={() => setShowVoiceHelp(true)} 
+                className="text-xs text-muted-foreground/60 hover:text-primary transition-colors flex items-center gap-1"
+              >
+                <Command className="w-3 h-3" />
+                Ovozli buyruqlar ro'yxati
+              </button>
+            )}
 
             <div className={`text-xs px-3 py-1 rounded-full ${
               datasetContext ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted text-muted-foreground'
@@ -1793,6 +1935,62 @@ ${chatMessages.map(m => {
       </div>
       <AnimatePresence>
         {fullscreenChart && <FullscreenChartModal chart={fullscreenChart} onClose={() => setFullscreenChart(null)} />}
+      </AnimatePresence>
+
+      {/* Voice Commands Help Panel */}
+      <AnimatePresence>
+        {showVoiceHelp && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            onClick={() => setShowVoiceHelp(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Command className="w-5 h-5 text-primary" />
+                  <h2 className="font-semibold text-foreground">Ovozli buyruqlar</h2>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setShowVoiceHelp(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="p-5 space-y-1 max-h-[60vh] overflow-y-auto">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Avval "AIDA" deb chaqiring, keyin buyruqni ayting
+                </p>
+                {voiceCommands.map((vc, i) => (
+                  <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0">
+                    <code className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-md font-mono shrink-0 mt-0.5">
+                      {vc.cmd.split(' / ')[0]}
+                    </code>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground">{vc.desc}</p>
+                      {vc.cmd.includes(' / ') && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Boshqa variantlar: {vc.cmd.split(' / ').slice(1).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-4 border-t border-border bg-muted/30">
+                <p className="text-xs text-muted-foreground text-center">
+                  💡 Tanilmagan buyruqlar AIDA ga savol sifatida yuboriladi
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
