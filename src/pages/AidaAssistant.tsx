@@ -970,6 +970,7 @@ export default function AidaAssistant() {
 
     return false;
   }, [navigate, voiceSpeed, messages, voiceOptions]);
+  handleVoiceCommandRef.current = handleVoiceCommand;
 
   // --- ElevenLabs Scribe Realtime STT ---
   const scribe = useScribe({
