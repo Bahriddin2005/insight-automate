@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, Play, Target, Loader2, CheckCircle, BarChart3 } from 'lucide-react';
+import { Brain, Play, Target, Loader2, CheckCircle, BarChart3, Sparkles, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 type ModelType = 'linear' | 'logistic' | 'random_forest' | 'xgboost' | 'lightgbm';
 
@@ -31,6 +33,8 @@ interface TrainResult {
   r2?: number;
   featureImportance: { name: string; importance: number }[];
   confusionMatrix?: number[][];
+  insights?: string;
+  recommendations?: string[];
 }
 
 export default function ProDataML({ data, columns }: Props) {
@@ -50,48 +54,57 @@ export default function ProDataML({ data, columns }: Props) {
 
   const featureCols = useMemo(() => numericCols.filter(c => c !== target), [numericCols, target]);
 
-  const simulateTraining = () => {
+  const trainModel = async () => {
     if (!data || !target || featureCols.length === 0) return;
     setTraining(true);
     setResult(null);
 
-    // Client-side simple ML simulation (real ML would be backend)
-    setTimeout(() => {
-      const isClassification = model === 'logistic' ||
-        (data && new Set(data.map(r => r[target])).size <= 10);
+    try {
+      const { data: aiResult, error } = await supabase.functions.invoke('ml-train', {
+        body: {
+          data: data.slice(0, 500), // Send max 500 rows to keep payload manageable
+          target,
+          features: featureCols,
+          model: MODEL_OPTIONS.find(m => m.id === model)?.label || model,
+          testSize,
+        },
+      });
 
-      const baseAccuracy = 0.7 + Math.random() * 0.25;
-      const importance = featureCols.map(col => ({
-        name: col,
-        importance: Math.round(Math.random() * 100) / 100,
-      })).sort((a, b) => b.importance - a.importance);
+      if (error) throw error;
 
-      // Normalize importance
-      const total = importance.reduce((s, f) => s + f.importance, 0);
-      importance.forEach(f => f.importance = Math.round((f.importance / total) * 100) / 100);
+      if (aiResult?.error) {
+        if (aiResult.error.includes('Rate limit')) {
+          toast.error('Tezlik limiti oshdi. Biroz kutib qayta urinib ko\'ring.');
+        } else if (aiResult.error.includes('Payment')) {
+          toast.error('Kredit yetarli emas. Balansni to\'ldiring.');
+        } else {
+          toast.error(aiResult.error);
+        }
+        setTraining(false);
+        return;
+      }
 
       const res: TrainResult = {
         model: MODEL_OPTIONS.find(m => m.id === model)?.label || model,
-        accuracy: Math.round(baseAccuracy * 1000) / 1000,
-        precision: Math.round((baseAccuracy - 0.02 + Math.random() * 0.04) * 1000) / 1000,
-        recall: Math.round((baseAccuracy - 0.03 + Math.random() * 0.06) * 1000) / 1000,
-        f1: Math.round((baseAccuracy - 0.01 + Math.random() * 0.02) * 1000) / 1000,
-        featureImportance: importance,
+        accuracy: aiResult.accuracy || 0,
+        precision: aiResult.precision || 0,
+        recall: aiResult.recall || 0,
+        f1: aiResult.f1 || 0,
+        mse: aiResult.mse,
+        r2: aiResult.r2,
+        featureImportance: aiResult.featureImportance || featureCols.map(c => ({ name: c, importance: 0.5 })),
+        confusionMatrix: aiResult.confusionMatrix,
+        insights: aiResult.insights,
+        recommendations: aiResult.recommendations,
       };
 
-      if (!isClassification) {
-        res.mse = Math.round(Math.random() * 100 * 100) / 100;
-        res.r2 = Math.round((0.6 + Math.random() * 0.35) * 1000) / 1000;
-      } else {
-        res.confusionMatrix = [
-          [Math.floor(data.length * 0.35), Math.floor(data.length * 0.05)],
-          [Math.floor(data.length * 0.08), Math.floor(data.length * 0.32)],
-        ];
-      }
-
       setResult(res);
-      setTraining(false);
-    }, 2000);
+      toast.success('AI Model tahlili tayyor!');
+    } catch (e: any) {
+      console.error('ML train error:', e);
+      toast.error("Model o'rgatishda xatolik yuz berdi");
+    }
+    setTraining(false);
   };
 
   if (!data) {
@@ -113,6 +126,9 @@ export default function ProDataML({ data, columns }: Props) {
           <CardTitle className="text-base flex items-center gap-2">
             <Target className="w-4 h-4 text-primary" />
             Model konfiguratsiyasi
+            <Badge variant="secondary" className="text-xs ml-auto">
+              <Sparkles className="w-3 h-3 mr-1" /> AI Powered
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -167,14 +183,14 @@ export default function ProDataML({ data, columns }: Props) {
           )}
 
           <Button
-            onClick={simulateTraining}
+            onClick={trainModel}
             disabled={!target || training}
             className="w-full sm:w-auto"
           >
             {training ? (
-              <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Training...</>
+              <><Loader2 className="w-4 h-4 animate-spin mr-2" /> AI tahlil qilmoqda...</>
             ) : (
-              <><Play className="w-4 h-4 mr-2" /> Train Model</>
+              <><Brain className="w-4 h-4 mr-2" /> AI bilan Train</>
             )}
           </Button>
         </CardContent>
@@ -201,6 +217,30 @@ export default function ProDataML({ data, columns }: Props) {
               </Card>
             ))}
           </div>
+
+          {/* AI Insights */}
+          {result.insights && (
+            <Card className="border-primary/30">
+              <CardContent className="py-4">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-1">AI Tahlil</p>
+                    <p className="text-sm text-muted-foreground">{result.insights}</p>
+                    {result.recommendations && result.recommendations.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {result.recommendations.map((r, i) => (
+                          <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                            <span className="text-primary">•</span> {r}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Feature Importance */}
           <Card>
@@ -257,7 +297,7 @@ export default function ProDataML({ data, columns }: Props) {
             <CardContent className="py-4 flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-accent" />
               <div>
-                <p className="text-sm font-medium text-foreground">{result.model} — Training Complete</p>
+                <p className="text-sm font-medium text-foreground">{result.model} — AI Training Complete</p>
                 <p className="text-xs text-muted-foreground">
                   {data?.length} rows • {featureCols.length} features • Test {testSize * 100}%
                   {result.r2 != null && ` • R² = ${result.r2}`}

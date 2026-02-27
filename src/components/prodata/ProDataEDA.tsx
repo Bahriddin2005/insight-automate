@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, AlertTriangle, TrendingUp, Hash, Calendar, Type } from 'lucide-react';
+import { BarChart3, AlertTriangle, TrendingUp, Hash, Calendar, Type, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, Cell, PieChart, Pie
@@ -15,6 +17,28 @@ interface Props {
 }
 
 export default function ProDataEDA({ data, columns, fileName }: Props) {
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const exportPDF = async () => {
+    if (!reportRef.current) return;
+    toast.info('PDF tayyorlanmoqda...');
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(reportRef.current, { scale: 2, backgroundColor: '#0d0f14' });
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Create a simple PDF-like download using the image
+      const link = document.createElement('a');
+      link.download = `EDA_Report_${fileName.replace(/\.[^.]+$/, '')}.png`;
+      link.href = imgData;
+      link.click();
+      toast.success('EDA hisoboti yuklandi!');
+    } catch (e) {
+      console.error('PDF export error:', e);
+      toast.error('Eksport xatoligi');
+    }
+  };
+
   const stats = useMemo(() => {
     if (!data || data.length === 0) return null;
 
@@ -98,6 +122,15 @@ export default function ProDataEDA({ data, columns, fileName }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Export Button */}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={exportPDF}>
+          <Download className="w-3 h-3 mr-2" />
+          EDA hisobotini yuklab olish
+        </Button>
+      </div>
+
+      <div ref={reportRef} className="space-y-6">
       {/* Quality Overview */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
@@ -237,6 +270,7 @@ export default function ProDataEDA({ data, columns, fileName }: Props) {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

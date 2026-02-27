@@ -11,8 +11,9 @@ import ProDataML from '@/components/prodata/ProDataML';
 import ProDataPredict from '@/components/prodata/ProDataPredict';
 import ProDataViz from '@/components/prodata/ProDataViz';
 import ProDataAnalytics from '@/components/prodata/ProDataAnalytics';
+import ProDataAdmin from '@/components/prodata/ProDataAdmin';
 
-type Module = 'upload' | 'eda' | 'ml' | 'predict' | 'viz' | 'analytics';
+type Module = 'upload' | 'eda' | 'ml' | 'predict' | 'viz' | 'analytics' | 'admin';
 
 const modules: { id: Module; label: string; icon: typeof Upload; desc: string }[] = [
   { id: 'upload', label: 'Data Upload', icon: Upload, desc: 'CSV, Excel, JSON yuklash' },
@@ -21,6 +22,7 @@ const modules: { id: Module; label: string; icon: typeof Upload; desc: string }[
   { id: 'predict', label: 'Predictions', icon: Rocket, desc: 'Real-time bashorat' },
   { id: 'viz', label: 'Visualizations', icon: PieChart, desc: 'Interaktiv grafiklar' },
   { id: 'analytics', label: 'Advanced', icon: FlaskConical, desc: 'PCA, testlar' },
+  { id: 'admin', label: 'Admin', icon: Shield, desc: 'Boshqaruv paneli' },
 ];
 
 export default function ProDataLab() {
@@ -49,6 +51,8 @@ export default function ProDataLab() {
         return <ProDataViz data={dataset} columns={columns} />;
       case 'analytics':
         return <ProDataAnalytics data={dataset} columns={columns} />;
+      case 'admin':
+        return <ProDataAdmin data={dataset} columns={columns} />;
       default:
         return null;
     }
@@ -92,7 +96,7 @@ export default function ProDataLab() {
         >
           {modules.map((mod, i) => {
             const isActive = active === mod.id;
-            const needsData = mod.id !== 'upload' && !dataset;
+            const needsData = mod.id !== 'upload' && mod.id !== 'admin' && !dataset;
             return (
               <motion.button
                 key={mod.id}
