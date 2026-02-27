@@ -828,6 +828,9 @@ export default function AidaAssistant() {
     { cmd: 'eksport / hisobotni yukla', desc: 'Suhbatni eksport qilish' },
     { cmd: 'daniel / laura / alice / sarah', desc: 'Ovozni almashtirish' },
     { cmd: 'tezroq / sekinroq', desc: 'Ovoz tezligini o\'zgartirish' },
+    { cmd: 'qorong\'u rejim / tungi rejim', desc: 'Qorong\'u temaga o\'tish' },
+    { cmd: 'yorug\' rejim / kunduzgi rejim', desc: 'Yorug\' temaga o\'tish' },
+    { cmd: 'temani o\'zgartir', desc: 'Temani almashtirish' },
     { cmd: 'jim bo\'l / stop', desc: 'AIDA ni to\'xtatish' },
     { cmd: 'buyruqlar / yordam', desc: 'Bu ro\'yxatni ko\'rsatish' },
   ];
@@ -925,10 +928,38 @@ export default function AidaAssistant() {
       return true;
     }
 
+    // Theme commands
+    if (cmd.includes('qorong\'u') || cmd.includes('tungi rejim') || cmd.includes('dark')) {
+      document.documentElement.classList.remove('light');
+      document.documentElement.style.setProperty('transition', 'background-color 0.5s ease, color 0.4s ease');
+      setTimeout(() => document.documentElement.style.removeProperty('transition'), 600);
+      speakGreeting('Qorong\'u rejim yoqildi');
+      return true;
+    }
+    if (cmd.includes('yorug\'') || cmd.includes('kunduzgi') || cmd.includes('oq rejim') || cmd.includes('light')) {
+      document.documentElement.classList.add('light');
+      document.documentElement.style.setProperty('transition', 'background-color 0.5s ease, color 0.4s ease');
+      setTimeout(() => document.documentElement.style.removeProperty('transition'), 600);
+      speakGreeting('Yorug\' rejim yoqildi');
+      return true;
+    }
+    if (cmd.includes('temani o\'zgartir') || cmd.includes('tema') || cmd.includes('rangni o\'zgartir')) {
+      const isDark = !document.documentElement.classList.contains('light');
+      if (isDark) {
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.remove('light');
+      }
+      document.documentElement.style.setProperty('transition', 'background-color 0.5s ease, color 0.4s ease');
+      setTimeout(() => document.documentElement.style.removeProperty('transition'), 600);
+      speakGreeting(isDark ? 'Yorug\' rejimga o\'tildi' : 'Qorong\'u rejimga o\'tildi');
+      return true;
+    }
+
     // Help / commands list
     if (cmd.includes('buyruqlar') || cmd.includes('yordam') || cmd.includes('nima qila olasan') || cmd.includes('komandalar')) {
       setShowVoiceHelp(true);
-      speakGreeting('Ovozli buyruqlar ro\'yxati ochildi. Siz navigatsiya, ovoz sozlamalari, eksport va boshqa buyruqlardan foydalanishingiz mumkin.');
+      speakGreeting('Ovozli buyruqlar ro\'yxati ochildi.');
       return true;
     }
 
