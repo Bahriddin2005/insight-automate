@@ -1032,7 +1032,6 @@ export default function AidaAssistant() {
     onDisconnect: () => {
       console.log('[Scribe] Disconnected — scheduling reconnect in 3s...');
       setScribeConnected(false);
-      // Auto-reconnect after 3 seconds
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = setTimeout(() => {
         console.log('[Scribe] Auto-reconnecting...');
@@ -1042,26 +1041,38 @@ export default function AidaAssistant() {
     onError: (err) => {
       console.error('[Scribe] Error:', err);
     },
-    onSessionTimeLimitExceededError: () => {
-      console.log('[Scribe] Session time limit — reconnecting...');
+    onSessionTimeLimitExceededError: (d) => {
+      console.log('[Scribe] Session time limit:', d?.error, '— reconnecting...');
       setScribeConnected(false);
       reconnectTimerRef.current = setTimeout(() => doScribeConnect(scribeRef.current), 1000);
     },
-    onInsufficientAudioActivityError: () => {
-      console.log('[Scribe] Insufficient audio — reconnecting...');
+    onInsufficientAudioActivityError: (d) => {
+      console.log('[Scribe] Insufficient audio:', d?.error, '— reconnecting...');
       setScribeConnected(false);
       reconnectTimerRef.current = setTimeout(() => doScribeConnect(scribeRef.current), 2000);
     },
     onPartialTranscript: (data) => {
+      console.log('[Scribe] Partial:', data.text, '| State:', stateRef.current);
       if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const partial = (accumulatedTranscriptRef.current + ' ' + data.text).trim();
       setTranscript(partial);
+      // Ensure we're in listening state when we receive audio
+      if (stateRef.current === 'sleeping') {
+        setState('listening');
+        wakeWordDetectedRef.current = true;
+      }
     },
     onCommittedTranscript: (data) => {
       console.log('[Scribe] Committed:', data.text, '| State:', stateRef.current);
       if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const text = data.text.trim();
       if (!text) return;
+
+      // Auto-wake when receiving speech
+      if (stateRef.current === 'sleeping') {
+        setState('listening');
+        wakeWordDetectedRef.current = true;
+      }
 
       accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + text).trim();
       setTranscript(accumulatedTranscriptRef.current);
@@ -1117,7 +1128,7 @@ export default function AidaAssistant() {
           }
           accumulatedTranscriptRef.current = '';
           setTranscript('');
-        }, 800);
+        }, 1200);
       }
     },
   });
@@ -1693,7 +1704,7 @@ ${chatMessages.map(m => {
 
   const stateConfig = {
     sleeping: { color: 'bg-muted', pulse: false, icon: MicOff, label: 'Uxlash rejimi' },
-    listening: { color: 'bg-emerald-500', pulse: true, icon: Mic, label: `Tinglayapman... (Scribe ${scribe.isConnected ? '✓' : '○'})` },
+    listening: { color: 'bg-emerald-500', pulse: true, icon: Mic, label: `Tinglayapman... (${scribe.status}${scribe.isTranscribing ? ' 🔴' : ''})` },
     thinking: { color: 'bg-amber-500', pulse: true, icon: Brain, label: 'Tahlil qilyapman...' },
     speaking: { color: 'bg-primary', pulse: true, icon: Volume2, label: 'Gapirmoqda...' },
   };
@@ -1954,9 +1965,10 @@ ${chatMessages.map(m => {
               ))}
             </AnimatePresence>
 
-            {transcript && state === 'listening' && (
+            {transcript && (state === 'listening' || state === 'sleeping') && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
                 <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-primary/20 text-primary border border-primary/30">
+                  <p className="text-xs text-muted-foreground mb-1">🎙️ Tinglayapman:</p>
                   <p className="text-sm italic">{transcript}</p>
                 </div>
               </motion.div>
@@ -2012,10 +2024,27 @@ ${chatMessages.map(m => {
 
             <p className="text-sm text-muted-foreground text-center">
               {state === 'sleeping' && (alwaysListening ? 'Gapiring — AIDA tinglayapti...' : '"AIDA" deb chaqiring yoki tugmani bosing')}
-              {state === 'listening' && 'Savolingizni ayting — 1 soniya kutib javob beraman...'}
+              {state === 'listening' && 'Savolingizni ayting — 1.2 soniya kutib javob beraman...'}
               {state === 'thinking' && 'AIDA tahlil qilmoqda...'}
               {state === 'speaking' && 'AIDA javob bermoqda. To\'xtatish uchun bosing.'}
             </p>
+
+            {/* Scribe status badge */}
+            <div className={`text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 ${
+              scribe.isConnected ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'
+            }`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${scribe.isConnected ? 'bg-emerald-500' : 'bg-destructive'}`} />
+              Scribe: {scribe.status}{scribe.isTranscribing ? ' (yozmoqda)' : ''}
+              {!scribe.isConnected && (
+                <button 
+                  onClick={() => doScribeConnect(scribeRef.current)} 
+                  className="ml-1 underline hover:text-primary"
+                >
+                  qayta ulash
+                </button>
+              )}
+            </div>
+
             {(state === 'sleeping' || state === 'listening') && (
               <button 
                 onClick={() => setShowVoiceHelp(true)} 
