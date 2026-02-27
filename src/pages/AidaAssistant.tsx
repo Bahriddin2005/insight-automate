@@ -1010,7 +1010,7 @@ export default function AidaAssistant() {
       setError('');
       setState(alwaysListeningRef.current ? 'listening' : 'sleeping');
       if (alwaysListeningRef.current) wakeWordDetectedRef.current = true;
-      toast.success('🎙️ ElevenLabs Scribe ulandi — aniq ovoz tanish tayyor!');
+      // Scribe connected silently
     } catch (e) {
       console.error('[Scribe] Connect error:', e);
       setError('Mikrofon ulanmadi. 5 soniyadan keyin qayta uriniladi...');
