@@ -974,7 +974,7 @@ export default function AidaAssistant() {
   // --- ElevenLabs Scribe Realtime STT ---
   const scribe = useScribe({
     modelId: 'scribe_v2_realtime',
-    commitStrategy: 'vad',
+    commitStrategy: 'vad' as any,
     onPartialTranscript: (data) => {
       if (state === 'speaking' || state === 'thinking') return;
       const partial = (accumulatedTranscriptRef.current + ' ' + data.text).trim();
