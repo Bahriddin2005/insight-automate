@@ -828,6 +828,9 @@ export default function AidaAssistant() {
     { cmd: 'eksport / hisobotni yukla', desc: 'Suhbatni eksport qilish' },
     { cmd: 'daniel / laura / alice / sarah', desc: 'Ovozni almashtirish' },
     { cmd: 'tezroq / sekinroq', desc: 'Ovoz tezligini o\'zgartirish' },
+    { cmd: 'qorong\'u rejim / tungi rejim', desc: 'Qorong\'u temaga o\'tish' },
+    { cmd: 'yorug\' rejim / kunduzgi rejim', desc: 'Yorug\' temaga o\'tish' },
+    { cmd: 'temani o\'zgartir', desc: 'Temani almashtirish' },
     { cmd: 'jim bo\'l / stop', desc: 'AIDA ni to\'xtatish' },
     { cmd: 'buyruqlar / yordam', desc: 'Bu ro\'yxatni ko\'rsatish' },
   ];
