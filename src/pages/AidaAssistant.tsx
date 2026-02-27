@@ -877,10 +877,13 @@ export default function AidaAssistant() {
       return true;
     }
 
-    // Export
+    // Export — defer to avoid forward reference
     if (cmd.includes('eksport') || cmd.includes('hisobotni yukla') || cmd.includes('saqla')) {
       if (messages.filter(m => m.role !== 'system').length > 0) {
-        exportConversation('pdf');
+        // Defer export to next tick so exportConversation is defined
+        setTimeout(() => {
+          try { exportConversation('pdf'); } catch {}
+        }, 100);
         speakGreeting('Suhbat PDF formatda eksport qilindi');
       } else {
         speakGreeting('Eksport qilish uchun avval suhbat boshlang');
