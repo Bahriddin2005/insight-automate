@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, AlertTriangle, TrendingUp, Hash, Calendar, Type } from 'lucide-react';
+import { BarChart3, AlertTriangle, TrendingUp, Hash, Calendar, Type, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, Cell, PieChart, Pie
