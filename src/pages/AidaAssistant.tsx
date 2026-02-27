@@ -983,12 +983,13 @@ export default function AidaAssistant() {
     modelId: 'scribe_v2_realtime',
     commitStrategy: 'vad' as any,
     onPartialTranscript: (data) => {
-      if (state === 'speaking' || state === 'thinking') return;
+      if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const partial = (accumulatedTranscriptRef.current + ' ' + data.text).trim();
       setTranscript(partial);
     },
     onCommittedTranscript: (data) => {
-      if (state === 'speaking' || state === 'thinking') return;
+      console.log('[Scribe] Committed:', data.text, '| State:', stateRef.current);
+      if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const text = data.text.trim();
       if (!text) return;
 
@@ -1018,7 +1019,7 @@ export default function AidaAssistant() {
           return;
         }
         // In always-listening mode — accept speech without wake word
-        if (alwaysListening) {
+        if (alwaysListeningRef.current) {
           wakeWordDetectedRef.current = true;
           setState('listening');
         }
