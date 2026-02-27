@@ -13,10 +13,14 @@ serve(async (req) => {
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_KEY') || Deno.env.get('ELEVENLABS_API_KEY');
     if (!ELEVENLABS_API_KEY) throw new Error('ELEVENLABS_API_KEY is not configured');
 
-    // Default voices: Daniel (male), Laura (female)
     const selectedVoice = voiceId || 'onwK4e9ZLuTAKqWW03F9';
-    const selectedSpeed = speed || 1.15;
+    const selectedSpeed = speed || 1.0;
 
+    // Human-like natural voice settings:
+    // - stability 0.35: more expressive variation like real speech
+    // - similarity_boost 0.85: keeps voice identity
+    // - style 0.35: conversational, not robotic
+    // - speaker_boost: clarity and presence
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}?output_format=mp3_44100_128`,
       {
@@ -29,9 +33,9 @@ serve(async (req) => {
           text,
           model_id: 'eleven_multilingual_v2',
           voice_settings: {
-            stability: 0.65,
-            similarity_boost: 0.80,
-            style: 0.15,
+            stability: 0.35,
+            similarity_boost: 0.85,
+            style: 0.35,
             use_speaker_boost: true,
             speed: selectedSpeed,
           },
@@ -42,7 +46,6 @@ serve(async (req) => {
     if (!response.ok) {
       const errText = await response.text();
       console.error('ElevenLabs TTS error:', response.status, errText);
-      // Return 200 with fallback flag so client uses browser speechSynthesis
       return new Response(JSON.stringify({ fallback: true, reason: `ElevenLabs error: ${response.status}` }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
