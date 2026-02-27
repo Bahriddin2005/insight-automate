@@ -1615,6 +1615,7 @@ ${chatMessages.map(m => {
     wakeWordDetectedRef.current = true;
     accumulatedTranscriptRef.current = '';
   };
+  speakGreetingRef.current = speakGreeting;
 
   const handleManualActivate = () => {
     if (state === 'sleeping') {
