@@ -645,8 +645,10 @@ export default function AidaAssistant() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
-  const [alwaysListening, setAlwaysListening] = useState(true); // Direct mode — no wake word needed
+  const [alwaysListening, setAlwaysListening] = useState(true);
   const [scribeConnected, setScribeConnected] = useState(false);
+  const stateRef = useRef<AidaState>('sleeping');
+  const alwaysListeningRef = useRef(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -658,6 +660,10 @@ export default function AidaAssistant() {
   const processQuestionRef = useRef<(q: string) => void>();
   const handleVoiceCommandRef = useRef<(cmd: string) => boolean>();
   const speakGreetingRef = useRef<(text: string) => Promise<void>>();
+
+  // Keep refs in sync with state
+  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => { alwaysListeningRef.current = alwaysListening; }, [alwaysListening]);
   // Voice selection
   const [selectedVoice, setSelectedVoice] = useState('daniel');
   const [voiceSpeed, setVoiceSpeed] = useState(1.15);
@@ -977,12 +983,13 @@ export default function AidaAssistant() {
     modelId: 'scribe_v2_realtime',
     commitStrategy: 'vad' as any,
     onPartialTranscript: (data) => {
-      if (state === 'speaking' || state === 'thinking') return;
+      if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const partial = (accumulatedTranscriptRef.current + ' ' + data.text).trim();
       setTranscript(partial);
     },
     onCommittedTranscript: (data) => {
-      if (state === 'speaking' || state === 'thinking') return;
+      console.log('[Scribe] Committed:', data.text, '| State:', stateRef.current);
+      if (stateRef.current === 'speaking' || stateRef.current === 'thinking') return;
       const text = data.text.trim();
       if (!text) return;
 
@@ -1012,7 +1019,7 @@ export default function AidaAssistant() {
           return;
         }
         // In always-listening mode — accept speech without wake word
-        if (alwaysListening) {
+        if (alwaysListeningRef.current) {
           wakeWordDetectedRef.current = true;
           setState('listening');
         }
@@ -1046,38 +1053,50 @@ export default function AidaAssistant() {
     },
   });
 
-  // Connect Scribe on mount
-  const connectScribe = useCallback(async () => {
-    if (scribe.isConnected) return;
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('aida-stt-token');
-      if (fnError || !data?.token) {
-        console.error('STT token error:', fnError);
-        setError('Ovoz tanish xizmati ulanmadi. Qayta urinib ko\'ring.');
-        return;
-      }
-      await scribe.connect({
-        token: data.token,
-        microphone: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      setScribeConnected(true);
-      setState(alwaysListening ? 'listening' : 'sleeping');
-      if (alwaysListening) wakeWordDetectedRef.current = true;
-      toast.success('🎙️ ElevenLabs Scribe ulandi — aniq ovoz tanish tayyor!');
-    } catch (e) {
-      console.error('Scribe connect error:', e);
-      setError('Mikrofon ulanmadi. Ruxsat berilganligini tekshiring.');
-    }
-  }, [scribe, alwaysListening]);
+  // Keep a ref to scribe so we can use it without stale closures
+  const scribeRef = useRef(scribe);
+  scribeRef.current = scribe;
 
+  // Connect Scribe on mount
   useEffect(() => {
-    connectScribe();
+    let cancelled = false;
+    const doConnect = async () => {
+      const s = scribeRef.current;
+      if (s.isConnected) return;
+      try {
+        console.log('[Scribe] Requesting STT token...');
+        const { data, error: fnError } = await supabase.functions.invoke('aida-stt-token');
+        if (cancelled) return;
+        if (fnError || !data?.token) {
+          console.error('[Scribe] STT token error:', fnError, data);
+          setError('Ovoz tanish xizmati ulanmadi. Qayta urinib ko\'ring.');
+          return;
+        }
+        console.log('[Scribe] Token received, connecting...');
+        await s.connect({
+          token: data.token,
+          microphone: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        if (cancelled) return;
+        console.log('[Scribe] Connected successfully!');
+        setScribeConnected(true);
+        setState(alwaysListeningRef.current ? 'listening' : 'sleeping');
+        if (alwaysListeningRef.current) wakeWordDetectedRef.current = true;
+        toast.success('🎙️ ElevenLabs Scribe ulandi — aniq ovoz tanish tayyor!');
+      } catch (e) {
+        if (cancelled) return;
+        console.error('[Scribe] Connect error:', e);
+        setError('Mikrofon ulanmadi. Ruxsat berilganligini tekshiring.');
+      }
+    };
+    doConnect();
     return () => {
-      if (scribe.isConnected) scribe.disconnect();
+      cancelled = true;
+      try { scribeRef.current.disconnect(); } catch {}
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
@@ -1622,7 +1641,7 @@ ${chatMessages.map(m => {
     if (state === 'sleeping') {
       wakeWordDetectedRef.current = true;
       accumulatedTranscriptRef.current = '';
-      if (!scribe.isConnected) connectScribe();
+      // Scribe reconnects automatically if needed
       speakGreeting('Salom, men shu yerdaman. Nima qilamiz?');
     } else if (state === 'speaking' && audioRef.current) {
       audioRef.current.pause();
