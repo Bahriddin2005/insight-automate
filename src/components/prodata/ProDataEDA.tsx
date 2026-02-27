@@ -17,6 +17,28 @@ interface Props {
 }
 
 export default function ProDataEDA({ data, columns, fileName }: Props) {
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const exportPDF = async () => {
+    if (!reportRef.current) return;
+    toast.info('PDF tayyorlanmoqda...');
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(reportRef.current, { scale: 2, backgroundColor: '#0d0f14' });
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Create a simple PDF-like download using the image
+      const link = document.createElement('a');
+      link.download = `EDA_Report_${fileName.replace(/\.[^.]+$/, '')}.png`;
+      link.href = imgData;
+      link.click();
+      toast.success('EDA hisoboti yuklandi!');
+    } catch (e) {
+      console.error('PDF export error:', e);
+      toast.error('Eksport xatoligi');
+    }
+  };
+
   const stats = useMemo(() => {
     if (!data || data.length === 0) return null;
 
