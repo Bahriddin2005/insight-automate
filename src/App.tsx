@@ -22,6 +22,7 @@ import DashboardStudio from "./pages/DashboardStudio";
 import DataScienceRoadmap from "./pages/DataScienceRoadmap";
 import ProDataLab from "./pages/ProDataLab";
 import TableauDashboards from "./pages/TableauDashboards";
+import BusinessAnalytics from "./pages/BusinessAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/roadmap" element={<DataScienceRoadmap />} />
               <Route path="/prodata" element={<ProDataLab />} />
               <Route path="/tableau" element={<TableauDashboards />} />
+              <Route path="/analytics" element={<BusinessAnalytics />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
