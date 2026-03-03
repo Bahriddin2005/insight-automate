@@ -58,6 +58,8 @@ export default function TableauViz({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
+  const isPublicViz = vizUrl.includes('public.tableau.com');
+
   // Load Tableau Embedding API v3 script
   useEffect(() => {
     const scriptId = 'tableau-embedding-api';
@@ -93,19 +95,20 @@ export default function TableauViz({
   }, [userFilters]);
 
   useEffect(() => {
-    fetchToken();
-  }, [fetchToken]);
+    if (!isPublicViz) fetchToken();
+  }, [fetchToken, isPublicViz]);
 
   // Render viz when token and script are ready
   useEffect(() => {
-    if (!token || !scriptLoaded || !containerRef.current) return;
+    if (!isPublicViz && !token) return;
+    if (!scriptLoaded || !containerRef.current) return;
 
     // Clear previous
     containerRef.current.innerHTML = '';
 
     const viz = document.createElement('tableau-viz');
     viz.setAttribute('src', vizUrl);
-    viz.setAttribute('token', token);
+    if (token) viz.setAttribute('token', token);
     viz.setAttribute('toolbar', toolbar);
     if (device !== 'default') viz.setAttribute('device', device);
     viz.style.width = '100%';
@@ -146,7 +149,7 @@ export default function TableauViz({
     return () => {
       if (containerRef.current) containerRef.current.innerHTML = '';
     };
-  }, [token, scriptLoaded, vizUrl, toolbar, device, height]);
+  }, [token, isPublicViz, scriptLoaded, vizUrl, toolbar, device, height]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current?.parentElement) return;
