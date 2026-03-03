@@ -149,7 +149,7 @@ export default function TableauViz({
     return () => {
       if (containerRef.current) containerRef.current.innerHTML = '';
     };
-  }, [token, scriptLoaded, vizUrl, toolbar, device, height]);
+  }, [token, isPublicViz, scriptLoaded, vizUrl, toolbar, device, height]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current?.parentElement) return;
