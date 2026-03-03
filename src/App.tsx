@@ -51,6 +51,7 @@ const App = () => (
               <Route path="/roadmap" element={<DataScienceRoadmap />} />
               <Route path="/prodata" element={<ProDataLab />} />
               <Route path="/tableau" element={<TableauDashboards />} />
+              <Route path="/analytics" element={<BusinessAnalytics />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
