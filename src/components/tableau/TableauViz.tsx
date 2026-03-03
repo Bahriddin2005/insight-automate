@@ -95,8 +95,8 @@ export default function TableauViz({
   }, [userFilters]);
 
   useEffect(() => {
-    fetchToken();
-  }, [fetchToken]);
+    if (!isPublicViz) fetchToken();
+  }, [fetchToken, isPublicViz]);
 
   // Render viz when token and script are ready
   useEffect(() => {
