@@ -58,6 +58,8 @@ export default function TableauViz({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
+  const isPublicViz = vizUrl.includes('public.tableau.com');
+
   // Load Tableau Embedding API v3 script
   useEffect(() => {
     const scriptId = 'tableau-embedding-api';
