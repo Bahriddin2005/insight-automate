@@ -100,7 +100,8 @@ export default function TableauViz({
 
   // Render viz when token and script are ready
   useEffect(() => {
-    if (!token || !scriptLoaded || !containerRef.current) return;
+    if (!isPublicViz && !token) return;
+    if (!scriptLoaded || !containerRef.current) return;
 
     // Clear previous
     containerRef.current.innerHTML = '';
