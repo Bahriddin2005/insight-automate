@@ -108,7 +108,7 @@ export default function TableauViz({
 
     const viz = document.createElement('tableau-viz');
     viz.setAttribute('src', vizUrl);
-    viz.setAttribute('token', token);
+    if (token) viz.setAttribute('token', token);
     viz.setAttribute('toolbar', toolbar);
     if (device !== 'default') viz.setAttribute('device', device);
     viz.style.width = '100%';
