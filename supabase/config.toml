@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.ml-train]
 verify_jwt = false
+
+[functions.churn-recommendations]
+verify_jwt = false
