@@ -607,36 +607,183 @@ export default function BusinessAnalytics() {
 
               {/* ═══ AI RECOMMENDATIONS TAB ═══ */}
               <TabsContent value="ai" className="space-y-4 mt-4">
-                <Card className="p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-sm flex items-center gap-2">
-                      <Brain className="w-5 h-5 text-primary" />
-                      AI Retention Strategiyasi
-                    </h3>
-                    <Button onClick={getAiRecommendations} disabled={aiLoading} size="sm">
-                      {aiLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                <Card className="p-5 overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
+                        <Brain className="w-5 h-5 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-sm">AI Retention Strategiyasi</h3>
+                        <p className="text-[10px] text-muted-foreground">Har bir o'quvchi uchun shaxsiy tavsiyalar</p>
+                      </div>
+                    </div>
+                    <Button onClick={getAiRecommendations} disabled={aiLoading} size="sm" className="gap-1.5">
+                      {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       {aiLoading ? 'Tahlil qilmoqda...' : 'AI Tavsiya olish'}
                     </Button>
                   </div>
 
+                  {/* Empty state */}
                   {!aiRecommendation && !aiLoading && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Brain className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm">AI har bir o'quvchi uchun shaxsiy retention strategiyasi beradi</p>
-                      <p className="text-xs mt-1">Top 15 xavfli o'quvchi tahlil qilinadi</p>
+                    <div className="text-center py-12 text-muted-foreground">
+                      <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-muted/50 flex items-center justify-center">
+                        <Brain className="w-10 h-10 opacity-30" />
+                      </div>
+                      <p className="text-sm font-medium">Shaxsiy strategiya yaratish</p>
+                      <p className="text-xs mt-1.5 max-w-xs mx-auto">
+                        "AI Tavsiya olish" tugmasini bosing — sun'iy intellekt har bir o'quvchining to'lov tarixini tahlil qilib, ushlab qolish bo'yicha aniq harakatlar rejasini tayyorlaydi
+                      </p>
                     </div>
                   )}
 
+                  {/* Loading state */}
+                  {aiLoading && !aiRecommendation && (
+                    <div className="space-y-3">
+                      {[1,2,3].map(i => (
+                        <div key={i} className="rounded-xl bg-muted/30 p-4 animate-pulse">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-8 h-8 rounded-lg bg-muted/60" />
+                            <div className="flex-1 space-y-1.5">
+                              <div className="h-3 w-32 bg-muted/60 rounded" />
+                              <div className="h-2 w-20 bg-muted/40 rounded" />
+                            </div>
+                          </div>
+                          <div className="h-2 w-full bg-muted/40 rounded mb-1.5" />
+                          <div className="h-2 w-3/4 bg-muted/40 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Results — parsed into beautiful cards */}
                   <AnimatePresence>
-                    {aiRecommendation && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="prose prose-sm dark:prose-invert max-w-none bg-muted/30 rounded-lg p-4 max-h-[500px] overflow-y-auto"
-                      >
-                        <ReactMarkdown>{aiRecommendation}</ReactMarkdown>
-                      </motion.div>
-                    )}
+                    {aiRecommendation && (() => {
+                      // Parse AI response into student cards
+                      const cards = aiRecommendation
+                        .split(/(?=\*\*[A-Z])/)
+                        .filter(block => block.trim().length > 10)
+                        .map(block => {
+                          const nameMatch = block.match(/\*\*(.+?)\*\*\s*\((.+?)\)\s*(?:—|–|-)\s*Risk:\s*(\d+)%/);
+                          const adviceMatch = block.match(/📋\s*Tavsiya:\s*(.+?)(?=💡|$)/s);
+                          const reasonMatch = block.match(/💡\s*Sabab:\s*(.+?)$/s);
+                          if (!nameMatch) return null;
+                          const riskVal = parseInt(nameMatch[3]);
+                          const level = riskVal >= 70 ? 'critical' : riskVal >= 50 ? 'high' : riskVal >= 30 ? 'medium' : 'low';
+                          return {
+                            name: nameMatch[1].trim(),
+                            sinf: nameMatch[2].trim(),
+                            risk: riskVal,
+                            level,
+                            advice: adviceMatch?.[1]?.trim() || '',
+                            reason: reasonMatch?.[1]?.trim() || '',
+                          };
+                        })
+                        .filter(Boolean) as { name: string; sinf: string; risk: number; level: string; advice: string; reason: string }[];
+
+                      if (cards.length === 0) {
+                        // Fallback to markdown if parsing fails
+                        return (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="prose prose-sm dark:prose-invert max-w-none bg-muted/30 rounded-lg p-4 max-h-[500px] overflow-y-auto scrollbar-thin"
+                          >
+                            <ReactMarkdown>{aiRecommendation}</ReactMarkdown>
+                          </motion.div>
+                        );
+                      }
+
+                      const levelConfig: Record<string, { color: string; bg: string; border: string; icon: typeof AlertTriangle; label: string }> = {
+                        critical: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', icon: AlertTriangle, label: 'Juda yuqori xavf' },
+                        high: { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', icon: TrendingUp, label: 'Yuqori xavf' },
+                        medium: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', icon: Activity, label: "O'rta xavf" },
+                        low: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: Shield, label: 'Past xavf' },
+                      };
+
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="max-h-[600px] overflow-y-auto scrollbar-thin space-y-3 pr-1"
+                        >
+                          {/* Summary badge row */}
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {(['critical','high','medium','low'] as const).map(level => {
+                              const count = cards.filter(c => c.level === level).length;
+                              if (count === 0) return null;
+                              const cfg = levelConfig[level];
+                              return (
+                                <Badge key={level} variant="outline" className={`${cfg.bg} ${cfg.border} ${cfg.color} border text-[10px] px-2 py-0.5`}>
+                                  {cfg.label}: {count} ta
+                                </Badge>
+                              );
+                            })}
+                            <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-border text-muted-foreground ml-auto">
+                              Jami: {cards.length} o'quvchi
+                            </Badge>
+                          </div>
+
+                          {/* Student cards */}
+                          {cards.map((card, idx) => {
+                            const cfg = levelConfig[card.level] || levelConfig.medium;
+                            const Icon = cfg.icon;
+                            return (
+                              <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, x: -12 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                                className={`rounded-xl border ${cfg.border} ${cfg.bg} p-4 hover:shadow-md transition-shadow`}
+                              >
+                                {/* Card header */}
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`w-8 h-8 rounded-lg ${cfg.bg} border ${cfg.border} flex items-center justify-center`}>
+                                      <Icon className={`w-4 h-4 ${cfg.color}`} />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-semibold leading-tight">{card.name}</p>
+                                      <p className="text-[10px] text-muted-foreground">{card.sinf}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className={`text-base font-bold font-mono ${cfg.color}`}>{card.risk}%</div>
+                                    <div className="w-16 h-1.5 rounded-full bg-muted/40 mt-1 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full transition-all ${
+                                          card.level === 'critical' ? 'bg-red-500' :
+                                          card.level === 'high' ? 'bg-orange-500' :
+                                          card.level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'
+                                        }`}
+                                        style={{ width: `${card.risk}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Advice */}
+                                {card.advice && (
+                                  <div className="flex gap-2 mb-2">
+                                    <span className="text-sm mt-0.5">📋</span>
+                                    <p className="text-xs leading-relaxed">{card.advice}</p>
+                                  </div>
+                                )}
+
+                                {/* Reason */}
+                                {card.reason && (
+                                  <div className="flex gap-2">
+                                    <span className="text-sm mt-0.5">💡</span>
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed">{card.reason}</p>
+                                  </div>
+                                )}
+                              </motion.div>
+                            );
+                          })}
+                        </motion.div>
+                      );
+                    })()}
                   </AnimatePresence>
                 </Card>
               </TabsContent>
