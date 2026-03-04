@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.churn-recommendations]
 verify_jwt = false
+
+[functions.weekly-churn-snapshot]
+verify_jwt = false

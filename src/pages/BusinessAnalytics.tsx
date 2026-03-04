@@ -650,9 +650,15 @@ export default function BusinessAnalytics() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}>
               <Card className="p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-sm flex items-center gap-2">
-                    <History className="w-5 h-5 text-primary" /> Churn Risk Monitoring
-                  </h3>
+                  <div>
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <History className="w-5 h-5 text-primary" /> Churn Risk Monitoring
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      Haftalik avtomatik snapshot: Har dushanba 08:00
+                    </p>
+                  </div>
                   <Button variant="ghost" size="sm" onClick={() => setShowMonitor(false)}>Yopish</Button>
                 </div>
 
@@ -662,6 +668,37 @@ export default function BusinessAnalytics() {
                   </p>
                 ) : (
                   <div className="space-y-4">
+                    {/* Week-over-week KPIs */}
+                    {snapshots.length >= 2 && (() => {
+                      const latest = snapshots[snapshots.length - 1];
+                      const prev = snapshots[snapshots.length - 2];
+                      const riskDelta = latest.avg_risk - prev.avg_risk;
+                      const critDelta = latest.critical_count - prev.critical_count;
+                      return (
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="text-center p-3 rounded-lg bg-muted/30">
+                            <p className="text-[10px] text-muted-foreground">O'rtacha risk</p>
+                            <p className="text-lg font-bold">{latest.avg_risk}%</p>
+                            <p className={`text-[10px] font-medium ${riskDelta > 0 ? 'text-destructive' : riskDelta < 0 ? 'text-green-500' : 'text-muted-foreground'}`}>
+                              {riskDelta > 0 ? '↑' : riskDelta < 0 ? '↓' : '→'} {Math.abs(riskDelta)}% vs oldingi hafta
+                            </p>
+                          </div>
+                          <div className="text-center p-3 rounded-lg bg-muted/30">
+                            <p className="text-[10px] text-muted-foreground">Critical</p>
+                            <p className="text-lg font-bold text-destructive">{latest.critical_count}</p>
+                            <p className={`text-[10px] font-medium ${critDelta > 0 ? 'text-destructive' : critDelta < 0 ? 'text-green-500' : 'text-muted-foreground'}`}>
+                              {critDelta > 0 ? `+${critDelta}` : critDelta < 0 ? critDelta : '0'} vs oldingi
+                            </p>
+                          </div>
+                          <div className="text-center p-3 rounded-lg bg-muted/30">
+                            <p className="text-[10px] text-muted-foreground">Snapshotlar</p>
+                            <p className="text-lg font-bold">{snapshots.length}</p>
+                            <p className="text-[10px] text-muted-foreground">{snapshots[0].snapshot_date} dan beri</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart data={snapshots}>
                         <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
@@ -669,9 +706,10 @@ export default function BusinessAnalytics() {
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Line type="monotone" dataKey="avg_risk" name="O'rtacha risk %" stroke="hsl(var(--primary))" strokeWidth={2} />
-                        <Line type="monotone" dataKey="critical_count" name="Critical" stroke="#ef4444" strokeWidth={2} />
-                        <Line type="monotone" dataKey="high_count" name="High" stroke="#f97316" strokeWidth={2} />
+                        <Line type="monotone" dataKey="avg_risk" name="O'rtacha risk %" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="critical_count" name="Critical" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="high_count" name="High" stroke="#f97316" strokeWidth={2} dot={{ r: 4 }} />
+                        <Line type="monotone" dataKey="total_students" name="Jami" stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="5 5" />
                       </LineChart>
                     </ResponsiveContainer>
 
@@ -682,20 +720,32 @@ export default function BusinessAnalytics() {
                             <th className="p-2">Sana</th>
                             <th className="p-2">O'quvchilar</th>
                             <th className="p-2">O'rtacha risk</th>
+                            <th className="p-2">Δ Risk</th>
                             <th className="p-2">Critical</th>
                             <th className="p-2">High</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {snapshots.map((s, i) => (
-                            <tr key={i} className="border-b last:border-0">
-                              <td className="p-2 text-xs">{s.snapshot_date}</td>
-                              <td className="p-2 text-xs">{s.total_students}</td>
-                              <td className="p-2 text-xs">{s.avg_risk}%</td>
-                              <td className="p-2"><Badge variant="destructive" className="text-[10px]">{s.critical_count}</Badge></td>
-                              <td className="p-2"><Badge variant="outline" className="text-[10px]">{s.high_count}</Badge></td>
-                            </tr>
-                          ))}
+                          {snapshots.map((s, i) => {
+                            const prev = i > 0 ? snapshots[i - 1] : null;
+                            const delta = prev ? s.avg_risk - prev.avg_risk : null;
+                            return (
+                              <tr key={i} className="border-b last:border-0">
+                                <td className="p-2 text-xs">{s.snapshot_date}</td>
+                                <td className="p-2 text-xs">{s.total_students}</td>
+                                <td className="p-2 text-xs">{s.avg_risk}%</td>
+                                <td className="p-2 text-xs">
+                                  {delta !== null ? (
+                                    <span className={delta > 0 ? 'text-destructive' : delta < 0 ? 'text-green-500' : ''}>
+                                      {delta > 0 ? '+' : ''}{delta}%
+                                    </span>
+                                  ) : '—'}
+                                </td>
+                                <td className="p-2"><Badge variant="destructive" className="text-[10px]">{s.critical_count}</Badge></td>
+                                <td className="p-2"><Badge variant="outline" className="text-[10px]">{s.high_count}</Badge></td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
