@@ -225,6 +225,63 @@ export type Database = {
         }
         Relationships: []
       }
+      churn_risk_scores: {
+        Row: {
+          ai_recommendation: string | null
+          avg_payment: number
+          created_at: string
+          file_name: string | null
+          id: string
+          last_payment_date: string | null
+          preferred_method: string | null
+          recency_days: number
+          risk_level: string
+          risk_score: number
+          sinf: string | null
+          snapshot_date: string
+          student_name: string
+          total_paid: number
+          tx_count: number
+          user_id: string
+        }
+        Insert: {
+          ai_recommendation?: string | null
+          avg_payment?: number
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          last_payment_date?: string | null
+          preferred_method?: string | null
+          recency_days?: number
+          risk_level?: string
+          risk_score?: number
+          sinf?: string | null
+          snapshot_date?: string
+          student_name: string
+          total_paid?: number
+          tx_count?: number
+          user_id: string
+        }
+        Update: {
+          ai_recommendation?: string | null
+          avg_payment?: number
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          last_payment_date?: string | null
+          preferred_method?: string | null
+          recency_days?: number
+          risk_level?: string
+          risk_score?: number
+          sinf?: string | null
+          snapshot_date?: string
+          student_name?: string
+          total_paid?: number
+          tx_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       dashboard_configs: {
         Row: {
           analysis_data: Json | null
