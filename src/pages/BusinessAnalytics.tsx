@@ -1,15 +1,20 @@
 import { useState, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, BarChart3, Users, AlertTriangle,
-  Upload, PieChart, TestTube, Shield, DollarSign, Target, Activity
+  Upload, PieChart, TestTube, Shield, DollarSign, Target, Activity,
+  Save, Brain, Loader2, History, Sparkles
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import PlatformLayout from '@/components/layout/PlatformLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { useAuth } from '@/lib/authContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import {
@@ -48,6 +53,14 @@ interface ChurnRisk {
   preferredMethod: string;
 }
 
+interface SavedSnapshot {
+  snapshot_date: string;
+  total_students: number;
+  avg_risk: number;
+  critical_count: number;
+  high_count: number;
+}
+
 // ─── Utils ─────────────────────────────────────
 const COLORS = [
   'hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))',
@@ -72,7 +85,6 @@ const welchTTest = (a: number[], b: number[]) => {
     (varA / a.length + varB / b.length) ** 2 /
     ((varA / a.length) ** 2 / (a.length - 1) + (varB / b.length) ** 2 / (b.length - 1))
   );
-  // Approximate p-value using normal distribution for large df
   const p = df > 30 ? 2 * (1 - normalCDF(Math.abs(t))) : null;
   return { meanA, meanB, diff: meanA - meanB, t, df, p, se, nA: a.length, nB: b.length };
 };
@@ -91,11 +103,18 @@ const normalCDF = (x: number) => {
 export default function BusinessAnalytics() {
   const [data, setData] = useState<PaymentRow[]>([]);
   const [fileName, setFileName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiRecommendation, setAiRecommendation] = useState('');
+  const [snapshots, setSnapshots] = useState<SavedSnapshot[]>([]);
+  const [showMonitor, setShowMonitor] = useState(false);
+  const { user } = useAuth();
 
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
+    setAiRecommendation('');
 
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (ext === 'csv') {
@@ -143,7 +162,6 @@ export default function BusinessAnalytics() {
     const totalRevenue = data.reduce((s, r) => s + r.amount, 0);
     const avgCheck = totalRevenue / data.length;
 
-    // By method
     const byMethod: Record<string, number[]> = {};
     data.forEach(r => {
       if (!byMethod[r.method]) byMethod[r.method] = [];
@@ -151,15 +169,13 @@ export default function BusinessAnalytics() {
     });
     const methodStats: SegmentStats[] = Object.entries(byMethod)
       .map(([name, amounts]) => ({
-        name,
-        count: amounts.length,
+        name, count: amounts.length,
         total: amounts.reduce((s, v) => s + v, 0),
         avg: amounts.reduce((s, v) => s + v, 0) / amounts.length,
         pct: (amounts.length / data.length) * 100,
       }))
       .sort((a, b) => b.total - a.total);
 
-    // By sinf
     const bySinf: Record<string, number[]> = {};
     data.forEach(r => {
       if (!bySinf[r.sinf]) bySinf[r.sinf] = [];
@@ -167,30 +183,21 @@ export default function BusinessAnalytics() {
     });
     const sinfStats: SegmentStats[] = Object.entries(bySinf)
       .map(([name, amounts]) => ({
-        name,
-        count: amounts.length,
+        name, count: amounts.length,
         total: amounts.reduce((s, v) => s + v, 0),
         avg: amounts.reduce((s, v) => s + v, 0) / amounts.length,
         pct: (amounts.length / data.length) * 100,
       }))
       .sort((a, b) => b.total - a.total);
 
-    // A/B Test: find two largest methods
     const sortedMethods = [...methodStats].sort((a, b) => b.count - a.count);
     const groupA = sortedMethods[0];
     const groupB = sortedMethods[1];
     let abTest = null;
     if (groupA && groupB) {
-      const amountsA = byMethod[groupA.name];
-      const amountsB = byMethod[groupB.name];
-      abTest = {
-        ...welchTTest(amountsA, amountsB),
-        nameA: groupA.name,
-        nameB: groupB.name,
-      };
+      abTest = { ...welchTTest(byMethod[groupA.name], byMethod[groupB.name]), nameA: groupA.name, nameB: groupB.name };
     }
 
-    // Churn risk by student
     const byStudent: Record<string, PaymentRow[]> = {};
     data.forEach(r => {
       if (!byStudent[r.student]) byStudent[r.student] = [];
@@ -205,34 +212,21 @@ export default function BusinessAnalytics() {
       const lastDate = dates.length ? new Date(Math.max(...dates.map(d => d.getTime()))) : now;
       const recencyDays = Math.round((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Method preference
       const methodCounts: Record<string, number> = {};
       payments.forEach(p => { methodCounts[p.method] = (methodCounts[p.method] || 0) + 1; });
       const preferredMethod = Object.entries(methodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
-      // Risk score (0-100): higher = more risky
       let riskScore = 0;
-      riskScore += Math.min(recencyDays * 1.5, 40); // recency: max 40
-      riskScore += payments.length === 1 ? 25 : payments.length === 2 ? 15 : 0; // frequency: max 25
-      riskScore += avgPayment < (totalRevenue / data.length * 0.5) ? 20 : 0; // low payer
-      riskScore += payments.some(p => p.amount < avgPayment * 0.5) ? 15 : 0; // partial payments
+      riskScore += Math.min(recencyDays * 1.5, 40);
+      riskScore += payments.length === 1 ? 25 : payments.length === 2 ? 15 : 0;
+      riskScore += avgPayment < (totalRevenue / data.length * 0.5) ? 20 : 0;
+      riskScore += payments.some(p => p.amount < avgPayment * 0.5) ? 15 : 0;
       riskScore = Math.min(Math.round(riskScore), 100);
 
       const riskLevel: ChurnRisk['riskLevel'] =
         riskScore >= 70 ? 'critical' : riskScore >= 50 ? 'high' : riskScore >= 30 ? 'medium' : 'low';
 
-      return {
-        student,
-        sinf: payments[0]?.sinf || '',
-        totalPaid,
-        txCount: payments.length,
-        avgPayment,
-        lastPayment: lastDate.toISOString().split('T')[0],
-        recencyDays,
-        riskScore,
-        riskLevel,
-        preferredMethod,
-      };
+      return { student, sinf: payments[0]?.sinf || '', totalPaid, txCount: payments.length, avgPayment, lastPayment: lastDate.toISOString().split('T')[0], recencyDays, riskScore, riskLevel, preferredMethod };
     }).sort((a, b) => b.riskScore - a.riskScore);
 
     const riskDistribution = [
@@ -245,6 +239,128 @@ export default function BusinessAnalytics() {
     return { totalRevenue, avgCheck, methodStats, sinfStats, abTest, churnRisks, riskDistribution, txCount: data.length };
   }, [data]);
 
+  // ─── Save to DB ──────────────────────────────
+  const handleSave = async () => {
+    if (!user || !analytics) { toast.error('Avval tizimga kiring'); return; }
+    setSaving(true);
+    try {
+      const rows = analytics.churnRisks.map(r => ({
+        user_id: user.id,
+        student_name: r.student,
+        sinf: r.sinf,
+        total_paid: r.totalPaid,
+        tx_count: r.txCount,
+        avg_payment: r.avgPayment,
+        last_payment_date: r.lastPayment,
+        recency_days: r.recencyDays,
+        risk_score: r.riskScore,
+        risk_level: r.riskLevel,
+        preferred_method: r.preferredMethod,
+        file_name: fileName,
+        snapshot_date: new Date().toISOString().split('T')[0],
+      }));
+
+      const { error } = await supabase.from('churn_risk_scores' as any).insert(rows as any);
+      if (error) throw error;
+      toast.success(`${rows.length} ta o'quvchi natijasi saqlandi`);
+    } catch (e: any) {
+      toast.error(e.message || 'Xatolik yuz berdi');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Load Monitoring Data ────────────────────
+  const loadSnapshots = async () => {
+    if (!user) return;
+    try {
+      const { data: scores } = await supabase
+        .from('churn_risk_scores' as any)
+        .select('snapshot_date, risk_score, risk_level')
+        .eq('user_id', user.id)
+        .order('snapshot_date', { ascending: true }) as any;
+
+      if (!scores?.length) { setSnapshots([]); return; }
+
+      const byDate: Record<string, any[]> = {};
+      scores.forEach((s: any) => {
+        if (!byDate[s.snapshot_date]) byDate[s.snapshot_date] = [];
+        byDate[s.snapshot_date].push(s);
+      });
+
+      const snaps: SavedSnapshot[] = Object.entries(byDate).map(([date, items]) => ({
+        snapshot_date: date,
+        total_students: items.length,
+        avg_risk: Math.round(items.reduce((s: number, i: any) => s + i.risk_score, 0) / items.length),
+        critical_count: items.filter((i: any) => i.risk_level === 'critical').length,
+        high_count: items.filter((i: any) => i.risk_level === 'high').length,
+      }));
+
+      setSnapshots(snaps);
+    } catch { /* ignore */ }
+  };
+
+  // ─── AI Recommendations (streaming) ──────────
+  const getAiRecommendations = async () => {
+    if (!analytics) return;
+    setAiLoading(true);
+    setAiRecommendation('');
+
+    const topStudents = analytics.churnRisks.slice(0, 15);
+
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/churn-recommendations`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ students: topStudents }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `Xatolik: ${resp.status}`);
+      }
+
+      const reader = resp.body?.getReader();
+      if (!reader) throw new Error('Stream not available');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIdx: number;
+        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, newlineIdx);
+          buffer = buffer.slice(newlineIdx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              fullText += content;
+              setAiRecommendation(fullText);
+            }
+          } catch { /* partial */ }
+        }
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'AI xatolik');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <PlatformLayout>
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
@@ -255,7 +371,7 @@ export default function BusinessAnalytics() {
             Business Analytics
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Revenue Breakdown · A/B Test · Churn Risk Analysis
+            Revenue Breakdown · A/B Test · Churn Risk · AI Tavsiyalar · Monitoring
           </p>
         </motion.div>
 
@@ -273,40 +389,28 @@ export default function BusinessAnalytics() {
               </Button>
               <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
             </label>
+
+            {/* Monitoring link */}
+            {user && (
+              <div className="mt-6">
+                <Button variant="outline" size="sm" onClick={() => { setShowMonitor(true); loadSnapshots(); }}>
+                  <History className="w-4 h-4 mr-1" /> Monitoring tarixini ko'rish
+                </Button>
+              </div>
+            )}
           </Card>
         ) : (
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <KPICard
-                icon={<DollarSign className="w-5 h-5" />}
-                label="Jami kirim"
-                value={fmt(analytics!.totalRevenue) + " so'm"}
-                sub={`${analytics!.txCount} ta tranzaksiya`}
-              />
-              <KPICard
-                icon={<Target className="w-5 h-5" />}
-                label="O'rtacha chek"
-                value={fmt(analytics!.avgCheck) + " so'm"}
-                sub={`${analytics!.methodStats.length} ta usul`}
-              />
-              <KPICard
-                icon={<Users className="w-5 h-5" />}
-                label="Unique o'quvchilar"
-                value={String(analytics!.churnRisks.length)}
-                sub={`${analytics!.sinfStats.length} ta sinf`}
-              />
-              <KPICard
-                icon={<AlertTriangle className="w-5 h-5" />}
-                label="Churn risk (yuqori)"
-                value={String(analytics!.churnRisks.filter(r => r.riskLevel === 'high' || r.riskLevel === 'critical').length)}
-                sub="o'quvchi xavf ostida"
-                alert
-              />
+              <KPICard icon={<DollarSign className="w-5 h-5" />} label="Jami kirim" value={fmt(analytics!.totalRevenue) + " so'm"} sub={`${analytics!.txCount} ta tranzaksiya`} />
+              <KPICard icon={<Target className="w-5 h-5" />} label="O'rtacha chek" value={fmt(analytics!.avgCheck) + " so'm"} sub={`${analytics!.methodStats.length} ta usul`} />
+              <KPICard icon={<Users className="w-5 h-5" />} label="Unique o'quvchilar" value={String(analytics!.churnRisks.length)} sub={`${analytics!.sinfStats.length} ta sinf`} />
+              <KPICard icon={<AlertTriangle className="w-5 h-5" />} label="Churn risk (yuqori)" value={String(analytics!.churnRisks.filter(r => r.riskLevel === 'high' || r.riskLevel === 'critical').length)} sub="o'quvchi xavf ostida" alert />
             </div>
 
-            {/* File badge + re-upload */}
-            <div className="flex items-center gap-2">
+            {/* File badge + actions */}
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="secondary" className="text-xs">{fileName} — {data.length} qator</Badge>
               <label className="cursor-pointer">
                 <Button variant="outline" size="sm" asChild>
@@ -314,20 +418,31 @@ export default function BusinessAnalytics() {
                 </Button>
                 <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
               </label>
+              {user && (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
+                    {saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                    Bazaga saqlash
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => { setShowMonitor(true); loadSnapshots(); }}>
+                    <History className="w-3.5 h-3.5 mr-1" /> Monitoring
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Tabs */}
             <Tabs defaultValue="revenue">
-              <TabsList className="grid grid-cols-3 w-full max-w-md">
+              <TabsList className="grid grid-cols-4 w-full max-w-lg">
                 <TabsTrigger value="revenue"><PieChart className="w-4 h-4 mr-1" /> Revenue</TabsTrigger>
                 <TabsTrigger value="abtest"><TestTube className="w-4 h-4 mr-1" /> A/B Test</TabsTrigger>
-                <TabsTrigger value="churn"><Shield className="w-4 h-4 mr-1" /> Churn Risk</TabsTrigger>
+                <TabsTrigger value="churn"><Shield className="w-4 h-4 mr-1" /> Churn</TabsTrigger>
+                <TabsTrigger value="ai"><Sparkles className="w-4 h-4 mr-1" /> AI</TabsTrigger>
               </TabsList>
 
               {/* ═══ REVENUE TAB ═══ */}
               <TabsContent value="revenue" className="space-y-4 mt-4">
                 <div className="grid lg:grid-cols-2 gap-4">
-                  {/* By method */}
                   <Card className="p-4">
                     <h3 className="font-semibold text-sm mb-3 flex items-center gap-1.5">
                       <BarChart3 className="w-4 h-4 text-primary" /> To'lov usullari bo'yicha
@@ -360,7 +475,6 @@ export default function BusinessAnalytics() {
                     </div>
                   </Card>
 
-                  {/* By sinf */}
                   <Card className="p-4">
                     <h3 className="font-semibold text-sm mb-3 flex items-center gap-1.5">
                       <Users className="w-4 h-4 text-primary" /> Sinflar bo'yicha
@@ -385,20 +499,11 @@ export default function BusinessAnalytics() {
                     </div>
                   </Card>
 
-                  {/* Pie chart */}
                   <Card className="p-4 lg:col-span-2">
                     <h3 className="font-semibold text-sm mb-3">Revenue ulushi (usul bo'yicha)</h3>
                     <ResponsiveContainer width="100%" height={250}>
                       <RePie>
-                        <Pie
-                          data={analytics!.methodStats}
-                          dataKey="total"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={90}
-                          label={({ name, pct }) => `${name} ${pct.toFixed(0)}%`}
-                        >
+                        <Pie data={analytics!.methodStats} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, pct }) => `${name} ${pct.toFixed(0)}%`}>
                           {analytics!.methodStats.map((_, i) => (
                             <Cell key={i} fill={COLORS[i % COLORS.length]} />
                           ))}
@@ -424,21 +529,11 @@ export default function BusinessAnalytics() {
               {/* ═══ CHURN RISK TAB ═══ */}
               <TabsContent value="churn" className="space-y-4 mt-4">
                 <div className="grid lg:grid-cols-3 gap-4">
-                  {/* Risk distribution */}
                   <Card className="p-4">
                     <h3 className="font-semibold text-sm mb-3">Risk taqsimoti</h3>
                     <ResponsiveContainer width="100%" height={220}>
                       <RePie>
-                        <Pie
-                          data={analytics!.riskDistribution}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
-                          label={({ name, value }) => `${name}: ${value}`}
-                        >
+                        <Pie data={analytics!.riskDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
                           {analytics!.riskDistribution.map((entry, i) => (
                             <Cell key={i} fill={entry.fill} />
                           ))}
@@ -448,7 +543,6 @@ export default function BusinessAnalytics() {
                     </ResponsiveContainer>
                   </Card>
 
-                  {/* Risk scatter */}
                   <Card className="p-4 lg:col-span-2">
                     <h3 className="font-semibold text-sm mb-3">Risk Score vs To'lov summasi</h3>
                     <ResponsiveContainer width="100%" height={220}>
@@ -456,16 +550,10 @@ export default function BusinessAnalytics() {
                         <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
                         <XAxis dataKey="riskScore" name="Risk" unit="%" />
                         <YAxis dataKey="totalPaid" name="To'lov" tickFormatter={fmt} />
-                        <Tooltip formatter={(v: number, name: string) =>
-                          name === 'To\'lov' ? fmt(v) + " so'm" : v + '%'
-                        } />
+                        <Tooltip formatter={(v: number, name: string) => name === "To'lov" ? fmt(v) + " so'm" : v + '%'} />
                         <Scatter data={analytics!.churnRisks} fill="hsl(var(--primary))">
                           {analytics!.churnRisks.map((r, i) => (
-                            <Cell key={i} fill={
-                              r.riskLevel === 'critical' ? '#ef4444' :
-                              r.riskLevel === 'high' ? '#f97316' :
-                              r.riskLevel === 'medium' ? '#eab308' : '#22c55e'
-                            } />
+                            <Cell key={i} fill={r.riskLevel === 'critical' ? '#ef4444' : r.riskLevel === 'high' ? '#f97316' : r.riskLevel === 'medium' ? '#eab308' : '#22c55e'} />
                           ))}
                         </Scatter>
                       </ScatterChart>
@@ -473,7 +561,6 @@ export default function BusinessAnalytics() {
                   </Card>
                 </div>
 
-                {/* Risk table */}
                 <Card className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -496,11 +583,7 @@ export default function BusinessAnalytics() {
                           <td className="p-3 text-xs">{r.txCount}</td>
                           <td className="p-3"><Badge variant="secondary" className="text-[10px]">{r.preferredMethod}</Badge></td>
                           <td className="p-3">
-                            <Badge variant={
-                              r.riskLevel === 'critical' ? 'destructive' :
-                              r.riskLevel === 'high' ? 'destructive' :
-                              r.riskLevel === 'medium' ? 'outline' : 'secondary'
-                            } className="text-[10px]">
+                            <Badge variant={r.riskLevel === 'critical' || r.riskLevel === 'high' ? 'destructive' : r.riskLevel === 'medium' ? 'outline' : 'secondary'} className="text-[10px]">
                               {r.riskLevel}
                             </Badge>
                           </td>
@@ -520,23 +603,108 @@ export default function BusinessAnalytics() {
                     </p>
                   )}
                 </Card>
+              </TabsContent>
 
-                {/* Recommendations */}
-                <Card className="p-4 bg-muted/30">
-                  <h3 className="font-semibold text-sm mb-2 flex items-center gap-1.5">
-                    <Target className="w-4 h-4 text-primary" /> Tavsiyalar
-                  </h3>
-                  <ul className="space-y-1.5 text-xs text-muted-foreground">
-                    <li>• <strong>Critical/High risk</strong> o'quvchilarga shaxsiy qo'ng'iroq qiling</li>
-                    <li>• <strong>1 ta tranzaksiya</strong>li yangi o'quvchilarga onboarding taklif qiling</li>
-                    <li>• <strong>Kechikish tendensiyasi</strong>li o'quvchilarga SMS eslatma yuboring</li>
-                    <li>• To'liq tahlil uchun <strong>3-6 oylik tarixiy ma'lumot</strong> yuklang</li>
-                  </ul>
+              {/* ═══ AI RECOMMENDATIONS TAB ═══ */}
+              <TabsContent value="ai" className="space-y-4 mt-4">
+                <Card className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-primary" />
+                      AI Retention Strategiyasi
+                    </h3>
+                    <Button onClick={getAiRecommendations} disabled={aiLoading} size="sm">
+                      {aiLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                      {aiLoading ? 'Tahlil qilmoqda...' : 'AI Tavsiya olish'}
+                    </Button>
+                  </div>
+
+                  {!aiRecommendation && !aiLoading && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Brain className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">AI har bir o'quvchi uchun shaxsiy retention strategiyasi beradi</p>
+                      <p className="text-xs mt-1">Top 15 xavfli o'quvchi tahlil qilinadi</p>
+                    </div>
+                  )}
+
+                  <AnimatePresence>
+                    {aiRecommendation && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="prose prose-sm dark:prose-invert max-w-none bg-muted/30 rounded-lg p-4 max-h-[500px] overflow-y-auto"
+                      >
+                        <ReactMarkdown>{aiRecommendation}</ReactMarkdown>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </Card>
               </TabsContent>
             </Tabs>
           </>
         )}
+
+        {/* ═══ MONITORING PANEL ═══ */}
+        <AnimatePresence>
+          {showMonitor && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}>
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <History className="w-5 h-5 text-primary" /> Churn Risk Monitoring
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={() => setShowMonitor(false)}>Yopish</Button>
+                </div>
+
+                {snapshots.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground py-6">
+                    Hali saqlangan snapshot yo'q. "Bazaga saqlash" tugmasini bosing.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={snapshots}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                        <XAxis dataKey="snapshot_date" tick={{ fontSize: 10 }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="avg_risk" name="O'rtacha risk %" stroke="hsl(var(--primary))" strokeWidth={2} />
+                        <Line type="monotone" dataKey="critical_count" name="Critical" stroke="#ef4444" strokeWidth={2} />
+                        <Line type="monotone" dataKey="high_count" name="High" stroke="#f97316" strokeWidth={2} />
+                      </LineChart>
+                    </ResponsiveContainer>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-muted-foreground">
+                            <th className="p-2">Sana</th>
+                            <th className="p-2">O'quvchilar</th>
+                            <th className="p-2">O'rtacha risk</th>
+                            <th className="p-2">Critical</th>
+                            <th className="p-2">High</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {snapshots.map((s, i) => (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="p-2 text-xs">{s.snapshot_date}</td>
+                              <td className="p-2 text-xs">{s.total_students}</td>
+                              <td className="p-2 text-xs">{s.avg_risk}%</td>
+                              <td className="p-2"><Badge variant="destructive" className="text-[10px]">{s.critical_count}</Badge></td>
+                              <td className="p-2"><Badge variant="outline" className="text-[10px]">{s.high_count}</Badge></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </PlatformLayout>
   );
@@ -574,7 +742,6 @@ function ABTestPanel({ test }: { test: any }) {
           <TestTube className="w-5 h-5 text-primary" />
           Welch's t-Test: {test.nameA} vs {test.nameB}
         </h3>
-
         <div className="grid sm:grid-cols-2 gap-4 mb-6">
           <div className="text-center p-4 rounded-lg bg-muted/30">
             <p className="text-xs text-muted-foreground mb-1">Control: {test.nameA}</p>
@@ -587,7 +754,6 @@ function ABTestPanel({ test }: { test: any }) {
             <p className="text-xs text-muted-foreground">n = {test.nB}</p>
           </div>
         </div>
-
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
@@ -602,7 +768,6 @@ function ABTestPanel({ test }: { test: any }) {
         </ResponsiveContainer>
       </Card>
 
-      {/* Stats */}
       <Card className="p-4">
         <h4 className="font-semibold text-sm mb-3">Statistik natijalar</h4>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -628,7 +793,7 @@ function ABTestPanel({ test }: { test: any }) {
 
         <div className="mt-3 p-3 rounded-lg bg-muted/30 text-xs text-muted-foreground space-y-1">
           <p>⚠️ <strong>Ogohlantirish:</strong> Bu observational data — randomized experiment emas.</p>
-          <p>• Selection bias mavjud bo'lishi mumkin (to'lov usulini o'quvchi/ota-ona tanlaydi)</p>
+          <p>• Selection bias mavjud bo'lishi mumkin</p>
           <p>• Aniqroq natija uchun randomized A/B test o'tkazing (har guruhda n≥150)</p>
         </div>
       </Card>
